@@ -3,11 +3,11 @@ import { LambdaInterface } from "@aws-lambda-powertools/commons";
 export class FetchQuestionsHandler implements LambdaInterface {
   public async handler(event: any, _context: unknown): Promise<string> {
 
-    const response = await fetch(event.apiURL.value, {
+    const response = await fetch(event.paramters.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.userAgent.value,
+        "User-Agent": event.paramters.userAgent,
         Authorization: "Bearer " + event.oAuthToken.value,
       },
       body: JSON.stringify({
