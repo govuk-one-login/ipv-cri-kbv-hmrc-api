@@ -10,6 +10,24 @@ Globals:
     Timeout: 3
 
 Resources:
+  SubmitAnswerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/submit-answer
+      Handler: submit-answer-handler.lambdaHandler
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        Cors:
+          AllowOrigins: ["*"]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/submit-answer-handler.ts
+
   FetchQuestionsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -29,6 +47,16 @@ Resources:
           - src/fetch-questions-handler.ts
 
 Outputs:
+  SubmitAnswerFunctionURLEndpoint:
+    Description: FURLFunction function name
+    Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
+  SubmitAnswerFunction:
+    Description: "SubmitAnswer Lambda Function ARN"
+    Value: !GetAtt SubmitAnswerFunction.Arn
+  SubmitAnswerFunctionIamRole:
+    Description: "Implicit IAM Role created for SubmitAnswer function"
+    Value: !GetAtt SubmitAnswerFunctionRole.Arn
+
   FetchQuestionsFunctionURLEndpoint:
     Description: FURLFunction function name
     Value: !GetAtt FetchQuestionsFunctionUrl.FunctionUrl
