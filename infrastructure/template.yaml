@@ -144,16 +144,15 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/get-question.asl.json
-      Role: !GetAtt StateMachineRole.Arn
       Name: !Sub "${AWS::StackName}-GetQuestion"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !Ref GetQuestionsStateMachine
+            StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
       DefinitionSubstitutions:
         QuestionsTableName: !Ref "QuestionsTable"
-        GetQuestionsStateMachineArn: !GetAtt GetQuestionsStateMachine.Arn
+        GetIvqQuestionsStateMachineArn: !GetAtt GetIvqQuestionsStateMachine.Arn
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -166,7 +165,7 @@ Resources:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !Ref PostIVQAnswersStateMachine
+            StateMachineName: !GetAtt PostIVQAnswersStateMachine.Name
       DefinitionSubstitutions:
         AnswersIVQStateMachine: !Ref "PostIVQAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
