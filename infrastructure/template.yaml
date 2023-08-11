@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: "Digital Identity IPV CRI KBV HMRC API"
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Architectures:
+      - arm64
+    Timeout: 3
+
+Resources:
+  SubmitAnswerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/submit-answer
+      Handler: submit-answer-handler.lambdaHandler
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        Cors:
+          AllowOrigins: ["*"]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/submit-answer-handler.ts
+
+  FetchQuestionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/fetch-questions
+      Handler: fetch-questions-handler.lambdaHandler
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        Cors:
+          AllowOrigins: ["*"]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/fetch-questions-handler.ts
+
+Outputs:
+  SubmitAnswerFunctionURLEndpoint:
+    Description: FURLFunction function name
+    Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
+  SubmitAnswerFunction:
+    Description: "SubmitAnswer Lambda Function ARN"
+    Value: !GetAtt SubmitAnswerFunction.Arn
+  SubmitAnswerFunctionIamRole:
+    Description: "Implicit IAM Role created for SubmitAnswer function"
+    Value: !GetAtt SubmitAnswerFunctionRole.Arn
+
+  FetchQuestionsFunctionURLEndpoint:
+    Description: FURLFunction function name
+    Value: !GetAtt FetchQuestionsFunctionUrl.FunctionUrl
+  FetchQuestionsFunction:
+    Description: "FetchQuestions Lambda Function ARN"
+    Value: !GetAtt FetchQuestionsFunction.Arn
+  FetchQuestionsFunctionIamRole:
+    Description: "Implicit IAM Role created for FetchQuestions function"
+    Value: !GetAtt FetchQuestionsFunctionRole.Arn
