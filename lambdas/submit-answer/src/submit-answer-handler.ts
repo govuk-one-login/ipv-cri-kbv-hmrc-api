@@ -3,6 +3,13 @@ import { LambdaInterface } from "@aws-lambda-powertools/commons";
 export class SubmitAnswerHandler implements LambdaInterface {
   public async handler(event: any, _context: unknown): Promise<string> {
 
+    const answers = event.questions.Items.map((question: any) => {
+      return {
+        "questionKey": question.questionKey.S,
+        "answer": question.answer.S
+      }
+    });
+
     const response = await fetch(event.parameters.url, {
       method: "POST",
       headers: {
@@ -12,16 +19,11 @@ export class SubmitAnswerHandler implements LambdaInterface {
       },
       body: JSON.stringify(
         {
-          "correlationId": event.correlationId,
+          "correlationId": event.questions.Items[0].correlationId.S,
           "selection": {
             "nino": event.nino
           },
-          "answers": [
-            {
-              "questionKey": event.questionKey,
-              "answer": event.answer
-            }
-          ]
+          "answers": answers
         }
       ),
     });
