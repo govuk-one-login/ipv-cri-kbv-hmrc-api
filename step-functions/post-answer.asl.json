@@ -74,7 +74,7 @@
       "Type": "Task",
       "Next": "Check Question Unanswered",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value AND questionKey = :questionKeyValue",
         "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
@@ -109,7 +109,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:updateItem",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "Key": {
           "sessionId": {
             "S.$": "$.sessionId"
@@ -135,7 +135,7 @@
       "Type": "Task",
       "Next": "All Questions Answered",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
