@@ -7,7 +7,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       headers: {
         "Content-Type": "application/json",
         "User-Agent": event.parameters.userAgent,
-        Authorization: "Bearer " + event.oAuthToken.value,
+        Authorization: "Bearer " + event.bearerToken.value,
       },
       body: JSON.stringify({
         nino: event.nino,
