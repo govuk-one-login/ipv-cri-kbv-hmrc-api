@@ -132,8 +132,9 @@ Resources:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: PostAnswersStateMachine
+            StateMachineName: !Ref PostAnswersStateMachine
       DefinitionSubstitutions:
+        AnswersIVQStateMachine: !Ref "PostAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
         GetQuestionsStateMachineArn: !GetAtt GetQuestionsStateMachine.Arn
 
