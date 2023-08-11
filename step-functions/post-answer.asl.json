@@ -165,7 +165,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution",
       "Parameters": {
-        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:execution:demoSubmitAnswers",
+        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:execution:kbv-hmrc-PostAnswers",
         "Input": {
           "sessionId.$": "$.sessionId",
           "nino.$": "$.nino"
