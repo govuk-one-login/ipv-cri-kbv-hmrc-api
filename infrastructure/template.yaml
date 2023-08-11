@@ -46,6 +46,55 @@ Resources:
         EntryPoints:
           - src/fetch-questions-handler.ts
 
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role to allow step function to perform actions
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
+        - arn:aws:iam::aws:policy/AmazonEventBridgeFullAccess
+
+  GetQuestionsStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../step-functions/get-questions.asl.json
+      Role: !GetAtt StateMachineRole.Arn
+      Name: !Sub "${AWS::StackName}-GetQuestions"
+
+  GetQuestionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../step-functions/get-question.asl.json
+      Role: !GetAtt StateMachineRole.Arn
+      Name: !Sub "${AWS::StackName}-GetQuestion"
+
+  PostAnswerStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../step-functions/post-answer.asl.json
+      Role: !GetAtt StateMachineRole.Arn
+      Name: !Sub "${AWS::StackName}-PostAnswer"
+
+  PostAnswersStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../step-functions/post-answers.asl.json
+      Role: !GetAtt StateMachineRole.Arn
+      Name: !Sub "${AWS::StackName}-PostAnswers"
+
 Outputs:
   SubmitAnswerFunctionURLEndpoint:
     Description: FURLFunction function name
