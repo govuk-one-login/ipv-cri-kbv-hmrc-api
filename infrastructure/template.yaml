@@ -186,7 +186,7 @@ Resources:
             ParameterName: !Ref UserAgent
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
-        
+
       Name: !Sub "${AWS::StackName}-PostIVQAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
