@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: "Digital Identity IPV CRI KBV HMRC API"
 
+Parameters:
+  BearerTokenName:
+    Type: String
+    Default: "none"
+
 Globals:
   Function:
     Runtime: nodejs18.x
@@ -107,12 +112,34 @@ Resources:
         - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
         - arn:aws:iam::aws:policy/AmazonEventBridgeFullAccess
 
-  GetQuestionsStateMachine:
+  GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/get-questions.asl.json
-      Role: !GetAtt StateMachineRole.Arn
-      Name: !Sub "${AWS::StackName}-GetQuestions"
+      DefinitionUri: ../step-functions/get-ivq-questions.asl.json
+      DefinitionSubstitutions:
+        QuestionsTableName: !Ref QuestionsTable
+        QuestionsUrl: !Ref QuestionsUrl
+        UserAgent: !Ref UserAgent
+        FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
+        BearerTokenName: !Ref BearerTokenName
+      Name: !Sub "${AWS::StackName}-GetIvqQuestions"
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FetchQuestionsFunction
+        - Statement:
+            Effect: Allow
+            Action:
+              - ssm:GetParameters
+              - ssm:GetParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/QuestionsUrl"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/UserAgent"
 
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine

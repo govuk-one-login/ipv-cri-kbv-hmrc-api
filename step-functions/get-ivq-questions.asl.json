@@ -1,8 +1,8 @@
 {
-  "Comment": "A description of my state machine",
-  "StartAt": "Check sessionId present",
+  "Comment": "Populates the table of questions from the HMRC IVQ API",
+  "StartAt": "Check session ID present",
   "States": {
-    "Check sessionId present": {
+    "Check session ID present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -13,9 +13,9 @@
           "Next": "Error Session ID missing"
         }
       ],
-      "Default": "Check nino present"
+      "Default": "Check NINO present"
     },
-    "Check nino present": {
+    "Check NINO present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -26,7 +26,7 @@
           "Next": "Error NINO missing"
         }
       ],
-      "Default": "Query questions table"
+      "Default": "Query questions table for session ID"
     },
     "Error NINO missing": {
       "Type": "Pass",
@@ -36,11 +36,11 @@
       "Type": "Pass",
       "End": true
     },
-    "Query questions table": {
+    "Query questions table for session ID": {
       "Type": "Task",
       "Next": "Check if questions already exist for session",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "ExpressionAttributeValues": {
           ":value": {
@@ -57,28 +57,28 @@
         {
           "Variable": "$.loadedQuestions.Count",
           "NumericEquals": 0,
-          "Next": "Get OAuth Token"
+          "Next": "Get Bearer Token"
         }
       ],
       "Default": "Questions already loaded - Do Nothing"
     },
-    "Get OAuth Token": {
+    "Get Bearer Token": {
       "Type": "Task",
       "Parameters": {
-        "SecretId": "demo_BearerToken"
+        "SecretId": "${BearerTokenName}"
       },
       "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
-      "Next": "Get HMRC Questions URL & User Agent",
+      "Next": "Get Questions URL and User Agent",
       "ResultSelector": {
         "value.$": "$.SecretString"
       },
-      "ResultPath": "$.oAuthToken"
+      "ResultPath": "$.bearerToken"
     },
-    "Get HMRC Questions URL & User Agent": {
+    "Get Questions URL and User Agent": {
       "Type": "Task",
-      "Next": "Lambda Invoke IVQPostQuestions",
+      "Next": "Invoke FetchQuestions Lambda",
       "Parameters": {
-        "Names": ["demo-hmrc-questions-url", "hmrc-user-agent"]
+        "Names": ["${QuestionsUrl}", "${UserAgent}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
       "ResultPath": "$.parameters",
@@ -87,12 +87,12 @@
         "userAgent.$": "$.Parameters[1].Value"
       }
     },
-    "Lambda Invoke IVQPostQuestions": {
+    "Invoke FetchQuestions Lambda": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:kbv-hmrc-FetchQuestionsFunction-mAzLfEdi8UyN:$LATEST"
+        "FunctionName": "${FetchQuestionsArn}"
       },
       "Retry": [
         {
@@ -107,28 +107,28 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Loop questions JSON array",
+      "Next": "Loop through questions",
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
-          "Next": "Error: IVQPostQuestions threw Exception"
+          "Next": "Error: FetchQuestions threw Exception"
         }
       ],
-      "ResultPath": "$.ivqQuestionsResponse"
+      "ResultPath": "$.fetchQuestionsResponse"
     },
-    "Loop questions JSON array": {
+    "Loop through questions": {
       "Type": "Map",
       "ItemProcessor": {
         "ProcessorConfig": {
           "Mode": "INLINE"
         },
-        "StartAt": "Store question into DynamoDB",
+        "StartAt": "Store question in DynamoDB",
         "States": {
-          "Store question into DynamoDB": {
+          "Store question in DynamoDB": {
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:putItem",
             "Parameters": {
-              "TableName": "demo-hmrc-questions-composite",
+              "TableName": "${QuestionsTableName}",
               "Item": {
                 "sessionId": {
                   "S.$": "$$.Execution.Input.sessionId"
@@ -152,23 +152,23 @@
         }
       },
       "Next": "Filter questions",
-      "ItemsPath": "$.ivqQuestionsResponse.Payload.questions",
+      "ItemsPath": "$.fetchQuestionsResponse.Payload.questions",
       "ResultPath": null,
       "ItemSelector": {
-        "correlationId.$": "$.ivqQuestionsResponse.Payload.correlationId",
+        "correlationId.$": "$.fetchQuestionsResponse.Payload.correlationId",
         "questionKey.$": "$$.Map.Item.Value.questionKey",
         "info.$": "$$.Map.Item.Value.info"
       }
     },
     "Filter questions": {
       "Type": "Pass",
-      "Next": "Has sufficient questions?"
+      "Next": "Are there sufficient questions?"
     },
-    "Error: IVQPostQuestions threw Exception": {
+    "Error: FetchQuestions threw Exception": {
       "Type": "Pass",
       "End": true
     },
-    "Has sufficient questions?": {
+    "Are there sufficient questions?": {
       "Type": "Choice",
       "Choices": [
         {
