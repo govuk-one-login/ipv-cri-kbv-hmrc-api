@@ -1,0 +1,91 @@
+{
+    "Comment": "A description of my state machine",
+    "StartAt": "Check sessionId present",
+    "States": {
+      "Check sessionId present": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            "Next": "Error: Missing sessionId"
+          }
+        ],
+        "Default": "Check nino present"
+      },
+      "Check nino present": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "$.nino",
+              "IsPresent": true
+            },
+            "Next": "Error: Missing nino"
+          }
+        ],
+        "Default": "Execute DemoPopulateQuestionsTable"
+      },
+      "Error: Missing nino": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Execute DemoPopulateQuestionsTable": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::states:startExecution.sync:2",
+        "Parameters": {
+          "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:stateMachine:DemoPopulateQuestionsTable",
+          "Input": {
+            "sessionId.$": "$.sessionId",
+            "nino.$": "$.nino"
+          }
+        },
+        "Next": "Get unanswered questions",
+        "ResultPath": null
+      },
+      "Get unanswered questions": {
+        "Type": "Task",
+        "Next": "Check if we have any unanswered questions",
+        "Parameters": {
+          "TableName": "demo-hmrc-questions-composite",
+          "KeyConditionExpression": "sessionId = :value",
+          "FilterExpression": "answered = :answeredValue",
+          "ExpressionAttributeValues": {
+            ":value": {
+              "S.$": "$.sessionId"
+            },
+            ":answeredValue": {
+              "S": "false"
+            }
+          }
+        },
+        "Resource": "arn:aws:states:::aws-sdk:dynamodb:query"
+      },
+      "Error: Missing sessionId": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Check if we have any unanswered questions": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.Count",
+            "NumericGreaterThan": 0,
+            "Next": "HTTP 200"
+          }
+        ],
+        "Default": "HTTP 204 NO CONTENT"
+      },
+      "HTTP 200": {
+        "Type": "Pass",
+        "End": true,
+        "OutputPath": "$.Items[0]"
+      },
+      "HTTP 204 NO CONTENT": {
+        "Type": "Pass",
+        "End": true
+      }
+    }
+  }

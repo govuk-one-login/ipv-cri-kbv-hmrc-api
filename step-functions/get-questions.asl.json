@@ -1,0 +1,202 @@
+{
+    "Comment": "A description of my state machine",
+    "StartAt": "Check sessionId present",
+    "States": {
+      "Check sessionId present": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            "Next": "Error Session ID missing"
+          }
+        ],
+        "Default": "Check nino present"
+      },
+      "Check nino present": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "$.nino",
+              "IsPresent": true
+            },
+            "Next": "Error NINO missing"
+          }
+        ],
+        "Default": "Query questions table"
+      },
+      "Error NINO missing": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Error Session ID missing": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Query questions table": {
+        "Type": "Task",
+        "Next": "Check if questions already exist for session",
+        "Parameters": {
+          "TableName": "demo-hmrc-questions-composite",
+          "KeyConditionExpression": "sessionId = :value",
+          "ExpressionAttributeValues": {
+            ":value": {
+              "S.$": "$.sessionId"
+            }
+          }
+        },
+        "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+        "ResultPath": "$.loadedQuestions"
+      },
+      "Check if questions already exist for session": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.loadedQuestions.Count",
+            "NumericEquals": 0,
+            "Next": "Get OAuth Token"
+          }
+        ],
+        "Default": "Questions already loaded - Do Nothing"
+      },
+      "Get OAuth Token": {
+        "Type": "Task",
+        "Parameters": {
+          "SecretId": "demo_BearerToken"
+        },
+        "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
+        "Next": "Get HMRC Questions URL & User Agent",
+        "ResultSelector": {
+          "value.$": "$.SecretString"
+        },
+        "ResultPath": "$.oAuthToken"
+      },
+      "Get HMRC Questions URL & User Agent": {
+        "Type": "Task",
+        "Next": "Lambda Invoke IVQPostQuestions",
+        "Parameters": {
+          "Names": [
+            "demo-hmrc-questions-url",
+            "hmrc-user-agent"
+          ]
+        },
+        "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
+        "ResultPath": "$.parameters",
+        "ResultSelector": {
+          "url.$": "$.Parameters[0].Value",
+          "userAgent.$": "$.Parameters[1].Value"
+        }
+      },
+      "Lambda Invoke IVQPostQuestions": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {
+          "Payload.$": "$",
+          "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:kbv-hmrc-FetchQuestionsFunction-mAzLfEdi8UyN:$LATEST"
+        },
+        "Retry": [
+          {
+            "ErrorEquals": [
+              "Lambda.ServiceException",
+              "Lambda.AWSLambdaException",
+              "Lambda.SdkClientException",
+              "Lambda.TooManyRequestsException"
+            ],
+            "IntervalSeconds": 2,
+            "MaxAttempts": 6,
+            "BackoffRate": 2
+          }
+        ],
+        "Next": "Loop questions JSON array",
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "States.ALL"
+            ],
+            "Next": "Error: IVQPostQuestions threw Exception"
+          }
+        ],
+        "ResultPath": "$.ivqQuestionsResponse"
+      },
+      "Loop questions JSON array": {
+        "Type": "Map",
+        "ItemProcessor": {
+          "ProcessorConfig": {
+            "Mode": "INLINE"
+          },
+          "StartAt": "Store question into DynamoDB",
+          "States": {
+            "Store question into DynamoDB": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:putItem",
+              "Parameters": {
+                "TableName": "demo-hmrc-questions-composite",
+                "Item": {
+                  "sessionId": {
+                    "S.$": "$$.Execution.Input.sessionId"
+                  },
+                  "correlationId": {
+                    "S.$": "$.correlationId"
+                  },
+                  "questionKey": {
+                    "S.$": "$.questionKey"
+                  },
+                  "info": {
+                    "M.$": "$.info"
+                  },
+                  "answered": {
+                    "S": "false"
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        "Next": "Filter questions",
+        "ItemsPath": "$.ivqQuestionsResponse.Payload.questions",
+        "ResultPath": null,
+        "ItemSelector": {
+          "correlationId.$": "$.ivqQuestionsResponse.Payload.correlationId",
+          "questionKey.$": "$$.Map.Item.Value.questionKey",
+          "info.$": "$$.Map.Item.Value.info"
+        }
+      },
+      "Filter questions": {
+        "Type": "Pass",
+        "Next": "Has sufficient questions?"
+      },
+      "Error: IVQPostQuestions threw Exception": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Has sufficient questions?": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            "Next": "Log: Insufficient questions"
+          }
+        ],
+        "Default": "Log: Question Metric"
+      },
+      "Log: Insufficient questions": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Log: Question Metric": {
+        "Type": "Pass",
+        "End": true
+      },
+      "Questions already loaded - Do Nothing": {
+        "Type": "Pass",
+        "End": true
+      }
+    }
+  }

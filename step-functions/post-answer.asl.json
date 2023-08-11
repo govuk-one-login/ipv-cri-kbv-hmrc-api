@@ -1,0 +1,189 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Answer Present",
+  "States": {
+    "Answer Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.answer",
+            "IsPresent": true
+          },
+          "Next": "Pass"
+        }
+      ],
+      "Default": "NINO Present"
+    },
+    "Pass": {
+      "Type": "Pass",
+      "End": true
+    },
+    "NINO Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.nino",
+            "IsPresent": true
+          },
+          "Next": "Pass (1)"
+        }
+      ],
+      "Default": "Session ID Present"
+    },
+    "Pass (1)": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Session ID Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.sessionId",
+            "IsPresent": true
+          },
+          "Next": "Pass (2)"
+        }
+      ],
+      "Default": "Question Key Present"
+    },
+    "Question Key Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.questionKey",
+            "IsPresent": true
+          },
+          "Next": "Pass (3)"
+        }
+      ],
+      "Default": "GET Question"
+    },
+    "Pass (3)": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Pass (2)": {
+      "Type": "Pass",
+      "End": true
+    },
+    "GET Question": {
+      "Type": "Task",
+      "Next": "Check Question Unanswered",
+      "Parameters": {
+        "TableName": "demo-hmrc-questions-composite",
+        "KeyConditionExpression": "sessionId = :value AND questionKey = :questionKeyValue",
+        "FilterExpression": "answered = :answeredValue",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          },
+          ":answeredValue": {
+            "S": "false"
+          },
+          ":questionKeyValue": {
+            "S.$": "$.questionKey"
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.question"
+    },
+    "Check Question Unanswered": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.question.Count",
+            "NumericGreaterThan": 0
+          },
+          "Next": "Pass (5)"
+        }
+      ],
+      "Default": "Update Question with Answer"
+    },
+    "Update Question with Answer": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "demo-hmrc-questions-composite",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          },
+          "questionKey": {
+            "S.$": "$.questionKey"
+          }
+        },
+        "UpdateExpression": "SET answer = :answer, answered = :answered",
+        "ExpressionAttributeValues": {
+          ":answer": {
+            "S.$": "$.answer"
+          },
+          ":answered": {
+            "S": "true"
+          }
+        }
+      },
+      "Next": "Get all Unanswered Questions",
+      "ResultPath": null
+    },
+    "Get all Unanswered Questions": {
+      "Type": "Task",
+      "Next": "All Questions Answered",
+      "Parameters": {
+        "TableName": "demo-hmrc-questions-composite",
+        "KeyConditionExpression": "sessionId = :value",
+        "FilterExpression": "answered = :answeredValue",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          },
+          ":answeredValue": {
+            "S": "false"
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.questions"
+    },
+    "All Questions Answered": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.questions.Count",
+          "NumericGreaterThan": 0,
+          "Next": "Pass (6)"
+        }
+      ],
+      "Default": "Execute Submit Answers"
+    },
+    "Execute Submit Answers": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:execution:demoSubmitAnswers:a9ee9074-0ab6-4837-9cac-956b50c5179b",
+        "Input": {
+          "sessionId.$": "$.sessionId",
+          "nino.$": "$.nino"
+        }
+      },
+      "Next": "Do Nothing"
+    },
+    "Pass (5)": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Do Nothing": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Pass (6)": {
+      "Type": "Pass",
+      "End": true
+    }
+  }
+}
