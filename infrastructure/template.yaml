@@ -135,6 +135,7 @@ Resources:
             StateMachineName: !Ref PostAnswersStateMachine
       DefinitionSubstitutions:
         AnswersIVQStateMachine: !Ref "PostAnswersStateMachine"
+        QuestionsTableName: !Ref "QuestionsTable"
 
   PostAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
