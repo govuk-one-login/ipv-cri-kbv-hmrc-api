@@ -146,6 +146,14 @@ Resources:
       DefinitionUri: ../step-functions/get-question.asl.json
       Role: !GetAtt StateMachineRole.Arn
       Name: !Sub "${AWS::StackName}-GetQuestion"
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !Ref GetQuestionsStateMachine
+      DefinitionSubstitutions:
+        QuestionsTableName: !Ref "QuestionsTable"
+        GetQuestionsStateMachineArn: !GetAtt GetQuestionsStateMachine.Arn
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
