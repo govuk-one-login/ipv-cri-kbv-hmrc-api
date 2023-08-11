@@ -132,17 +132,28 @@ Resources:
       Role: !GetAtt StateMachineRole.Arn
       Name: !Sub "${AWS::StackName}-PostAnswer"
 
-  PostAnswersStateMachine:
+  PostIVQAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/post-answers.asl.json
-      Role: !GetAtt StateMachineRole.Arn
-      Name: !Sub "${AWS::StackName}-PostAnswers"
+      DefinitionUri: ../step-functions/post-ivq-answers.asl.json
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????"
+        - SSMParameterWithSlashPrefixReadPolicy:
+            ParameterName: !Ref AnswersUrl
+        - SSMParameterWithSlashPrefixReadPolicy:
+            ParameterName: !Ref UserAgent
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SubmitAnswerFunction
+        
+      Name: !Sub "${AWS::StackName}-PostIVQAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
         AnswersUrlName: !Ref AnswersUrl
         UserAgentName: !Ref UserAgent
-        PostAnswersLambdaArn: !Ref SubmitAnswerFunction
+        PostIVQAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
         QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
