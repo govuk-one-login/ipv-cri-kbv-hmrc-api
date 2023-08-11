@@ -5,7 +5,6 @@ Description: "Digital Identity IPV CRI KBV HMRC API"
 Parameters:
   BearerTokenName:
     Type: String
-    Default: "none"
 
 Globals:
   Function:
@@ -167,17 +166,34 @@ Resources:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !Ref PostAnswersStateMachine
+            StateMachineName: !Ref PostIVQAnswersStateMachine
       DefinitionSubstitutions:
-        AnswersIVQStateMachine: !Ref "PostAnswersStateMachine"
+        AnswersIVQStateMachine: !Ref "PostIVQAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
 
-  PostAnswersStateMachine:
+  PostIVQAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/post-answers.asl.json
-      Role: !GetAtt StateMachineRole.Arn
-      Name: !Sub "${AWS::StackName}-PostAnswers"
+      DefinitionUri: ../step-functions/post-ivq-answers.asl.json
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????"
+        - SSMParameterWithSlashPrefixReadPolicy:
+            ParameterName: !Ref AnswersUrl
+        - SSMParameterWithSlashPrefixReadPolicy:
+            ParameterName: !Ref UserAgent
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SubmitAnswerFunction
+
+      Name: !Sub "${AWS::StackName}-PostIVQAnswers"
+      DefinitionSubstitutions:
+        BearerTokenName: !Ref BearerTokenName
+        AnswersUrlName: !Ref AnswersUrl
+        UserAgentName: !Ref UserAgent
+        PostIVQAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
+        QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
   SubmitAnswerFunctionURLEndpoint:
