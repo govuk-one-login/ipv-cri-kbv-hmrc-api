@@ -125,8 +125,11 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/post-answer.asl.json
-      Role: !GetAtt StateMachineRole.Arn
       Name: !Sub "${AWS::StackName}-PostAnswer"
+      Policies:
+        - DynamoDBReadPolicy
+        - DynamoDBWritePolicy
+        - StepFunctionsExecutionPolicy
 
   PostAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
