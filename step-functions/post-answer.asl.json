@@ -1,8 +1,8 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "Answer Present",
+  "StartAt": "Check answer is present",
   "States": {
-    "Answer Present": {
+    "Check answer is present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -10,16 +10,16 @@
             "Variable": "$.answer",
             "IsPresent": true
           },
-          "Next": "Pass"
+          "Next": "Error: No answer is present"
         }
       ],
-      "Default": "NINO Present"
+      "Default": "Check NINO is present"
     },
-    "Pass": {
+    "Error: No answer is present": {
       "Type": "Pass",
       "End": true
     },
-    "NINO Present": {
+    "Check NINO is present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -27,16 +27,16 @@
             "Variable": "$.nino",
             "IsPresent": true
           },
-          "Next": "Pass (1)"
+          "Next": "Error: No NINO is present"
         }
       ],
-      "Default": "Session ID Present"
+      "Default": "Check session ID is present"
     },
-    "Pass (1)": {
+    "Error: No NINO is present": {
       "Type": "Pass",
       "End": true
     },
-    "Session ID Present": {
+    "Check session ID is present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -44,12 +44,12 @@
             "Variable": "$.sessionId",
             "IsPresent": true
           },
-          "Next": "Pass (2)"
+          "Next": "Error: No session ID is present"
         }
       ],
-      "Default": "Question Key Present"
+      "Default": "Check question key is present"
     },
-    "Question Key Present": {
+    "Check question key is present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -57,22 +57,22 @@
             "Variable": "$.questionKey",
             "IsPresent": true
           },
-          "Next": "Pass (3)"
+          "Next": "Error: No question key is present"
         }
       ],
-      "Default": "GET Question"
+      "Default": "Query database for the current question"
     },
-    "Pass (3)": {
+    "Error: No question key is present": {
       "Type": "Pass",
       "End": true
     },
-    "Pass (2)": {
+    "Error: No session ID is present": {
       "Type": "Pass",
       "End": true
     },
-    "GET Question": {
+    "Query database for the current question": {
       "Type": "Task",
-      "Next": "Check Question Unanswered",
+      "Next": "Check the provided question is not answered",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value AND questionKey = :questionKeyValue",
@@ -92,7 +92,7 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.question"
     },
-    "Check Question Unanswered": {
+    "Check the provided question is not answered": {
       "Type": "Choice",
       "Choices": [
         {
@@ -100,12 +100,12 @@
             "Variable": "$.question.Count",
             "NumericGreaterThan": 0
           },
-          "Next": "Pass (5)"
+          "Next": "Error: The question has already been answered"
         }
       ],
-      "Default": "Update Question with Answer"
+      "Default": "Update database to store the answer"
     },
-    "Update Question with Answer": {
+    "Update database to store the answer": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:updateItem",
       "Parameters": {
@@ -128,12 +128,12 @@
           }
         }
       },
-      "Next": "Get all Unanswered Questions",
+      "Next": "Query database for all unanswered questions",
       "ResultPath": null
     },
-    "Get all Unanswered Questions": {
+    "Query database for all unanswered questions": {
       "Type": "Task",
-      "Next": "All Questions Answered",
+      "Next": "Check to see if there are any more unanswered questions",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
@@ -150,18 +150,18 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.questions"
     },
-    "All Questions Answered": {
+    "Check to see if there are any more unanswered questions": {
       "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.questions.Count",
           "NumericGreaterThan": 0,
-          "Next": "Pass (6)"
+          "Next": "HTTP 200 - question has been answered successfully"
         }
       ],
-      "Default": "Execute Submit Answers"
+      "Default": "Submit answers to HMRC"
     },
-    "Execute Submit Answers": {
+    "Submit answers to HMRC": {
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution",
       "Parameters": {
@@ -171,17 +171,13 @@
           "nino.$": "$.nino"
         }
       },
-      "Next": "Do Nothing"
+      "Next": "HTTP 200 - question has been answered successfully"
     },
-    "Pass (5)": {
+    "Error: The question has already been answered": {
       "Type": "Pass",
       "End": true
     },
-    "Do Nothing": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Pass (6)": {
+    "HTTP 200 - question has been answered successfully": {
       "Type": "Pass",
       "End": true
     }
