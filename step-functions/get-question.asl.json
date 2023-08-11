@@ -1,8 +1,8 @@
 {
-  "Comment": "A description of my state machine",
-  "StartAt": "Check sessionId present",
+  "Comment": "Return any unanswered question if available.",
+  "StartAt": "Check Session ID field present",
   "States": {
-    "Check sessionId present": {
+    "Check Session ID field present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -13,9 +13,9 @@
           "Next": "Error: Missing sessionId"
         }
       ],
-      "Default": "Check nino present"
+      "Default": "Check NINO field present"
     },
-    "Check nino present": {
+    "Check NINO field present": {
       "Type": "Choice",
       "Choices": [
         {
@@ -26,17 +26,17 @@
           "Next": "Error: Missing nino"
         }
       ],
-      "Default": "Execute DemoPopulateQuestionsTable"
+      "Default": "GET Questions from HMRC"
     },
     "Error: Missing nino": {
       "Type": "Pass",
       "End": true
     },
-    "Execute DemoPopulateQuestionsTable": {
+    "GET Questions from HMRC": {
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution.sync:2",
       "Parameters": {
-        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:stateMachine:kbv-hmrc-GetQuestions",
+        "StateMachineArn": "${GetQuestionsStateMachineArn}",
         "Input": {
           "sessionId.$": "$.sessionId",
           "nino.$": "$.nino"
@@ -49,7 +49,7 @@
       "Type": "Task",
       "Next": "Check if we have any unanswered questions",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
