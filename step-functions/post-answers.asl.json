@@ -1,110 +1,107 @@
 {
-    "Comment": "A description of my state machine",
-    "StartAt": "Get all Unanswered Questions",
-    "States": {
-      "Get all Unanswered Questions": {
-        "Type": "Task",
-        "Next": "All Questions Answered",
-        "Parameters": {
-          "TableName": "demo-hmrc-questions-composite",
-          "KeyConditionExpression": "sessionId = :value",
-          "FilterExpression": "answered = :answeredValue",
-          "ExpressionAttributeValues": {
-            ":value": {
-              "S.$": "$.sessionId"
-            },
-            ":answeredValue": {
-              "S": "false"
-            }
+  "Comment": "A description of my state machine",
+  "StartAt": "Get all Unanswered Questions",
+  "States": {
+    "Get all Unanswered Questions": {
+      "Type": "Task",
+      "Next": "All Questions Answered",
+      "Parameters": {
+        "TableName": "demo-hmrc-questions-composite",
+        "KeyConditionExpression": "sessionId = :value",
+        "FilterExpression": "answered = :answeredValue",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          },
+          ":answeredValue": {
+            "S": "false"
           }
-        },
-        "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-        "ResultPath": "$.questions"
+        }
       },
-      "All Questions Answered": {
-        "Type": "Choice",
-        "Choices": [
-          {
-            "Variable": "$.questions.Count",
-            "NumericGreaterThan": 0,
-            "Next": "Do Nothing"
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.questions"
+    },
+    "All Questions Answered": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.questions.Count",
+          "NumericGreaterThan": 0,
+          "Next": "Do Nothing"
+        }
+      ],
+      "Default": "Get all Answered Questions"
+    },
+    "Get all Answered Questions": {
+      "Type": "Task",
+      "Next": "GetSecretValue",
+      "Parameters": {
+        "TableName": "demo-hmrc-questions-composite",
+        "KeyConditionExpression": "sessionId = :value",
+        "FilterExpression": "answered = :answeredValue",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          },
+          ":answeredValue": {
+            "S": "true"
           }
-        ],
-        "Default": "Get all Answered Questions"
+        }
       },
-      "Get all Answered Questions": {
-        "Type": "Task",
-        "Next": "GetSecretValue",
-        "Parameters": {
-          "TableName": "demo-hmrc-questions-composite",
-          "KeyConditionExpression": "sessionId = :value",
-          "FilterExpression": "answered = :answeredValue",
-          "ExpressionAttributeValues": {
-            ":value": {
-              "S.$": "$.sessionId"
-            },
-            ":answeredValue": {
-              "S": "true"
-            }
-          }
-        },
-        "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-        "ResultPath": "$.questions"
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.questions"
+    },
+    "GetSecretValue": {
+      "Type": "Task",
+      "Next": "GetParameters",
+      "Parameters": {
+        "SecretId": "demo_BearerToken"
       },
-      "GetSecretValue": {
-        "Type": "Task",
-        "Next": "GetParameters",
-        "Parameters": {
-          "SecretId": "demo_BearerToken"
-        },
-        "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
-        "ResultSelector": {
-          "value.$": "$.SecretString"
-        },
-        "ResultPath": "$.oAuthToken"
+      "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
+      "ResultSelector": {
+        "value.$": "$.SecretString"
       },
-      "Do Nothing": {
-        "Type": "Pass",
-        "End": true
+      "ResultPath": "$.oAuthToken"
+    },
+    "Do Nothing": {
+      "Type": "Pass",
+      "End": true
+    },
+    "GetParameters": {
+      "Type": "Task",
+      "Parameters": {
+        "Names": ["demo-hmrc-answer-url", "hmrc-user-agent"]
       },
-      "GetParameters": {
-        "Type": "Task",
-        "Parameters": {
-          "Names": [
-            "demo-hmrc-answer-url",
-            "hmrc-user-agent"
-          ]
-        },
-        "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-        "Next": "Lambda Invoke",
-        "ResultSelector": {
-          "url.$": "$.Parameters[0].Value",
-          "userAgent.$": "$.Parameters[1].Value"
-        },
-        "ResultPath": "$.parameters"
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
+      "Next": "Lambda Invoke",
+      "ResultSelector": {
+        "url.$": "$.Parameters[0].Value",
+        "userAgent.$": "$.Parameters[1].Value"
       },
-      "Lambda Invoke": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::lambda:invoke",
-        "OutputPath": "$.Payload",
-        "Parameters": {
-          "Payload.$": "$",
-          "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:kbv-hmrc-SubmitAnswerFunction-wJFKVKzN11cl:$LATEST"
-        },
-        "Retry": [
-          {
-            "ErrorEquals": [
-              "Lambda.ServiceException",
-              "Lambda.AWSLambdaException",
-              "Lambda.SdkClientException",
-              "Lambda.TooManyRequestsException"
-            ],
-            "IntervalSeconds": 2,
-            "MaxAttempts": 6,
-            "BackoffRate": 2
-          }
-        ],
-        "End": true
-      }
+      "ResultPath": "$.parameters"
+    },
+    "Lambda Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:kbv-hmrc-SubmitAnswerFunction-wJFKVKzN11cl:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
     }
   }
+}

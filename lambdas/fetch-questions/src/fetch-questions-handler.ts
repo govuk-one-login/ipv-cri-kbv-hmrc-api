@@ -2,7 +2,6 @@ import { LambdaInterface } from "@aws-lambda-powertools/commons";
 
 export class FetchQuestionsHandler implements LambdaInterface {
   public async handler(event: any, _context: unknown): Promise<string> {
-
     const response = await fetch(event.parameters.url, {
       method: "POST",
       headers: {
@@ -12,7 +11,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       },
       body: JSON.stringify({
         nino: event.nino,
-}),
+      }),
     });
     return await response.json();
   }

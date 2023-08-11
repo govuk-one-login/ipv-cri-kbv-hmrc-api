@@ -66,4 +66,3 @@ Outputs:
   FetchQuestionsFunctionIamRole:
     Description: "Implicit IAM Role created for FetchQuestions function"
     Value: !GetAtt FetchQuestionsFunctionRole.Arn
-
