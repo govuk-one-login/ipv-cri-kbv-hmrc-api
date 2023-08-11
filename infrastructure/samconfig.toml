@@ -6,4 +6,6 @@ s3_prefix = "kbv-hmrc"
 region = "eu-west-2"
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-BearerTokenName = "demo_BearerToken"
+parameter_overrides = [
+    "BearerTokenName=HMRCBearerToken"
+]
