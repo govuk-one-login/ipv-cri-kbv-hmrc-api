@@ -1,12 +1,12 @@
 {
-  "Comment": "A description of my state machine",
+  "Comment": "Post all answers to HMRC",
   "StartAt": "Get all Unanswered Questions",
   "States": {
     "Get all Unanswered Questions": {
       "Type": "Task",
       "Next": "All Questions Answered",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
@@ -36,7 +36,7 @@
       "Type": "Task",
       "Next": "GetSecretValue",
       "Parameters": {
-        "TableName": "demo-hmrc-questions-composite",
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
@@ -55,7 +55,7 @@
       "Type": "Task",
       "Next": "GetParameters",
       "Parameters": {
-        "SecretId": "demo_BearerToken"
+        "SecretId": "${BearerTokenName}"
       },
       "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
       "ResultSelector": {
@@ -70,7 +70,7 @@
     "GetParameters": {
       "Type": "Task",
       "Parameters": {
-        "Names": ["demo-hmrc-answer-url", "hmrc-user-agent"]
+        "Names": ["${AnswersUrlName}", "${UserAgentName}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
       "Next": "Lambda Invoke",
@@ -86,7 +86,7 @@
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:kbv-hmrc-SubmitAnswerFunction-wJFKVKzN11cl:$LATEST"
+        "FunctionName": "${PostAnswersLambdaArn}"
       },
       "Retry": [
         {

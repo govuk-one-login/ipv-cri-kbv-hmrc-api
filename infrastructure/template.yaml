@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: "Digital Identity IPV CRI KBV HMRC API"
 
+Parameters:
+  BearerTokenName:
+    Type: String
+
 Globals:
   Function:
     Runtime: nodejs18.x
@@ -134,6 +138,12 @@ Resources:
       DefinitionUri: ../step-functions/post-answers.asl.json
       Role: !GetAtt StateMachineRole.Arn
       Name: !Sub "${AWS::StackName}-PostAnswers"
+      DefinitionSubstitutions:
+        BearerTokenName: !Ref BearerTokenName
+        AnswersUrlName: !Ref AnswersUrl
+        UserAgentName: !Ref UserAgent
+        PostAnswersLambdaArn: !Ref SubmitAnswerFunction
+        QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
   SubmitAnswerFunctionURLEndpoint:
