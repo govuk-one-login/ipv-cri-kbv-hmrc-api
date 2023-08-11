@@ -1,6 +1,6 @@
 version = 0.1
 [default.deploy.parameters]
-stack_name = "kbv-hmrc"
+stack_name = "connor-kbv-hmrc"
 resolve_s3 = true
 s3_prefix = "kbv-hmrc"
 region = "eu-west-2"
