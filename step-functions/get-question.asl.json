@@ -36,7 +36,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution.sync:2",
       "Parameters": {
-        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:stateMachine:sarah-kbv-hmrc-GetQuestions",
+        "StateMachineArn": "arn:aws:states:eu-west-2:404250751813:stateMachine:kbv-hmrc-GetQuestions",
         "Input": {
           "sessionId.$": "$.sessionId",
           "nino.$": "$.nino"
