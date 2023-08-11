@@ -127,9 +127,15 @@ Resources:
       DefinitionUri: ../step-functions/post-answer.asl.json
       Name: !Sub "${AWS::StackName}-PostAnswer"
       Policies:
-        - DynamoDBReadPolicy
-        - DynamoDBWritePolicy
-        - StepFunctionsExecutionPolicy
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: PostAnswersStateMachine
+      DefinitionSubstitutions:
+        QuestionsTableName: !Ref "QuestionsTable"
+        GetQuestionsStateMachineArn: !GetAtt GetQuestionsStateMachine.Arn
 
   PostAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
