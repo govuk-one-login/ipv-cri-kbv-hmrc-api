@@ -90,27 +90,6 @@ Resources:
         - AttributeName: "questionKey"
           KeyType: "RANGE"
 
-  StateMachineRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Description: Role to allow step function to perform actions
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - states.amazonaws.com
-            Action:
-              - "sts:AssumeRole"
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
-        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
-        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
-        - arn:aws:iam::aws:policy/AmazonEventBridgeFullAccess
-
   GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -150,6 +129,28 @@ Resources:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:StartExecution
+            Resource:
+              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetIvqQuestionsStateMachine}
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:DescribeExecution
+              - states:StopExecution
+            Resource:
+              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${GetIvqQuestionsStateMachine}:*
+        - Statement:
+            - Effect: Allow
+              Action:
+                - events:PutTargets
+                - events:PutRule
+                - events:DescribeRule
+              Resource:
+                - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
+
       DefinitionSubstitutions:
         QuestionsTableName: !Ref "QuestionsTable"
         GetIvqQuestionsStateMachineArn: !GetAtt GetIvqQuestionsStateMachine.Arn

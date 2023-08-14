@@ -34,7 +34,7 @@
     },
     "GET Questions from HMRC": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::states:startExecution",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
       "Parameters": {
         "StateMachineArn": "${GetIvqQuestionsStateMachineArn}",
         "Input": {
