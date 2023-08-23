@@ -14,6 +14,32 @@ Globals:
     Timeout: 3
 
 Resources:
+  ExecuteStateMachineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/execute-state-machine
+      Handler: execute-state-machine-handler.lambdaHandler
+      Timeout: 60
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        Cors:
+          AllowOrigins: ["*"]
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:StartSyncExecution
+            Resource:
+              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetIvqQuestionsStateMachine}
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/execute-state-machine-handler.ts
+
   SubmitAnswerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -94,6 +120,7 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/get-ivq-questions.asl.json
+      Type: EXPRESS
       DefinitionSubstitutions:
         QuestionsTableName: !Ref QuestionsTable
         QuestionsUrl: !Ref QuestionsUrl
@@ -123,6 +150,7 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/get-question.asl.json
+      Type: EXPRESS
       Name: !Sub "${AWS::StackName}-GetQuestion"
       Policies:
         - DynamoDBReadPolicy:
@@ -196,6 +224,16 @@ Resources:
         QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
+  ExecuteStateMachineFunctionURLEndpoint:
+    Description: FURLFunction function name
+    Value: !GetAtt ExecuteStateMachineFunctionUrl.FunctionUrl
+  ExecuteStateMachineFunction:
+    Description: "ExecuteStateMachine Lambda Function ARN"
+    Value: !GetAtt ExecuteStateMachineFunction.Arn
+  ExecuteStateMachineFunctionIamRole:
+    Description: "Implicit IAM Role created for ExecuteStateMachine function"
+    Value: !GetAtt ExecuteStateMachineFunctionRole.Arn
+
   SubmitAnswerFunctionURLEndpoint:
     Description: FURLFunction function name
     Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
