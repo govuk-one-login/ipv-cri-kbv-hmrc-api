@@ -31,6 +31,22 @@ Resources:
               - states:StartSyncExecution
             Resource:
               - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetIvqQuestionsStateMachine}
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:DescribeExecution
+              - states:StopExecution
+            Resource:
+              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${GetIvqQuestionsStateMachine}:*
+        - Statement:
+            - Effect: Allow
+              Action:
+                - events:PutTargets
+                - events:PutRule
+                - events:DescribeRule
+              Resource:
+                - "*"
+
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -128,6 +144,12 @@ Resources:
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
       Name: !Sub "${AWS::StackName}-GetIvqQuestions"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt GetIvqQuestionsStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
@@ -145,6 +167,18 @@ Resources:
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/QuestionsUrl"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/UserAgent"
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
+
+  GetIvqQuestionsStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PrivateNinoCheckApi}-GetIvqQuestions-logs
+      RetentionInDays: 365
 
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -152,36 +186,35 @@ Resources:
       DefinitionUri: ../step-functions/get-question.asl.json
       Type: EXPRESS
       Name: !Sub "${AWS::StackName}-GetQuestion"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt GetQuestionStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExecuteStateMachineFunction
         - Statement:
             Effect: Allow
             Action:
-              - states:StartExecution
+              - logs:*
             Resource:
-              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetIvqQuestionsStateMachine}
-        - Statement:
-            Effect: Allow
-            Action:
-              - states:DescribeExecution
-              - states:StopExecution
-            Resource:
-              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${GetIvqQuestionsStateMachine}:*
-        - Statement:
-            - Effect: Allow
-              Action:
-                - events:PutTargets
-                - events:PutRule
-                - events:DescribeRule
-              Resource:
-                - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
-
+              - "*"
       DefinitionSubstitutions:
+        ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
         QuestionsTableName: !Ref "QuestionsTable"
         GetIvqQuestionsStateMachineArn: !GetAtt GetIvqQuestionsStateMachine.Arn
+
+  GetQuestionStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PrivateNinoCheckApi}-GetQuestion-logs
+      RetentionInDays: 365
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -214,7 +247,6 @@ Resources:
             ParameterName: !Ref UserAgent
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
-
       Name: !Sub "${AWS::StackName}-PostIVQAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
