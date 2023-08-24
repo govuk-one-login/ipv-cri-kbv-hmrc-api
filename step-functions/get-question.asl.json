@@ -13,20 +13,43 @@
           "Next": "Error: Missing sessionId"
         }
       ],
-      "Default": "Check NINO field present"
+      "Default": "Get NINO"
+    },
+    "Get NINO": {
+      "Type": "Task",
+      "Parameters": {
+        "TableName": "${PersonalIdentityTableName}",
+        "KeyConditionExpression": "sessionId = :value",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.nino",
+      "Next": "Check NINO field present"
     },
     "Check NINO field present": {
       "Type": "Choice",
       "Choices": [
         {
           "Not": {
-            "Variable": "$.nino",
-            "IsPresent": true
+            "Variable": "$.nino.Count",
+            "NumericGreaterThan": 0
           },
           "Next": "Error: Missing nino"
         }
       ],
-      "Default": "GET Questions from HMRC"
+      "Default": "Filter out DynamoDB jargon"
+    },
+    "Filter out DynamoDB jargon": {
+      "Type": "Pass",
+      "Next": "GET Questions from HMRC",
+      "Parameters": {
+        "sessionId.$": "$.sessionId",
+        "nino.$": "$.nino.Items[0].nino.S"
+      }
     },
     "Error: Missing nino": {
       "Type": "Pass",

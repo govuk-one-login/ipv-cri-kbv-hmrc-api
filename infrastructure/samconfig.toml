@@ -7,5 +7,6 @@ region = "eu-west-2"
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
 parameter_overrides = [
-    "BearerTokenName=HMRCBearerToken"
+    "BearerTokenName=HMRCBearerToken",
+    "Environment=dev"
 ]
