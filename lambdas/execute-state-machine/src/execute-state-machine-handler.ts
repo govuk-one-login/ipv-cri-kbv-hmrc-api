@@ -12,11 +12,7 @@ export class ExecuteStateMachineHandler implements LambdaInterface {
     event: any,
     _context: unknown
   ): Promise<string | undefined> {
-    console.log(event);
-    const body = event as unknown as {
-      stateMachineArn: string;
-      input: any;
-    };
+    const body = event as unknown as StateMachineProps;
     try {
       const startMachineCommand = new StartSyncExecutionCommand({
         stateMachineArn: body.stateMachineArn,
@@ -25,11 +21,15 @@ export class ExecuteStateMachineHandler implements LambdaInterface {
       const response = await sfnClient.send(startMachineCommand);
       return response.output;
     } catch (error) {
-      console.log(error);
-      return `Failed ${error}`;
+      return `State machine execution failed: ${error}`;
     }
   }
 }
 
 const handlerClass = new ExecuteStateMachineHandler();
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);
+
+type StateMachineProps = {
+  stateMachineArn: string;
+  input: any;
+};
