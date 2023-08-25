@@ -7,32 +7,15 @@
       "Choices": [
         {
           "Not": {
-            "Variable": "$.answer",
+            "Variable": "$.key",
             "IsPresent": true
           },
           "Next": "Error: No answer is present"
         }
       ],
-      "Default": "Check NINO is present"
-    },
-    "Error: No answer is present": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Check NINO is present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.nino",
-            "IsPresent": true
-          },
-          "Next": "Error: No NINO is present"
-        }
-      ],
       "Default": "Check session ID is present"
     },
-    "Error: No NINO is present": {
+    "Error: No answer is present": {
       "Type": "Pass",
       "End": true
     },
@@ -54,13 +37,55 @@
       "Choices": [
         {
           "Not": {
-            "Variable": "$.questionKey",
+            "Variable": "$.key",
             "IsPresent": true
           },
           "Next": "Error: No question key is present"
         }
       ],
-      "Default": "Query database for the current question"
+      "Default": "GET NINO"
+    },
+    "GET NINO": {
+      "Type": "Task",
+      "Next": "Check NINO field is present",
+      "Parameters": {
+        "TableName": "${PersonalIdentityTableName}",
+        "KeyConditionExpression": "sessionId = :value",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.nino"
+    },
+    "Check NINO field is present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Not": {
+            "Variable": "$.nino.Count",
+            "NumericGreaterThan": 0
+          },
+          "Next": "Error: Nino key missing"
+        }
+      ],
+      "Default": "Parse input"
+    },
+    "Error: Nino key missing": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Parse input": {
+      "Type": "Pass",
+      "Next": "Query database for the current question",
+      "Parameters": {
+        "sessionId.$": "$.sessionId",
+        "nino.$": "$.nino.Items[0].nino.S",
+        "answer.$": "$.value",
+        "questionKey.$": "$.key"
+      }
     },
     "Error: No question key is present": {
       "Type": "Pass",
@@ -159,27 +184,46 @@
           "Next": "HTTP 200 - question has been answered successfully"
         }
       ],
-      "Default": "Submit answers to HMRC"
+      "Default": "Post answers to HMRC"
     },
-    "Submit answers to HMRC": {
+    "Post answers to HMRC": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::states:startExecution",
+      "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "StateMachineArn": "${AnswersIVQStateMachine}",
-        "Input": {
-          "sessionId.$": "$.sessionId",
-          "nino.$": "$.nino"
-        }
+        "Payload": {
+          "stateMachineArn": "${AnswersIvqStateMachine}",
+          "input": {
+            "sessionId.$": "$.sessionId",
+            "nino.$": "$.nino"
+          }
+        },
+        "FunctionName": "${ExecuteStateMachineFunctionName}"
       },
-      "Next": "HTTP 200 - question has been answered successfully"
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "HTTP 200 - question has been answered successfully",
+      "ResultPath": null
     },
     "Error: The question has already been answered": {
       "Type": "Pass",
-      "End": true
+      "End": true,
+      "Result": {}
     },
     "HTTP 200 - question has been answered successfully": {
       "Type": "Pass",
-      "End": true
+      "End": true,
+      "Result": {}
     }
   }
 }

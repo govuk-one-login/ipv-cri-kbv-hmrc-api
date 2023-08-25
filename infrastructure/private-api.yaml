@@ -34,7 +34,52 @@ paths:
             responseTemplates:
               application/json:
                 Fn::Sub: $input.path('$').output
-
+  /answer:
+    post:
+      summary: "Post answer to HMRC"
+      parameters:
+        - $ref: "#/components/parameters/SessionHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - "key"
+                - "value"
+              type: "object"
+              properties:
+                key:
+                  description: The unique identifier for the question
+                  type: "string"
+                value:
+                  description: Answer provided by the user
+                  type: "string"
+      responses:
+        "200":
+          description: "200 response"
+      x-amazon-apigateway-request-validator: "Validate both"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        passthroughBehavior: "when_no_templates"
+        type: "aws"
+        credentials:
+          Fn::Sub: ${ExecuteStateMachineRole.Arn}
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution
+        requestTemplates:
+          application/json:
+            Fn::Sub: |-
+              {
+                "input": "{\"sessionId\": \"$input.params('session-id')\", \"key\": \"$input.path('$.key')\", \"value\": \"$input.path('$.value')\"}",
+                "stateMachineArn": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-PostAnswer"
+              }
+        responses:
+          "200":
+            statusCode: 200
+            responseTemplates:
+              application/json:
+                Fn::Sub: $input.path('$').output
 components:
   parameters:
     SessionHeader:
