@@ -5,6 +5,32 @@ Description: "Digital Identity IPV CRI KBV HMRC API"
 Parameters:
   BearerTokenName:
     Type: String
+  PermissionsBoundary:
+    Description: "The ARN of the permissions boundary to apply when creating IAM roles"
+    Type: String
+    Default: "none"
+  Environment:
+    Description: "The environment type"
+    Type: "String"
+    AllowedValues:
+      - "dev"
+      - "build"
+      - "staging"
+      - "integration"
+      - "production"
+    ConstraintDescription: must be dev, build, staging, integration or production
+
+Conditions:
+  UsePermissionsBoundary:
+    Fn::Not:
+      - Fn::Equals:
+          - !Ref PermissionsBoundary
+          - "none"
+  IsDevEnvironment: !Equals
+    - !Ref Environment
+    - dev
+  IsNotDevEnvironment: !Not
+    - Condition: IsDevEnvironment
 
 Globals:
   Function:
@@ -14,6 +40,170 @@ Globals:
     Timeout: 3
 
 Resources:
+  DevOnlyKbvHmrcApi:
+    Type: AWS::Serverless::Api
+    Condition: IsDevEnvironment
+    Properties:
+      Description: Private Dev KBV HMRC CRI API
+      MethodSettings:
+        - LoggingLevel: INFO
+          ResourcePath: "/*"
+          HttpMethod: "*"
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+      AccessLogSetting:
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${DevOnlyKbvHmrcApiAccessLogGroup}"
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
+      TracingEnabled: true
+      Name: !Sub "${AWS::StackName}-dev-only-private"
+      StageName: !Ref Environment
+      DefinitionBody:
+        openapi: "3.0.1"
+        paths:
+          /never-created:
+            options: {}
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: "./private-api.yaml"
+      OpenApiVersion: 3.0.1
+      EndpointConfiguration:
+        Type: REGIONAL
+
+  DevOnlyKbvHmrcApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsDevEnvironment
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${DevOnlyKbvHmrcApi}-dev-only-AccessLogs
+      RetentionInDays: 365
+
+  PrivateKbvHmrcApi:
+    Type: AWS::Serverless::Api
+    Condition: IsNotDevEnvironment
+    Properties:
+      Description: Private KBV HMRC CRI API
+      MethodSettings:
+        - ResourcePath: "/*"
+          LoggingLevel: INFO
+          HttpMethod: "*"
+          # Disable data trace in production to avoid logging customer sensitive information
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+      AccessLogSetting:
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PrivateKbvHmrcApiAccessLogGroup}"
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
+      TracingEnabled: true
+      Name: !Sub "${AWS::StackName}-private"
+      StageName: !Ref Environment
+      DefinitionBody:
+        openapi: "3.0.1"
+        paths:
+          /never-created:
+            options: {}
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: "./private-api.yaml"
+      OpenApiVersion: 3.0.1
+      EndpointConfiguration:
+        Type: PRIVATE
+      Auth:
+        ResourcePolicy:
+          CustomStatements:
+            - Action: "execute-api:Invoke"
+              Effect: Allow
+              Principal: "*"
+              Resource:
+                - "execute-api:/*"
+
+  PrivateKbvHmrcApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsNotDevEnvironment
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
+      RetentionInDays: 365
+
+  ExecuteStateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role to allow API gateway to execute step function
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: AllowStateMachineInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "states:StartExecution"
+                  - "states:StartSyncExecution"
+                Resource: "*"
+      PermissionsBoundary:
+        !If [
+          UsePermissionsBoundary,
+          !Ref PermissionsBoundary,
+          !Ref AWS::NoValue,
+        ]
+
+  ExecuteStateMachineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/execute-state-machine
+      Handler: execute-state-machine-handler.lambdaHandler
+      Timeout: 60
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:StartSyncExecution
+              - states:StartExecution
+            Resource:
+              - !Ref GetIvqQuestionsStateMachine
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/execute-state-machine-handler.ts
+
   SubmitAnswerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -90,10 +280,24 @@ Resources:
         - AttributeName: "questionKey"
           KeyType: "RANGE"
 
+  # Temporary - remove once common lambdas deployed
+  PersonalIdentityTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "${AWS::StackName}-personal-identity"
+      BillingMode: "PAY_PER_REQUEST"
+      AttributeDefinitions:
+        - AttributeName: "sessionId"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "sessionId"
+          KeyType: "HASH"
+
   GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/get-ivq-questions.asl.json
+      Type: EXPRESS
       DefinitionSubstitutions:
         QuestionsTableName: !Ref QuestionsTable
         QuestionsUrl: !Ref QuestionsUrl
@@ -101,6 +305,12 @@ Resources:
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
       Name: !Sub "${AWS::StackName}-GetIvqQuestions"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt GetIvqQuestionsStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
@@ -118,42 +328,57 @@ Resources:
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/QuestionsUrl"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/UserAgent"
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
+
+  GetIvqQuestionsStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-GetIvqQuestions-state-machine-logs
+      RetentionInDays: 365
 
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../step-functions/get-question.asl.json
+      Type: EXPRESS
       Name: !Sub "${AWS::StackName}-GetQuestion"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt GetQuestionStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PersonalIdentityTable
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExecuteStateMachineFunction
         - Statement:
             Effect: Allow
             Action:
-              - states:StartExecution
+              - logs:*
             Resource:
-              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetIvqQuestionsStateMachine}
-        - Statement:
-            Effect: Allow
-            Action:
-              - states:DescribeExecution
-              - states:StopExecution
-            Resource:
-              - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${GetIvqQuestionsStateMachine}:*
-        - Statement:
-            - Effect: Allow
-              Action:
-                - events:PutTargets
-                - events:PutRule
-                - events:DescribeRule
-              Resource:
-                - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
-
+              - "*"
       DefinitionSubstitutions:
+        PersonalIdentityTableName: !Ref PersonalIdentityTable
+        ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
         QuestionsTableName: !Ref "QuestionsTable"
         GetIvqQuestionsStateMachineArn: !GetAtt GetIvqQuestionsStateMachine.Arn
+
+  GetQuestionStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-GetQuestion-state-machine-logs
+      RetentionInDays: 365
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -186,7 +411,6 @@ Resources:
             ParameterName: !Ref UserAgent
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
-
       Name: !Sub "${AWS::StackName}-PostIVQAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
@@ -196,6 +420,13 @@ Resources:
         QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
+  ExecuteStateMachineFunction:
+    Description: "ExecuteStateMachine Lambda Function ARN"
+    Value: !GetAtt ExecuteStateMachineFunction.Arn
+  ExecuteStateMachineFunctionIamRole:
+    Description: "Implicit IAM Role created for ExecuteStateMachine function"
+    Value: !GetAtt ExecuteStateMachineFunctionRole.Arn
+
   SubmitAnswerFunctionURLEndpoint:
     Description: FURLFunction function name
     Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
