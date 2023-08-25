@@ -26,6 +26,11 @@ Conditions:
       - Fn::Equals:
           - !Ref PermissionsBoundary
           - "none"
+  IsDevEnvironment: !Equals
+    - !Ref Environment
+    - dev
+  IsNotDevEnvironment: !Not
+    - Condition: IsDevEnvironment
 
 Globals:
   Function:
@@ -35,34 +40,86 @@ Globals:
     Timeout: 3
 
 Resources:
+  DevOnlyKbvHmrcApi:
+    Type: AWS::Serverless::Api
+    Condition: IsDevEnvironment
+    Properties:
+      Description: Private Dev KBV HMRC CRI API
+      MethodSettings:
+        - LoggingLevel: INFO
+          ResourcePath: "/*"
+          HttpMethod: "*"
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+      AccessLogSetting:
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${DevOnlyKbvHmrcApiAccessLogGroup}"
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
+      TracingEnabled: true
+      Name: !Sub "${AWS::StackName}-dev-only-private"
+      StageName: !Ref Environment
+      DefinitionBody:
+        openapi: "3.0.1" # workaround to get `sam validate` to work
+        paths: # workaround to get `sam validate` to work
+          /never-created:
+            options: {} # workaround to get `sam validate` to work
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: "./private-api.yaml"
+      OpenApiVersion: 3.0.1
+      EndpointConfiguration:
+        Type: REGIONAL
+
+  DevOnlyKbvHmrcApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsDevEnvironment
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${DevOnlyKbvHmrcApi}-dev-only-AccessLogs
+      RetentionInDays: 365
+
   PrivateKbvHmrcApi:
     Type: AWS::Serverless::Api
+    Condition: IsNotDevEnvironment
     Properties:
       Description: Private KBV HMRC CRI API
       MethodSettings:
         - ResourcePath: "/*"
-          # LoggingLevel: INFO
+          LoggingLevel: INFO
           HttpMethod: "*"
           # Disable data trace in production to avoid logging customer sensitive information
-          # DataTraceEnabled: true
-          # MetricsEnabled: true
+          DataTraceEnabled: true
+          MetricsEnabled: true
           ThrottlingRateLimit: 5
           ThrottlingBurstLimit: 10
-      # AccessLogSetting:
-      #   DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PrivateNinoCheckApiAccessLogGroup}"
-      #   Format: >-
-      #     {
-      #     "requestId":"$context.requestId",
-      #     "ip":"$context.identity.sourceIp",
-      #     "requestTime":"$context.requestTime",
-      #     "httpMethod":"$context.httpMethod",
-      #     "path":"$context.path",
-      #     "routeKey":"$context.routeKey",
-      #     "status":"$context.status",
-      #     "protocol":"$context.protocol",
-      #     "responseLatency":"$context.responseLatency",
-      #     "responseLength":"$context.responseLength"
-      #     }
+      AccessLogSetting:
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PrivateKbvHmrcApiAccessLogGroup}"
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
       TracingEnabled: true
       Name: !Sub "${AWS::StackName}-private"
       StageName: !Ref Environment
@@ -86,6 +143,13 @@ Resources:
               Principal: "*"
               Resource:
                 - "execute-api:/*"
+
+  PrivateKbvHmrcApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsNotDevEnvironment
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
+      RetentionInDays: 365
 
   ExecuteStateMachineRole:
     Type: AWS::IAM::Role
