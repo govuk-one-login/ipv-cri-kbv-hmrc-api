@@ -72,10 +72,10 @@ Resources:
       Name: !Sub "${AWS::StackName}-dev-only-private"
       StageName: !Ref Environment
       DefinitionBody:
-        openapi: "3.0.1" # workaround to get `sam validate` to work
-        paths: # workaround to get `sam validate` to work
+        openapi: "3.0.1"
+        paths:
           /never-created:
-            options: {} # workaround to get `sam validate` to work
+            options: {}
         Fn::Transform:
           Name: AWS::Include
           Parameters:
@@ -124,10 +124,10 @@ Resources:
       Name: !Sub "${AWS::StackName}-private"
       StageName: !Ref Environment
       DefinitionBody:
-        openapi: "3.0.1" # workaround to get `sam validate` to work
-        paths: # workaround to get `sam validate` to work
+        openapi: "3.0.1"
+        paths:
           /never-created:
-            options: {} # workaround to get `sam validate` to work
+            options: {}
         Fn::Transform:
           Name: AWS::Include
           Parameters:
