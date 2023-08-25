@@ -1,6 +1,6 @@
 openapi: "3.0.1"
 info:
-  title: "KBV HMRC Check Credential Issuer Private Api"
+  title: "KBV HMRC Credential Issuer Private Api"
   version: "1.0"
 
 paths:
