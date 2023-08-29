@@ -86,7 +86,7 @@
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "${PostIVQAnswersLambdaArn}"
+        "FunctionName": "${PostIvqAnswersLambdaArn}"
       },
       "Retry": [
         {

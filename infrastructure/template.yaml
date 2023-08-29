@@ -195,6 +195,7 @@ Resources:
               - states:StartExecution
             Resource:
               - !Ref GetIvqQuestionsStateMachine
+              - !Ref PostIvqAnswersStateMachine
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -380,26 +381,64 @@ Resources:
       LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 365
 
+  PostAnswerStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-PostAnswer-state-machine-logs
+      RetentionInDays: 365
+
+  PostIvqAnswersStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-PostIvqAnswers-state-machine-logs
+      RetentionInDays: 365
+
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
+      Type: EXPRESS
       DefinitionUri: ../step-functions/post-answer.asl.json
       Name: !Sub "${AWS::StackName}-PostAnswer"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt PostAnswerStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PersonalIdentityTable
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt PostIVQAnswersStateMachine.Name
+            StateMachineName: !GetAtt PostIvqAnswersStateMachine.Name
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExecuteStateMachineFunction
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
       DefinitionSubstitutions:
-        AnswersIVQStateMachine: !Ref "PostIVQAnswersStateMachine"
+        AnswersIvqStateMachine: !Ref "PostIvqAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
+        ExecuteStateMachineFunctionName: !Ref "ExecuteStateMachineFunction"
+        PersonalIdentityTableName: !Ref "PersonalIdentityTable"
 
-  PostIVQAnswersStateMachine:
+  PostIvqAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
+      Type: EXPRESS
       DefinitionUri: ../step-functions/post-ivq-answers.asl.json
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt PostIvqAnswersStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
@@ -411,12 +450,18 @@ Resources:
             ParameterName: !Ref UserAgent
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
-      Name: !Sub "${AWS::StackName}-PostIVQAnswers"
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
+      Name: !Sub "${AWS::StackName}-PostIvqAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
         AnswersUrlName: !Ref AnswersUrl
         UserAgentName: !Ref UserAgent
-        PostIVQAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
+        PostIvqAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
         QuestionsTableName: !Ref QuestionsTable
 
 Outputs:
