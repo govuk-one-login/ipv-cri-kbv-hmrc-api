@@ -19,6 +19,10 @@ Parameters:
       - "integration"
       - "production"
     ConstraintDescription: must be dev, build, staging, integration or production
+  CommonStackName:
+    Description: "The name of the stack containing the common CRI lambdas/infra"
+    Type: String
+    Default: "common-cri-api"
 
 Conditions:
   UsePermissionsBoundary:
@@ -40,6 +44,56 @@ Globals:
     Timeout: 3
 
 Resources:
+  PublicKbvHmrcApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Description: Public KBV HMRC CRI API
+      MethodSettings:
+        - LoggingLevel: INFO
+          ResourcePath: "/*"
+          HttpMethod: "*"
+          # Disable data trace in production to avoid logging customer sensitive information
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+      AccessLogSetting:
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PublicKbvHmrcApiAccessLogGroup}"
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
+      TracingEnabled: true
+      Name: !Sub "${AWS::StackName}-public"
+      StageName: !Ref Environment
+      DefinitionBody:
+        openapi: "3.0.1" # workaround to get `sam validate` to work
+        paths: # workaround to get `sam validate` to work
+          /never-created:
+            options: {} # workaround to get `sam validate` to work
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: "./public-api.yaml"
+      OpenApiVersion: 3.0.1
+      EndpointConfiguration:
+        Type: REGIONAL
+
+  PublicKbvHmrcApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
+      RetentionInDays: 365
+
   DevOnlyKbvHmrcApi:
     Type: AWS::Serverless::Api
     Condition: IsDevEnvironment

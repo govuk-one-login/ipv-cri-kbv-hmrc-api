@@ -8,5 +8,6 @@ capabilities = "CAPABILITY_IAM"
 image_repositories = []
 parameter_overrides = [
     "BearerTokenName=HMRCBearerToken",
-    "Environment=dev"
+    "Environment=dev",
+    "CommonStackName=common-cri-api"
 ]

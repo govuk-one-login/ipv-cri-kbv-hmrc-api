@@ -4,6 +4,104 @@ info:
   version: "1.0"
 
 paths:
+  /authorization:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/SessionHeader"
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "400":
+          description: "400 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "500 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-amazon-apigateway-request-validator: "Validate both"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CommonStackName}-AuthorizationFunctionTS/invocations
+        passthroughBehavior: "when_no_match"
+
+  /session:
+    post:
+      summary: "IP address of the client."
+      parameters:
+        - in: header
+          name: "X-Forwarded-For"
+          schema:
+            type: string
+            format: string
+          required: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Authorization"
+            examples:
+              201:
+                description: "Example body to receive a HTTP 201 response"
+                value:
+                  session_id: "1fbc5730-9d17-416d-b2ca-0be90e1e93f5"
+              400:
+                description: "Example body to receive a HTTP 400 response"
+                value:
+                  session_id: "fad21bea-bce9-4aa7-8889-d50c7d26616e"
+              500:
+                description: "Example body to receive a HTTP 500 response"
+                value:
+                  session_id: "f27b8afc-90ef-4e0f-83ad-00a2f5692590"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+              examples:
+                201:
+                  summary: "An example of a successful response message"
+                  value:
+                    session_id: "1fbc5730-9d17-416d-b2ca-0be90e1e93f5"
+                    state: "string"
+                    redirect_uri: "string"
+        "400":
+          description: "400 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "500 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-amazon-apigateway-request-validator: "Validate both"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CommonStackName}-SessionFunctionTS/invocations
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+
   /question:
     get:
       summary: "Get question from HMRC"
@@ -96,3 +194,62 @@ components:
           value: "fad21bea-bce9-4aa7-8889-d50c7d26616e"
         500:
           value: "f27b8afc-90ef-4e0f-83ad-00a2f5692590"
+
+  schemas:
+    Authorization:
+      required:
+        - "client_id"
+        - "request"
+      type: "object"
+      properties:
+        client_id:
+          type: "string"
+          minLength: 1
+          example: "ipv-core-stub"
+        request:
+          type: "string"
+    AuthorizationResponse:
+      required:
+        - "redirect_uri"
+        - "code"
+        - "state"
+      type: "object"
+      properties:
+        code:
+          type: "string"
+          example: "1fbc5730-9d17-416d-b2ca-0be90e1e93f5"
+        state:
+          type: "string"
+          example: "state"
+          minLength: 1
+        redirect_uri:
+          type: "string"
+          format: "uri"
+          example: "https://di-ipv-core-stub.london.cloudapps.digital/callback"
+    Error:
+      title: "Error Schema"
+      type: "object"
+      properties:
+        message:
+          type: "string"
+    Session:
+      required:
+        - "session_id"
+        - "state"
+        - "redirect_uri"
+      type: "object"
+      properties:
+        session_id:
+          type: "string"
+        state:
+          type: "string"
+        redirect_uri:
+          type: "string"
+
+x-amazon-apigateway-request-validators:
+  Validate both:
+    validateRequestBody: true
+    validateRequestParameters: true
+  Validate Param only:
+    validateRequestParameters: true
+    validateRequestBody: false
