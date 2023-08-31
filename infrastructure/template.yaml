@@ -411,6 +411,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
 
   GetIvqQuestionsStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -445,6 +449,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       DefinitionSubstitutions:
         PersonalIdentityTableName: !Ref PersonalIdentityTable
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
@@ -498,6 +506,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       DefinitionSubstitutions:
         AnswersIvqStateMachine: !Ref "PostIvqAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
@@ -532,6 +544,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       Name: !Sub "${AWS::StackName}-PostIvqAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
