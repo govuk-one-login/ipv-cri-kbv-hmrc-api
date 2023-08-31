@@ -286,10 +286,6 @@ Resources:
     Properties:
       CodeUri: ../lambdas/submit-answer
       Handler: submit-answer-handler.lambdaHandler
-      FunctionUrlConfig:
-        AuthType: AWS_IAM
-        Cors:
-          AllowOrigins: ["*"]
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -304,10 +300,6 @@ Resources:
     Properties:
       CodeUri: ../lambdas/fetch-questions
       Handler: fetch-questions-handler.lambdaHandler
-      FunctionUrlConfig:
-        AuthType: AWS_IAM
-        Cors:
-          AllowOrigins: ["*"]
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -564,9 +556,6 @@ Outputs:
     Description: "Implicit IAM Role created for ExecuteStateMachine function"
     Value: !GetAtt ExecuteStateMachineFunctionRole.Arn
 
-  SubmitAnswerFunctionURLEndpoint:
-    Description: FURLFunction function name
-    Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
   SubmitAnswerFunction:
     Description: "SubmitAnswer Lambda Function ARN"
     Value: !GetAtt SubmitAnswerFunction.Arn
@@ -574,9 +563,6 @@ Outputs:
     Description: "Implicit IAM Role created for SubmitAnswer function"
     Value: !GetAtt SubmitAnswerFunctionRole.Arn
 
-  FetchQuestionsFunctionURLEndpoint:
-    Description: FURLFunction function name
-    Value: !GetAtt FetchQuestionsFunctionUrl.FunctionUrl
   FetchQuestionsFunction:
     Description: "FetchQuestions Lambda Function ARN"
     Value: !GetAtt FetchQuestionsFunction.Arn
