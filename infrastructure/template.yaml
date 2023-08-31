@@ -3,8 +3,19 @@ Transform: AWS::Serverless-2016-10-31
 Description: "Digital Identity IPV CRI KBV HMRC API"
 
 Parameters:
-  BearerTokenName:
+  CodeSigningEnabled:
+    Type: "String"
+    Default: "true"
+  CodeSigningConfigArn:
     Type: String
+    Default: "none"
+    Description: >
+      The ARN of the Code Signing Config to use, provided by the deployment pipeline
+  BearerTokenName:
+    Description: "The name of the bearer token parameter"
+    Type: String
+    # Temporary - solution to be changed once cross account behaviour implemented
+    Default: "HMRCBearerToken"
   PermissionsBoundary:
     Description: "The ARN of the permissions boundary to apply when creating IAM roles"
     Type: String
@@ -25,6 +36,9 @@ Parameters:
     Default: "common-cri-api"
 
 Conditions:
+  EnforceCodeSigning: !Equals
+    - !Ref CodeSigningEnabled
+    - true
   UsePermissionsBoundary:
     Fn::Not:
       - Fn::Equals:
@@ -42,6 +56,14 @@ Globals:
     Architectures:
       - arm64
     Timeout: 3
+    PermissionsBoundary: !If
+      - UsePermissionsBoundary
+      - !Ref PermissionsBoundary
+      - !Ref AWS::NoValue
+    CodeSigningConfigArn: !If
+      - EnforceCodeSigning
+      - !Ref CodeSigningConfigArn
+      - !Ref AWS::NoValue
 
 Resources:
   PublicKbvHmrcApi:
@@ -264,10 +286,6 @@ Resources:
     Properties:
       CodeUri: ../lambdas/submit-answer
       Handler: submit-answer-handler.lambdaHandler
-      FunctionUrlConfig:
-        AuthType: AWS_IAM
-        Cors:
-          AllowOrigins: ["*"]
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -282,10 +300,6 @@ Resources:
     Properties:
       CodeUri: ../lambdas/fetch-questions
       Handler: fetch-questions-handler.lambdaHandler
-      FunctionUrlConfig:
-        AuthType: AWS_IAM
-        Cors:
-          AllowOrigins: ["*"]
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -389,6 +403,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
 
   GetIvqQuestionsStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -423,6 +441,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       DefinitionSubstitutions:
         PersonalIdentityTableName: !Ref PersonalIdentityTable
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
@@ -476,6 +498,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       DefinitionSubstitutions:
         AnswersIvqStateMachine: !Ref "PostIvqAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
@@ -510,6 +536,10 @@ Resources:
               - logs:*
             Resource:
               - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
       Name: !Sub "${AWS::StackName}-PostIvqAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
@@ -526,9 +556,6 @@ Outputs:
     Description: "Implicit IAM Role created for ExecuteStateMachine function"
     Value: !GetAtt ExecuteStateMachineFunctionRole.Arn
 
-  SubmitAnswerFunctionURLEndpoint:
-    Description: FURLFunction function name
-    Value: !GetAtt SubmitAnswerFunctionUrl.FunctionUrl
   SubmitAnswerFunction:
     Description: "SubmitAnswer Lambda Function ARN"
     Value: !GetAtt SubmitAnswerFunction.Arn
@@ -536,9 +563,6 @@ Outputs:
     Description: "Implicit IAM Role created for SubmitAnswer function"
     Value: !GetAtt SubmitAnswerFunctionRole.Arn
 
-  FetchQuestionsFunctionURLEndpoint:
-    Description: FURLFunction function name
-    Value: !GetAtt FetchQuestionsFunctionUrl.FunctionUrl
   FetchQuestionsFunction:
     Description: "FetchQuestions Lambda Function ARN"
     Value: !GetAtt FetchQuestionsFunction.Arn
