@@ -45,6 +45,10 @@ Globals:
     Architectures:
       - arm64
     Timeout: 3
+    PermissionsBoundary: !If
+      - UsePermissionsBoundary
+      - !Ref PermissionsBoundary
+      - !Ref AWS::NoValue
 
 Resources:
   PublicKbvHmrcApi:
