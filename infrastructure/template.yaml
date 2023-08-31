@@ -4,7 +4,10 @@ Description: "Digital Identity IPV CRI KBV HMRC API"
 
 Parameters:
   BearerTokenName:
+    Description: "The name of the bearer token parameter"
     Type: String
+    # Temporary - solution to be changed once cross account behaviour implemented
+    Default: "HMRCBearerToken"
   PermissionsBoundary:
     Description: "The ARN of the permissions boundary to apply when creating IAM roles"
     Type: String
