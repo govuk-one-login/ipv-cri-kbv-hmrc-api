@@ -1,0 +1,86 @@
+{
+  "StateMachines": {
+    "get-question": {
+      "TestCases": {
+        "HappyPathTest": {
+          "Get NINO": "GetNINOSuccess",
+          "GET Questions from HMRC": "GetQuestionsSuccess",
+          "Get unanswered questions": "GetUnansweredQuestionsSuccess"
+        },
+        "204WhenNoQuestionsLeft": {
+          "Get NINO": "GetNINOSuccess",
+          "GET Questions from HMRC": "GetQuestionsSuccess",
+          "Get unanswered questions": "NoRecordsInDB"
+        },
+        "SessionIdNotPresent": "",
+        "NinoNotPresent": {
+          "Get NINO": "NoRecordsInDB"
+        }
+      }
+    }
+  },
+  "MockedResponses": {
+    "GetNINOSuccess": {
+      "0": {
+        "Return": {
+          "Count": 1,
+          "Items": [
+            {
+              "sessionId": {
+                "S": "12345"
+              },
+              "nino": {
+                "S": "AA000003D"
+              }
+            }
+          ],
+          "ScannedCount": 1
+        }
+      }
+    },
+    "GetQuestionsSuccess": {
+      "0": {
+        "Return": {
+          "sessionId": "12345",
+          "nino": "AA000003D"
+        }
+      }
+    },
+    "GetUnansweredQuestionsSuccess": {
+      "0": {
+        "Return": {
+          "Count": 1,
+          "Items": [
+            {
+              "questionKey": {
+                "S": "ita-bankaccount"
+              },
+              "answered": {
+                "S": "false"
+              },
+              "correlationId": {
+                "S": "93dcc67c-fe6d-4bd7-b68f-2bd848e0d572"
+              },
+              "sessionId": {
+                "S": "12345"
+              },
+              "info": {
+                "M": {}
+              }
+            }
+          ],
+          "ScannedCount": 1
+        }
+      }
+    },
+    "NoRecordsInDB": {
+      "0": {
+        "Return": {
+          "Count": 0,
+          "Items": [],
+          "ScannedCount": 0
+        }
+      }
+    }
+  }
+}
