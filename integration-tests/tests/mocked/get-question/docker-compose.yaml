@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  step_function_local:
+    container_name: "get-question-state-machine"
+    image: amazon/aws-stepfunctions-local
+    ports:
+      - "8084:8083"
+    environment:
+      AWS_SECRET_ACCESS_KEY: "local" # pragma: allowlist secret
+      SFN_MOCK_CONFIG: "/home/stepfunctionslocal/MockConfigFile.json"
+      AWS_DEFAULT_REGION: "local"
+      AWS_ACCESS_KEY_ID: "local"
+    volumes:
+      - ./MockConfigFile.json:/home/stepfunctionslocal/MockConfigFile.json
