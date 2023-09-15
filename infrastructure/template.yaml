@@ -113,7 +113,7 @@ Resources:
   PublicKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
       RetentionInDays: 365
 
   DevOnlyKbvHmrcApi:
@@ -164,7 +164,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Condition: IsDevEnvironment
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${DevOnlyKbvHmrcApi}-dev-only-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${DevOnlyKbvHmrcApi}-dev-only-AccessLogs
       RetentionInDays: 365
 
   PrivateKbvHmrcApi:
@@ -224,7 +224,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Condition: IsNotDevEnvironment
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
       RetentionInDays: 365
 
   ExecuteStateMachineRole:
@@ -411,7 +411,7 @@ Resources:
   GetIvqQuestionsStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-GetIvqQuestions-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-GetIvqQuestions-state-machine-logs
       RetentionInDays: 365
 
   GetQuestionStateMachine:
@@ -454,19 +454,19 @@ Resources:
   GetQuestionStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-GetQuestion-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 365
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-PostAnswer-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-PostAnswer-state-machine-logs
       RetentionInDays: 365
 
   PostIvqAnswersStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${AWS::StackName}-PostIvqAnswers-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-PostIvqAnswers-state-machine-logs
       RetentionInDays: 365
 
   PostAnswerStateMachine:
@@ -520,6 +520,8 @@ Resources:
         IncludeExecutionData: True
         Level: ALL
       Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - AWSSecretsManagerGetSecretValuePolicy:

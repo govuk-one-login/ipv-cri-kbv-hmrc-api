@@ -101,7 +101,42 @@
           "BackoffRate": 2
         }
       ],
-      "End": true
+      "Next": "Store Result"
+    },
+    "Store Result": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Update Question",
+        "States": {
+          "Update Question": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Parameters": {
+              "TableName": "${QuestionsTableName}",
+              "Key": {
+                "sessionId": {
+                  "S.$": "$$.Execution.Input.sessionId"
+                },
+                "questionKey": {
+                  "S.$": "$.questionKey"
+                }
+              },
+              "UpdateExpression": "SET score = :score",
+              "ExpressionAttributeValues": {
+                ":score": {
+                  "S.$": "$.score"
+                }
+              }
+            },
+            "End": true
+          }
+        }
+      },
+      "End": true,
+      "InputPath": "$"
     }
   }
 }
