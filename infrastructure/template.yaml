@@ -520,6 +520,8 @@ Resources:
         IncludeExecutionData: True
         Level: ALL
       Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - AWSSecretsManagerGetSecretValuePolicy:
