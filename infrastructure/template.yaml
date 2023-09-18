@@ -504,6 +504,20 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-PostIvqAnswers-state-machine-logs
       RetentionInDays: 365
 
+  CreateAuthCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/submit-answer
+      Handler: create-auth-code-handler.lambdaHandler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/create-auth-code-handler.ts
+
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -517,8 +531,14 @@ Resources:
         IncludeExecutionData: True
         Level: ALL
       Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CreateAuthCodeFunction
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - DynamoDBWritePolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBReadPolicy:
             TableName: !Ref PersonalIdentityTable
         - DynamoDBWritePolicy:
@@ -530,6 +550,13 @@ Resources:
         - Statement:
             Effect: Allow
             Action:
+              - ssm:GetParameters
+              - ssm:GetParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
+        - Statement:
+            Effect: Allow
+            Action:
               - logs:*
             Resource:
               - "*"
@@ -538,6 +565,8 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
       DefinitionSubstitutions:
+        CommonStackName: !Ref CommonStackName
+        CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
         AnswersIvqStateMachine: !Ref "PostIvqAnswersStateMachine"
         QuestionsTableName: !Ref "QuestionsTable"
         ExecuteStateMachineFunctionName: !Ref "ExecuteStateMachineFunction"
@@ -663,6 +692,13 @@ Resources:
       RetentionInDays: 30
 
 Outputs:
+  CreateAuthCodeFunction:
+    Description: "Create Authorization Code Function ARN"
+    Value: !GetAtt CreateAuthCodeFunction.Arn
+  CreateAuthCodeFunctionRoleArn:
+    Description: "Create Authorization Code Function Arn"
+    Value: !GetAtt CreateAuthCodeFunctionRole.Arn
+
   ExecuteStateMachineFunction:
     Description: "ExecuteStateMachine Lambda Function ARN"
     Value: !GetAtt ExecuteStateMachineFunction.Arn
