@@ -9,5 +9,6 @@ image_repositories = []
 parameter_overrides = [
     "BearerTokenName=HMRCBearerToken",
     "Environment=dev",
-    "CommonStackName=common-cri-api"
+    "CommonStackName=common-cri-api",
+    "CodeSigningEnabled=false"
 ]
