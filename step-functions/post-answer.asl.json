@@ -212,8 +212,62 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "HTTP 200 - question has been answered successfully",
+      "Next": "Fetch Auth Code Expiry",
       "ResultPath": null
+    },
+    "Fetch Auth Code Expiry": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${CreateAuthCodeFunctionArn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Fetch Session Table Name",
+      "ResultPath": "$.expiry"
+    },
+    "Fetch Session Table Name": {
+      "Type": "Task",
+      "Next": "Set Auth Code for Session",
+      "Parameters": {
+        "Name": "/${CommonStackName}/SessionTableName"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "ResultPath": "$.sessionTable"
+    },
+    "Set Auth Code for Session": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName.$": "$.sessionTable.Parameter.Value",
+        "Key": {
+          "sessionId": {
+            "S.$": "$$.Execution.Input.sessionId"
+          }
+        },
+        "UpdateExpression": "SET authorizationCode = :authCode, authorizationCodeExpiryDate = :expiry",
+        "ExpressionAttributeValues": {
+          ":authCode": {
+            "S.$": "States.UUID()"
+          },
+          ":expiry": {
+            "N.$": "States.Format('{}',$.expiry.Payload.authCodeExpiry)"
+          }
+        }
+      },
+      "Next": "HTTP 200 - question has been answered successfully"
     },
     "Error: The question has already been answered": {
       "Type": "Pass",
