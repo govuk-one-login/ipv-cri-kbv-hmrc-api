@@ -16,7 +16,11 @@ describe("step-function-local", () => {
       });
 
       describe("happy Case Scenario", () => {
-        it("should get 200 when session id present", async () => {
+        // xit("questions already loaded");
+        // xit("insufficeint question");
+        // xit("lambda throws exception");
+
+        it("should get unanswered questions", async () => {
           const input = JSON.stringify({
             sessionId: "12345",
           });
@@ -81,7 +85,7 @@ describe("step-function-local", () => {
           });
           it("should return 204 when no questions left", async () => {
             const input = JSON.stringify({
-              sessionId: "bad-session-id",
+              sessionId: "12345",
             });
 
             const responseStepFunction =
