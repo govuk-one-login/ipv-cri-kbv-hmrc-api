@@ -65,7 +65,42 @@ Globals:
       - !Ref CodeSigningConfigArn
       - !Ref AWS::NoValue
 
+Mappings:
+  # Only numeric values should be assigned here
+  MaxJwtTtlMapping:
+    Environment:
+      dev: 2
+      build: 2
+      staging: 6
+      integration: 6
+      production: 6
+
+  # Permitted values: SECONDS,MINUTES,HOURS,DAYS,MONTHS,YEARS
+  JwtTtlUnitMapping:
+    Environment:
+      dev: HOURS
+      build: HOURS
+      staging: MONTHS
+      integration: MONTHS
+      production: MONTHS
+
 Resources:
+  MaxJwtTtlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AWS::StackName}/MaxJwtTtl"
+      Type: String
+      Value: !FindInMap [MaxJwtTtlMapping, Environment, !Ref "Environment"]
+      Description: default time to live for an JWT in (seconds)
+
+  JwtTtlUnitParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AWS::StackName}/JwtTtlUnit"
+      Type: String
+      Value: !FindInMap [JwtTtlUnitMapping, Environment, !Ref Environment]
+      Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
+
   PublicKbvHmrcApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -550,6 +585,82 @@ Resources:
         PostIvqAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
         QuestionsTableName: !Ref QuestionsTable
 
+  TimeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/issue-credential
+      Handler: time-handler.lambdaHandler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/time-handler.ts
+
+  IssueCredentialStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../step-functions/issue-credential.asl.json
+      Type: EXPRESS
+      Name: !Sub "${AWS::StackName}-IssueCredential"
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt IssueCredentialStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - ssm:GetParameters
+              - ssm:GetParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/MaxJwtTtl"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/JwtTtlUnit"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiableCredentialKmsSigningKeyId"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TimeFunction
+        - Statement:
+            Effect: Allow
+            Action:
+              - kms:Sign
+            Resource: !ImportValue core-infrastructure-CriVcSigningKey1Arn
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+      DefinitionSubstitutions:
+        QuestionsTableName: !Ref QuestionsTable
+        MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
+        JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
+        TimeFunctionArn: !GetAtt TimeFunction.Arn
+
+  IssueCredentialStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-IssueCredential-state-machine-logs
+      RetentionInDays: 30
+
 Outputs:
   ExecuteStateMachineFunction:
     Description: "ExecuteStateMachine Lambda Function ARN"
@@ -571,3 +682,11 @@ Outputs:
   FetchQuestionsFunctionIamRole:
     Description: "Implicit IAM Role created for FetchQuestions function"
     Value: !GetAtt FetchQuestionsFunctionRole.Arn
+
+  TimeFunction:
+    Description: "Time Lambda Function ARN"
+    Value: !GetAtt TimeFunction.Arn
+
+  TimeFunctionRoleArn:
+    Description: "TimeFunctionRole Arn"
+    Value: !GetAtt TimeFunctionRole.Arn
