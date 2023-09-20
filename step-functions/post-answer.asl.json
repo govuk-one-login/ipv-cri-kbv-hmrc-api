@@ -7,7 +7,7 @@
       "Choices": [
         {
           "Not": {
-            "Variable": "$.key",
+            "Variable": "$.value",
             "IsPresent": true
           },
           "Next": "Error: No answer is present"
