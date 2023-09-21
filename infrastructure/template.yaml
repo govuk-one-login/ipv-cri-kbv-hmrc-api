@@ -727,3 +727,15 @@ Outputs:
   TimeFunctionRoleArn:
     Description: "TimeFunctionRole Arn"
     Value: !GetAtt TimeFunctionRole.Arn
+
+  QuestionStateMachineArn:
+    Description: "GetQuestion StateMachine Arn"
+    Value: !GetAtt GetQuestionStateMachine.Arn
+
+  PersonalIdenityTable:
+    Description: "Get Personal Identity Name"
+    Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+
+  QuestionsTable:
+    Description: "Get Question Table Arn"
+    Value: !Ref QuestionsTable
