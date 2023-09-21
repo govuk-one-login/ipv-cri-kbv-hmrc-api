@@ -11,9 +11,9 @@ describe("HMRC KBV Get Question", () => {
     nino: "AA000003D",
   };
 
-  const clearQuestionDB = async (sessionId:string)=> {
+  const clearQuestionDB = async (sessionId: string) => {
     await clearItems(output.PersonalIdenityTable as string, {
-    sessionId: sessionId,
+      sessionId: sessionId,
     });
     for (const question of testQuestions) {
       await clearItems(output.QuestionsTable as string, {
@@ -21,7 +21,7 @@ describe("HMRC KBV Get Question", () => {
         questionKey: question.questionKey,
       });
     }
-  }
+  };
 
   const testQuestions = [
     {
@@ -30,8 +30,8 @@ describe("HMRC KBV Get Question", () => {
       answered: "false",
       correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d572",
       info: {
-          "currentTaxYear": "2022/23"
-        },
+        currentTaxYear: "2022/23",
+      },
     },
     {
       sessionId: "12345",
@@ -51,7 +51,7 @@ describe("HMRC KBV Get Question", () => {
     output = await stackOutputs(process.env.STACK_NAME);
     await populateTable(testUser, output.PersonalIdenityTable);
     for (const question of testQuestions) {
-      await populateTable(question, output.QuestionsTable)
+      await populateTable(question, output.QuestionsTable);
     }
   });
 
@@ -60,14 +60,15 @@ describe("HMRC KBV Get Question", () => {
   });
 
   describe("Happy Path Journey", () => {
-    describe("Questions already loaded in Dynamo DB",()=>{
+    describe("Questions already loaded in Dynamo DB", () => {
       it("should pass when user has unanswered questions", async () => {
         const startExecutionResult = await executeStepFunction(
           stateMachineInput,
           output.QuestionStateMachineArn
         );
         expect(startExecutionResult.output).toBe(
-          "{\"questionKey\":{\"S\":\"ita-bankaccount\"},\"answered\":{\"S\":\"false\"},\"correlationId\":{\"S\":\"93dcc67c-fe6d-4bd7-b68f-2bd848e0d572\"},\"sessionId\":{\"S\":\"12345\"},\"info\":{\"M\":{\"currentTaxYear\":{\"S\":\"2022/23\"}}}}"      );
+          '{"questionKey":{"S":"ita-bankaccount"},"answered":{"S":"false"},"correlationId":{"S":"93dcc67c-fe6d-4bd7-b68f-2bd848e0d572"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}}'
+        );
       });
       it("should return 204 when there are no unanswered left", async () => {
         const startExecutionResult = await executeStepFunction(
@@ -80,23 +81,24 @@ describe("HMRC KBV Get Question", () => {
           '{"sessionId":"123456","nino":{"Count":0,"Items":[],"ScannedCount":0}}'
         );
       });
-    })
-   
-    describe("Questions fetched directly from HMRC",()=>{
+    });
+
+    describe("Questions fetched directly from HMRC", () => {
       it("should pass when trying to fetch questions first time", async () => {
         const testUser = {
           sessionId: "12347",
           nino: "AA000003D",
         };
-  
+
         const startExecutionResult = await executeStepFunction(
           stateMachineInput,
           output.QuestionStateMachineArn
         );
         expect(startExecutionResult.output).toBe(
-          "{\"questionKey\":{\"S\":\"ita-bankaccount\"},\"answered\":{\"S\":\"false\"},\"correlationId\":{\"S\":\"93dcc67c-fe6d-4bd7-b68f-2bd848e0d572\"},\"sessionId\":{\"S\":\"12345\"},\"info\":{\"M\":{\"currentTaxYear\":{\"S\":\"2022/23\"}}}}"      );
+          '{"questionKey":{"S":"ita-bankaccount"},"answered":{"S":"false"},"correlationId":{"S":"93dcc67c-fe6d-4bd7-b68f-2bd848e0d572"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}}'
+        );
         await clearQuestionDB(testUser.sessionId);
       });
-    })
+    });
   });
 });

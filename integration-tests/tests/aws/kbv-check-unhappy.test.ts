@@ -35,7 +35,7 @@ describe("HMRC KBV Check ", () => {
     output = await stackOutputs(process.env.STACK_NAME);
     await populateTable(testUser, output.PersonalIdenityTable);
     for (const question of testQuestions) {
-      await populateTable(question, output.QuestionsTable)
+      await populateTable(question, output.QuestionsTable);
     }
   });
 
