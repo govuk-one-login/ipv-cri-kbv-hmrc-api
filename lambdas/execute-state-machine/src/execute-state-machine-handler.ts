@@ -1,6 +1,9 @@
 import { LambdaInterface } from "@aws-lambda-powertools/commons";
 import { SFNClient, StartSyncExecutionCommand } from "@aws-sdk/client-sfn";
 import { fromEnv } from "@aws-sdk/credential-providers";
+import { Logger } from "@aws-lambda-powertools/logger";
+
+const logger = new Logger();
 
 const sfnClient = new SFNClient({
   region: process.env["AWS_REGION"],
@@ -21,7 +24,8 @@ export class ExecuteStateMachineHandler implements LambdaInterface {
       const response = await sfnClient.send(startMachineCommand);
       return response.output;
     } catch (error) {
-      return `State machine execution failed: ${error}`;
+      logger.error(`State machine execution failed: ${error}`);
+      throw error;
     }
   }
 }
