@@ -40,7 +40,7 @@
       "Type": "Task",
       "Next": "Check if questions already exist for session",
       "Parameters": {
-        "TableName": "${QuestionsTableName}",
+        "TableName": "rahul-kbv-hmrc-cri-questions",
         "KeyConditionExpression": "sessionId = :value",
         "ExpressionAttributeValues": {
           ":value": {
@@ -65,7 +65,7 @@
     "Get Bearer Token": {
       "Type": "Task",
       "Parameters": {
-        "SecretId": "${BearerTokenName}"
+        "SecretId": "HMRCBearerToken"
       },
       "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
       "Next": "Get Questions URL and User Agent",
@@ -78,7 +78,10 @@
       "Type": "Task",
       "Next": "Invoke FetchQuestions Lambda",
       "Parameters": {
-        "Names": ["${QuestionsUrl}", "${UserAgent}"]
+        "Names": [
+          "/rahul-kbv-hmrc-cri/QuestionsUrl",
+          "/rahul-kbv-hmrc-cri/UserAgent"
+        ]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
       "ResultPath": "$.parameters",
@@ -92,7 +95,7 @@
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "${FetchQuestionsArn}"
+        "FunctionName": "arn:aws:lambda:eu-west-2:404250751813:function:rahul-kbv-hmrc-cri-FetchQuestionsFunction-CtpLwXlOM7vl"
       },
       "Retry": [
         {
@@ -110,7 +113,9 @@
       "Next": "Loop through questions",
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "Next": "Error: FetchQuestions threw Exception"
         }
       ],
@@ -128,7 +133,7 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:putItem",
             "Parameters": {
-              "TableName": "${QuestionsTableName}",
+              "TableName": "rahul-kbv-hmrc-cri-questions",
               "Item": {
                 "sessionId": {
                   "S.$": "$$.Execution.Input.sessionId"
