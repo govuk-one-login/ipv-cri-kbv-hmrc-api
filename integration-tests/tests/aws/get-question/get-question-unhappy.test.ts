@@ -1,6 +1,6 @@
-import { stackOutputs } from "./resources/cloudformation-helper";
-import { clearItems, populateTable } from "./resources/dynamodb-helper";
-import { executeStepFunction } from "./resources/stepfunction-helper";
+import { stackOutputs } from "../resources/cloudformation-helper";
+import { clearItems, populateTable } from "../resources/dynamodb-helper";
+import { executeStepFunction } from "../resources/stepfunction-helper";
 
 describe("HMRC KBV Check ", () => {
   const testUser = {
