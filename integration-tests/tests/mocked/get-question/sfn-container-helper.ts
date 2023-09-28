@@ -14,7 +14,7 @@ import {
 import { StartedTestContainer, GenericContainer } from "testcontainers";
 import fs from "fs";
 import path from "path";
-import { StepFunctionConstants } from "./step-functions-constants";
+import { StepFunctionConstants } from "./sfn-constants";
 
 const MAX_RETRIES = 10;
 
