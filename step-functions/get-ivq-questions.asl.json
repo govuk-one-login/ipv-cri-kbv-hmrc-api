@@ -107,58 +107,95 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Loop through questions",
+      "Next": "Create Question Loop Counter",
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
           "Next": "Error: FetchQuestions threw Exception"
         }
-      ],
-      "ResultPath": "$.fetchQuestionsResponse"
+      ]
     },
-    "Loop through questions": {
-      "Type": "Map",
-      "ItemProcessor": {
-        "ProcessorConfig": {
-          "Mode": "INLINE"
-        },
-        "StartAt": "Store question in DynamoDB",
-        "States": {
-          "Store question in DynamoDB": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:putItem",
-            "Parameters": {
-              "TableName": "${QuestionsTableName}",
-              "Item": {
-                "sessionId": {
-                  "S.$": "$$.Execution.Input.sessionId"
-                },
-                "correlationId": {
-                  "S.$": "$.correlationId"
-                },
-                "questionKey": {
-                  "S.$": "$.questionKey"
-                },
-                "info": {
-                  "M.$": "$.info"
-                },
-                "answered": {
-                  "S": "false"
-                }
-              }
-            },
-            "End": true
+    "Create Question Loop Counter": {
+      "Comment": "Set index to zero",
+      "Type": "Pass",
+      "Parameters": {
+        "index": 0,
+        "count.$": "States.ArrayLength($.Payload.questions)"
+      },
+      "ResultPath": "$.iterator",
+      "Next": "finished looping over all the questions?"
+    },
+    "finished looping over all the questions?": {
+      "Comment": "Check if index is less than or equal to number of questions in the response for get ivq questions",
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.iterator.index",
+          "NumericLessThanPath": "$.iterator.count",
+          "Next": "get current question"
+        }
+      ],
+      "Default": "Filter questions"
+    },
+    "get current question": {
+      "Type": "Pass",
+      "Parameters": {
+        "count.$": "$.iterator.count",
+        "currentQuestion.$": "States.ArrayGetItem($.Payload.questions, $.iterator.index)",
+        "correlationId.$": "$.Payload.correlationId",
+        "index.$": "$.iterator.index"
+      },
+      "Next": "Store question in DynamoDB",
+      "ResultPath": "$.iterator"
+    },
+    "Store question in DynamoDB": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${QuestionsTableName}",
+        "Item": {
+          "sessionId": {
+            "S.$": "$$.Execution.Input.sessionId"
+          },
+          "correlationId": {
+            "S.$": "$.iterator.correlationId"
+          },
+          "questionKey": {
+            "S.$": "$.iterator.currentQuestion.questionKey"
+          },
+          "info": {
+            "M.$": "$.iterator.currentQuestion.info"
+          },
+          "answered": {
+            "S": "false"
           }
         }
       },
-      "Next": "Filter questions",
-      "ItemsPath": "$.fetchQuestionsResponse.Payload.questions",
-      "ResultPath": null,
-      "ItemSelector": {
-        "correlationId.$": "$.fetchQuestionsResponse.Payload.correlationId",
-        "questionKey.$": "$$.Map.Item.Value.questionKey",
-        "info.$": "$$.Map.Item.Value.info"
-      }
+      "ResultPath": "$.result",
+      "Next": "increment index by one"
+    },
+    "increment index by one": {
+      "Type": "Pass",
+      "Parameters": {
+        "count.$": "$.iterator.count",
+        "currentQuestion.$": "$.iterator.currentQuestion",
+        "correlationId.$": "$.iterator.correlationId",
+        "index.$": "States.MathAdd($.iterator.index, 1)"
+      },
+      "Next": "continue looping?",
+      "ResultPath": "$.iterator"
+    },
+    "continue looping?": {
+      "Comment": "Exit loop when index exactly equal to number of questions",
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.iterator.index",
+          "NumericEqualsPath": "$.iterator.count",
+          "Next": "Filter questions"
+        }
+      ],
+      "Default": "finished looping over all the questions?"
     },
     "Filter questions": {
       "Type": "Pass",
