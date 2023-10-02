@@ -1,10 +1,10 @@
 {
   "Comment": "Post all answers to HMRC",
-  "StartAt": "Get all Unanswered Questions",
+  "StartAt": "Fetch Unanswered Questions",
   "States": {
-    "Get all Unanswered Questions": {
+    "Fetch Unanswered Questions": {
       "Type": "Task",
-      "Next": "All Questions Answered",
+      "Next": "Have all the questions been answered?",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
@@ -21,20 +21,20 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.questions"
     },
-    "All Questions Answered": {
+    "Have all the questions been answered?": {
       "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.questions.Count",
           "NumericGreaterThan": 0,
-          "Next": "Do Nothing"
+          "Next": "Do nothing"
         }
       ],
-      "Default": "Get all Answered Questions"
+      "Default": "Fetch All Answered Questions"
     },
-    "Get all Answered Questions": {
+    "Fetch All Answered Questions": {
       "Type": "Task",
-      "Next": "GetSecretValue",
+      "Next": "Fetch HMRC Bearer Token",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
@@ -51,9 +51,9 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.questions"
     },
-    "GetSecretValue": {
+    "Fetch HMRC Bearer Token": {
       "Type": "Task",
-      "Next": "GetParameters",
+      "Next": "Fetch API URL and UserAgent",
       "Parameters": {
         "SecretId": "${BearerTokenName}"
       },
@@ -63,27 +63,26 @@
       },
       "ResultPath": "$.oAuthToken"
     },
-    "Do Nothing": {
+    "Do nothing": {
       "Type": "Pass",
       "End": true
     },
-    "GetParameters": {
+    "Fetch API URL and UserAgent": {
       "Type": "Task",
       "Parameters": {
         "Names": ["${AnswersUrlName}", "${UserAgentName}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-      "Next": "Lambda Invoke",
+      "Next": "Submit Answers to HMRC",
       "ResultSelector": {
         "url.$": "$.Parameters[0].Value",
         "userAgent.$": "$.Parameters[1].Value"
       },
       "ResultPath": "$.parameters"
     },
-    "Lambda Invoke": {
+    "Submit Answers to HMRC": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
         "FunctionName": "${PostIvqAnswersLambdaArn}"
@@ -101,42 +100,86 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Store Result"
+      "Next": "Create Result Loop Counter",
+      "ResultSelector": {
+        "Payload.$": "$.Payload"
+      }
     },
-    "Store Result": {
-      "Type": "Map",
-      "ItemProcessor": {
-        "ProcessorConfig": {
-          "Mode": "INLINE"
+    "Create Result Loop Counter": {
+      "Type": "Pass",
+      "Next": "Do we have results to loop over?",
+      "Parameters": {
+        "index": 0,
+        "count.$": "States.ArrayLength($.Payload)"
+      },
+      "ResultPath": "$.iterator"
+    },
+    "Do we have results to loop over?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.iterator.index",
+          "NumericLessThanPath": "$.iterator.count",
+          "Next": "Get Question Score"
+        }
+      ],
+      "Default": "Finished processing HMRC Response"
+    },
+    "Get Question Score": {
+      "Type": "Pass",
+      "Next": "Store Question Score",
+      "Parameters": {
+        "Payload.$": "$.Payload",
+        "iterator.$": "$.iterator",
+        "currentQuestion.$": "States.ArrayGetItem($.Payload, $.iterator.index)"
+      }
+    },
+    "Store Question Score": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${QuestionsTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$$.Execution.Input.sessionId"
+          },
+          "questionKey": {
+            "S.$": "$.currentQuestion.questionKey"
+          }
         },
-        "StartAt": "Update Question",
-        "States": {
-          "Update Question": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "Parameters": {
-              "TableName": "${QuestionsTableName}",
-              "Key": {
-                "sessionId": {
-                  "S.$": "$$.Execution.Input.sessionId"
-                },
-                "questionKey": {
-                  "S.$": "$.questionKey"
-                }
-              },
-              "UpdateExpression": "SET score = :score",
-              "ExpressionAttributeValues": {
-                ":score": {
-                  "S.$": "$.score"
-                }
-              }
-            },
-            "End": true
+        "UpdateExpression": "SET score = :score",
+        "ExpressionAttributeValues": {
+          ":score": {
+            "S.$": "$.currentQuestion.score"
           }
         }
       },
-      "End": true,
-      "InputPath": "$"
+      "Next": "Increment Loop Index",
+      "ResultPath": "$.result"
+    },
+    "Increment Loop Index": {
+      "Type": "Pass",
+      "Parameters": {
+        "count.$": "$.iterator.count",
+        "index.$": "States.MathAdd($.iterator.index, 1)"
+      },
+      "ResultPath": "$.iterator",
+      "Next": "Should we continue looping?"
+    },
+    "Should we continue looping?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.iterator.index",
+          "NumericEqualsPath": "$.iterator.count",
+          "Next": "Finished processing HMRC Response"
+        }
+      ],
+      "Default": "Get Question Score"
+    },
+    "Finished processing HMRC Response": {
+      "Type": "Pass",
+      "End": true
     }
   }
 }
