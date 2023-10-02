@@ -2,7 +2,7 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("HMRC KBV Post Question", () => {
+describe("post-questions-happy", () => {
   const stateMachineInput = {
     key: "rti-p60-employee-ni-contributions",
     value: "100.30",
@@ -13,16 +13,19 @@ describe("HMRC KBV Post Question", () => {
     nino: "AA000003D",
   };
 
-  const clearQuestionDB = async (sessionId: string) => {
-    await clearItems(output.PersonalIdenityTable as string, {
-      sessionId: sessionId,
-    });
+  const clearQuestionDB = async () => {
     for (const question of testQuestions) {
       await clearItems(output.QuestionsTable as string, {
         sessionId: question.sessionId,
         questionKey: question.questionKey,
       });
     }
+  };
+
+  const clearPersonalIdentityTable = async (sessionId: string) => {
+    await clearItems(output.PersonalIdenityTable as string, {
+      sessionId: sessionId,
+    });
   };
 
   let testQuestions = [
@@ -53,29 +56,6 @@ describe("HMRC KBV Post Question", () => {
         months: "3",
       },
     },
-    {
-      sessionId: stateMachineInput.sessionId,
-      answered: "false",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d575",
-      questionKey: "rti-payslip-national-insurance",
-      info: {
-        months: "3",
-      },
-    },
-    {
-      sessionId: stateMachineInput.sessionId,
-      answered: "false",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d576",
-      questionKey: "ita-bankaccount",
-      info: {},
-    },
-    {
-      sessionId: stateMachineInput.sessionId,
-      answered: "false",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d577",
-      questionKey: "tc-amount",
-      info: {},
-    },
   ] as any;
 
   let output: Partial<{
@@ -90,37 +70,35 @@ describe("HMRC KBV Post Question", () => {
   });
 
   afterEach(async () => {
-    await clearQuestionDB(testUser.sessionId);
+    await clearPersonalIdentityTable(testUser.sessionId);
+    await clearQuestionDB();
   });
 
-  describe("Happy Path Journey", () => {
-    it("should pass and not post the answers to HMRC when there are unanswered questions", async () => {
-      for (const question of testQuestions) {
-        await populateTable(question, output.QuestionsTable);
+  it("should pass and not post the answers to HMRC when there are unanswered questions", async () => {
+    for (const question of testQuestions) {
+      await populateTable(question, output.QuestionsTable);
+    }
+    const startExecutionResult = (await executeStepFunction(
+      stateMachineInput,
+      output.PostAnswerStateMachineArn
+    )) as any;
+
+    expect(startExecutionResult.output).toBe("{}");
+  });
+
+  it("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
+    for (const question of testQuestions) {
+      if (question.questionKey !== stateMachineInput.key) {
+        question.answered = "true";
       }
-      const startExecutionResult = (await executeStepFunction(
-        stateMachineInput,
-        output.PostAnswerStateMachineArn
-      )) as any;
 
-      expect(startExecutionResult.output).toBe("{}");
-    });
+      await populateTable(question, output.QuestionsTable);
+    }
+    const startExecutionResult = (await executeStepFunction(
+      stateMachineInput,
+      output.PostAnswerStateMachineArn
+    )) as any;
 
-    it("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
-      for (const question of testQuestions) {
-        if (question.questionKey === stateMachineInput.key) {
-          question.answered = "false";
-        } else {
-          question.answered = "true";
-        }
-        await populateTable(question, output.QuestionsTable);
-      }
-      const startExecutionResult = (await executeStepFunction(
-        stateMachineInput,
-        output.PostAnswerStateMachineArn
-      )) as any;
-
-      expect(startExecutionResult.output).toBe("{}");
-    });
+    expect(startExecutionResult.output).toBe("{}");
   });
 });
