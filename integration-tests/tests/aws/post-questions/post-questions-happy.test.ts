@@ -2,22 +2,30 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("HMRC KBV Get IVQ Question", () => {
+describe("HMRC KBV Post Question", () => {
   const stateMachineInput = {
-    sessionId: "12346",
+    key: "rti-p60-employee-ni-contributions",
+    value: "100.30",
+    sessionId: "12345",
+  };
+  const testUser = {
+    sessionId: "12345",
     nino: "AA000003D",
   };
 
-  const clearQuestionDB = async () => {
+  const clearQuestionDB = async (sessionId: string) => {
+    await clearItems(output.PersonalIdenityTable as string, {
+      sessionId: sessionId,
+    });
     for (const question of testQuestions) {
       await clearItems(output.QuestionsTable as string, {
-        sessionId: stateMachineInput.sessionId,
+        sessionId: question.sessionId,
         questionKey: question.questionKey,
       });
     }
   };
 
-  const testQuestions = [
+  let testQuestions = [
     {
       sessionId: stateMachineInput.sessionId,
       answered: "false",
@@ -71,54 +79,48 @@ describe("HMRC KBV Get IVQ Question", () => {
   ] as any;
 
   let output: Partial<{
+    PersonalIdenityTable: string;
     QuestionsTable: string;
-    IvqQuestionStateMachineArn: string;
+    PostAnswerStateMachineArn: string;
   }>;
 
   beforeEach(async () => {
     output = await stackOutputs(process.env.STACK_NAME);
+    await populateTable(testUser, output.PersonalIdenityTable);
   });
 
   afterEach(async () => {
-    await clearQuestionDB();
+    await clearQuestionDB(testUser.sessionId);
   });
 
   describe("Happy Path Journey", () => {
-    it("should fetch questions from HMRC when there are no questions in DB", async () => {
-      const startExecutionResult = (await executeStepFunction(
-        stateMachineInput,
-        output.IvqQuestionStateMachineArn
-      )) as any;
-      const result = JSON.parse(startExecutionResult.output);
-      const fetchedQuestion = result.fetchQuestionsResponse.Payload.questions;
-      expect(result.sessionId).toBe(stateMachineInput.sessionId);
-      for (let counter = 0; counter < testQuestions.length; counter++) {
-        expect(testQuestions[counter].questionKey).toBe(
-          fetchedQuestion[counter].questionKey
-        );
-        expect(testQuestions[counter].info).toEqual(
-          fetchedQuestion[counter].info
-        );
-      }
-    });
-    it("should not fetch questions from HMRC when there are questions in DB", async () => {
+    it("should pass and not post the answers to HMRC when there are unanswered questions", async () => {
       for (const question of testQuestions) {
         await populateTable(question, output.QuestionsTable);
       }
       const startExecutionResult = (await executeStepFunction(
         stateMachineInput,
-        output.IvqQuestionStateMachineArn
+        output.PostAnswerStateMachineArn
       )) as any;
-      const result = JSON.parse(startExecutionResult.output);
-      const loadedQuestion: Array<String> = result.loadedQuestions.Items;
-      expect(result.sessionId).toBe(stateMachineInput.sessionId);
-      for (let counter = 0; counter < testQuestions.length; counter++) {
-        expect(loadedQuestion.includes(testQuestions[counter].questionKey));
-        expect(loadedQuestion.includes(testQuestions[counter].info.months));
-        expect(
-          loadedQuestion.includes(testQuestions[counter].info.currentTaxYear)
-        );
+
+      expect(startExecutionResult.output).toBe("{}");
+    });
+
+    it("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
+      for (const question of testQuestions) {
+        if (question.questionKey === stateMachineInput.key) {
+          question.answered = "false";
+        } else {
+          question.answered = "true";
+        }
+        await populateTable(question, output.QuestionsTable);
       }
+      const startExecutionResult = (await executeStepFunction(
+        stateMachineInput,
+        output.PostAnswerStateMachineArn
+      )) as any;
+
+      expect(startExecutionResult.output).toBe("{}");
     });
   });
 });

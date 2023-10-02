@@ -4,10 +4,9 @@ import { executeStepFunction } from "../resources/stepfunction-helper";
 
 describe("HMRC KBV Post Question", () => {
   const stateMachineInput = {
-    "key": "rti-p60-employee-ni-contributions",
-    "value": "100.30",
-    "sessionId": "12345"
-    
+    key: "rti-p60-employee-ni-contributions",
+    value: "100.30",
+    sessionId: "12345",
   };
   const testUser = {
     sessionId: "12345",
@@ -98,30 +97,27 @@ describe("HMRC KBV Post Question", () => {
   });
 
   describe("UnHappy Path Journey", () => {
-      it("should return error when provided question has already answered", async () => {
-        const startExecutionResult = await executeStepFunction(
-          stateMachineInput,
-          output.PostAnswerStateMachineArn
-        ) as any;
-        
-        expect(startExecutionResult.output).toBe(
-          '{}'
-        );
-      });
-      it("should return error when nino is not present", async () => {
-        const startExecutionResult = await executeStepFunction(
-          {
-            "key": "rti-p60-employee-ni-contributions",
-            "value": "100.30",
-            "sessionId": "12346"
-            
-          },
-          output.PostAnswerStateMachineArn
-        ) as any;
-        
-        expect(startExecutionResult.output).toBe(
-          "{\"key\":\"rti-p60-employee-ni-contributions\",\"value\":\"100.30\",\"sessionId\":\"12346\",\"nino\":{\"Count\":0,\"Items\":[],\"ScannedCount\":0}}"
-        );
-      });
+    it("should return error when provided question has already answered", async () => {
+      const startExecutionResult = (await executeStepFunction(
+        stateMachineInput,
+        output.PostAnswerStateMachineArn
+      )) as any;
+
+      expect(startExecutionResult.output).toBe("{}");
+    });
+    it("should return error when nino is not present", async () => {
+      const startExecutionResult = (await executeStepFunction(
+        {
+          key: "rti-p60-employee-ni-contributions",
+          value: "100.30",
+          sessionId: "12346",
+        },
+        output.PostAnswerStateMachineArn
+      )) as any;
+
+      expect(startExecutionResult.output).toBe(
+        '{"key":"rti-p60-employee-ni-contributions","value":"100.30","sessionId":"12346","nino":{"Count":0,"Items":[],"ScannedCount":0}}'
+      );
+    });
   });
 });

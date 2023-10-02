@@ -737,7 +737,6 @@ Outputs:
     # Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
     Value: !Ref PersonalIdentityTable
 
-
   QuestionsTable:
     Description: "Get Question Table"
     Value: !Ref QuestionsTable
