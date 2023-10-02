@@ -1,0 +1,171 @@
+{
+  "StateMachines": {
+    "post-ivq-answers": {
+      "TestCases": {
+        "Happy": {
+          "Fetch Unanswered Questions": "NoRecordsInDB",
+          "Fetch All Answered Questions": "FetchAllAnsweredQuestionsSuccess",
+          "Fetch HMRC Bearer Token": "FetchBearerTokenSuccess",
+          "Fetch API URL and UserAgent": "GetParametersSuccess",
+          "Submit Answers to HMRC": "LambdaInvokeSuccess",
+          "Store Question Score": "StoreQuestionScoreSuccess"
+        }
+      }
+    }
+  },
+  "MockedResponses": {
+    "NoRecordsInDB": {
+      "0": {
+        "Return": {
+          "Count": 0,
+          "Items": [],
+          "ScannedCount": 0
+        }
+      }
+    },
+
+    "FetchAllAnsweredQuestionsSuccess": {
+      "0": {
+        "Return": {
+          "Count": 6,
+          "Items": [
+            {
+              "questionKey": {
+                "S": "dummyQuestionKey"
+              },
+              "answered": {
+                "S": "true"
+              },
+              "answer": {
+                "S": "100.00"
+              },
+              "correlationId": {
+                "S": "dummyCorrelationId"
+              },
+              "sessionId": {
+                "S": "abc"
+              },
+              "info": {
+                "M": {
+                  "currentTaxYear": {
+                    "S": "2022/23"
+                  }
+                }
+              }
+            },
+            {
+              "questionKey": {
+                "S": "dummyQuestionKey1"
+              },
+              "answered": {
+                "S": "true"
+              },
+              "answer": {
+                "S": "100.00"
+              },
+              "correlationId": {
+                "S": "dummyCorrelationId"
+              },
+              "sessionId": {
+                "S": "abc"
+              },
+              "info": {
+                "M": {
+                  "currentTaxYear": {
+                    "S": "2022/23"
+                  }
+                }
+              }
+            }
+          ],
+          "ScannedCount": 6
+        }
+      }
+    },
+
+    "FetchBearerTokenSuccess": {
+      "0": {
+        "Return": {
+          "SecretString": "dummySecretValue"
+        }
+      }
+    },
+
+    "GetParametersSuccess": {
+      "0": {
+        "Return": {
+          "Parameters": [
+            {
+              "Value": "dummyApiUrl"
+            },
+            {
+              "Value": "dummyUserAgent"
+            }
+          ]
+        }
+      }
+    },
+
+    "LambdaInvokeSuccess": {
+      "0": {
+        "Return": {
+          "Payload": [
+            {
+              "questionKey": "dummyQuestionKey",
+              "score": "correct"
+            },
+            {
+              "questionKey": "dummyQuestionKey1",
+              "score": "correct"
+            }
+          ]
+        }
+      }
+    },
+
+    "StoreQuestionScoreSuccess": {
+      "0": {
+        "Return": {
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "Server": [
+                "Server"
+              ],
+              "Connection": [
+                "keep-alive"
+              ],
+              "x-amzn-RequestId": [
+                "dummy"
+              ],
+              "x-amz-crc32": [
+                "2745614147"
+              ],
+              "Content-Length": [
+                "2"
+              ],
+              "Date": [
+                "Mon, 02 Oct 2023 12:59:59 GMT"
+              ],
+              "Content-Type": [
+                "application/x-amz-json-1.0"
+              ]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/x-amz-json-1.0",
+              "Date": "Mon, 02 Oct 2023 12:59:59 GMT",
+              "Server": "Server",
+              "x-amz-crc32": "2745614147",
+              "x-amzn-RequestId": "dummy"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {
+            "RequestId": "dummy"
+          }
+        }
+      }
+    }
+  }
+}
