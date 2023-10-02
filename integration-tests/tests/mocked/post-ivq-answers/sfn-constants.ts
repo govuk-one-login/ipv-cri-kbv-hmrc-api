@@ -3,7 +3,7 @@ import path from "path";
 
 const STATE_MACHINE_FILE = path.join(
   __dirname,
-  "../../../../step-functions/get-question.asl.json"
+  "../../../../step-functions/post-ivq-answers.asl.json"
 );
 
 export const StepFunctionConstants = {
@@ -11,7 +11,7 @@ export const StepFunctionConstants = {
   mockFileContainerPath: "/home/stepfunctionslocal/MockConfigFile.json",
   DUMMY_ROLE: "arn:aws:iam::123456789012:role/DummyRole",
   STATE_MACHINE_ASL: fs.readFileSync(STATE_MACHINE_FILE).toString(),
-  STATE_MACHINE_NAME: "get-question",
+  STATE_MACHINE_NAME: "post-ivq-answers",
   AWS_ACCOUNT_ID: "123456789012",
   AWS_DEFAULT_REGION: "local",
   AWS_ACCESS_KEY_ID: "local",
