@@ -734,7 +734,8 @@ Outputs:
 
   PersonalIdenityTable:
     Description: "Get Personal Identity Name"
-    Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+    # Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+    Value: !Ref PersonalIdentityTable
 
   QuestionsTable:
     Description: "Get Question Table"
@@ -743,3 +744,7 @@ Outputs:
   IvqQuestionStateMachineArn:
     Description: "GetIVQQuestion StateMachine Arn"
     Value: !GetAtt GetIvqQuestionsStateMachine.Arn
+
+  PostAnswerStateMachineArn:
+    Description: "Post Question StateMachine Arn"
+    Value: !GetAtt PostAnswerStateMachine.Arn
