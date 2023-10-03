@@ -518,6 +518,19 @@ Resources:
         EntryPoints:
           - src/create-auth-code-handler.ts
 
+  EvidenceCheckDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/evidence-check-details
+      Handler: check-details-handler.lambdaHandler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/check-details-handler.ts
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -661,6 +674,8 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - LambdaInvokePolicy:
             FunctionName: !Ref TimeFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref EvidenceCheckDetailsFunction
         - Statement:
             Effect: Allow
             Action:
@@ -683,6 +698,7 @@ Resources:
         MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
         JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
         TimeFunctionArn: !GetAtt TimeFunction.Arn
+        EvidenceCheckDetailsFunctionArn: !GetAtt EvidenceCheckDetailsFunction.Arn
         CommonStackName: !Ref CommonStackName
 
   IssueCredentialStateMachineLogGroup:
