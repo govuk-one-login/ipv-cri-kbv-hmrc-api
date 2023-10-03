@@ -321,6 +321,11 @@ Resources:
     Properties:
       CodeUri: ../lambdas/submit-answer
       Handler: submit-answer-handler.lambdaHandler
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

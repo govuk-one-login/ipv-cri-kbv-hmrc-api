@@ -13,6 +13,9 @@
   "author": "alphagov",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/credential-providers": "^3.397.0",
+    "@aws-sdk/client-dynamodb": "^3.398.0",
+    "@aws-sdk/lib-dynamodb": "^3.398.0",
     "@aws-lambda-powertools/commons": "1.8.0",
     "@aws-lambda-powertools/logger": "1.7.0",
     "@aws-lambda-powertools/metrics": "1.7.0",

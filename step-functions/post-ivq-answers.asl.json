@@ -73,12 +73,26 @@
         "Names": ["${AnswersUrlName}", "${UserAgentName}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-      "Next": "Lambda Invoke",
+      "Next": "Create Lambda Input",
       "ResultSelector": {
         "url.$": "$.Parameters[0].Value",
         "userAgent.$": "$.Parameters[1].Value"
       },
       "ResultPath": "$.parameters"
+    },
+    "Create Lambda Input": {
+      "Type": "Pass",
+      "Next": "Lambda Invoke",
+      "Parameters": {
+        "questionTableName": "${QuestionsTableName}",
+        "sessionId.$": "$.sessionId",
+        "nino.$": "$.nino",
+        "oAuthToken": {
+          "value.$": "$.oAuthToken.value"
+        },
+        "parameters.$": "$.parameters",
+        "questions.$": "$.questions"
+      }
     },
     "Lambda Invoke": {
       "Type": "Task",
@@ -90,53 +104,13 @@
       },
       "Retry": [
         {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 6,
-          "BackoffRate": 2
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 2,
+          "BackoffRate": 1
         }
       ],
-      "Next": "Store Result"
-    },
-    "Store Result": {
-      "Type": "Map",
-      "ItemProcessor": {
-        "ProcessorConfig": {
-          "Mode": "INLINE"
-        },
-        "StartAt": "Update Question",
-        "States": {
-          "Update Question": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "Parameters": {
-              "TableName": "${QuestionsTableName}",
-              "Key": {
-                "sessionId": {
-                  "S.$": "$$.Execution.Input.sessionId"
-                },
-                "questionKey": {
-                  "S.$": "$.questionKey"
-                }
-              },
-              "UpdateExpression": "SET score = :score",
-              "ExpressionAttributeValues": {
-                ":score": {
-                  "S.$": "$.score"
-                }
-              }
-            },
-            "End": true
-          }
-        }
-      },
-      "End": true,
-      "InputPath": "$"
+      "End": true
     }
   }
 }
