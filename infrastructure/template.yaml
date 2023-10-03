@@ -518,6 +518,20 @@ Resources:
         EntryPoints:
           - src/create-auth-code-handler.ts
 
+  CredentialSubjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/credential-subject
+      Handler: credential-subject-handler.lambdaHandler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/credential-subject-handler.ts
+
   EvidenceCheckDetailsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -675,6 +689,8 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref TimeFunction
         - LambdaInvokePolicy:
+            FunctionName: !Ref CredentialSubjectFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref EvidenceCheckDetailsFunction
         - Statement:
             Effect: Allow
@@ -698,6 +714,7 @@ Resources:
         MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
         JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
         TimeFunctionArn: !GetAtt TimeFunction.Arn
+        CredentialSubjectFunctionArn: !GetAtt CredentialSubjectFunction.Arn
         EvidenceCheckDetailsFunctionArn: !GetAtt EvidenceCheckDetailsFunction.Arn
         CommonStackName: !Ref CommonStackName
 
@@ -743,6 +760,10 @@ Outputs:
   TimeFunctionRoleArn:
     Description: "TimeFunctionRole Arn"
     Value: !GetAtt TimeFunctionRole.Arn
+
+  CredentialSubjectFunction:
+    Description: "Time Lambda Function ARN"
+    Value: !GetAtt CredentialSubjectFunction.Arn
 
   QuestionStateMachineArn:
     Description: "GetQuestion StateMachine Arn"
