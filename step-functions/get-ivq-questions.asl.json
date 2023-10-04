@@ -148,10 +148,10 @@
         "correlationId.$": "$.iterator.correlationId",
         "index.$": "States.MathAdd($.iterator.index, 1)"
       },
-      "Next": "Should we continue looping?",
+      "Next": "Continue looping?",
       "ResultPath": "$.iterator"
     },
-    "Should we continue looping?": {
+    "Continue looping?": {
       "Comment": "Exit loop when index exactly equal to number of questions",
       "Type": "Choice",
       "Choices": [
