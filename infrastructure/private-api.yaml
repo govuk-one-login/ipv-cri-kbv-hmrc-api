@@ -147,6 +147,8 @@ paths:
                 #elseif($resp.status == "FAILED")
                 #set($context.responseOverride.status = 500)
                 $resp.cause
+                #elseif($resp.output == "204")
+                #set($context.responseOverride.status = 204)
                 #end
                 $resp.output
   /answer:
