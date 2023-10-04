@@ -38,21 +38,27 @@ export class SubmitAnswerHandler implements LambdaInterface {
         }),
       });
       const json = await response.json();
-      for (const item of json) {
-        await docClient.send(
-          new UpdateCommand({
-            TableName: event.questionTableName,
-            Key: {
-              sessionId: event.sessionId,
-              questionKey: item.questionKey,
-            },
-            UpdateExpression: "SET score = :score",
-            ExpressionAttributeValues: {
-              ":score": item.score,
-            },
-          })
-        );
-      }
+
+      const updatePromises = json.map(
+        async (item: { questionKey: any; score: any }) => {
+          return docClient.send(
+            new UpdateCommand({
+              TableName: event.questionTableName,
+              Key: {
+                sessionId: event.sessionId,
+                questionKey: item.questionKey,
+              },
+              UpdateExpression: "SET score = :score",
+              ExpressionAttributeValues: {
+                ":score": item.score,
+              },
+            })
+          );
+        }
+      );
+
+      await Promise.all(updatePromises);
+
       return json;
     } catch (error: any) {
       logger.error("SubmitAnswerHandler Error: " + error.message);
