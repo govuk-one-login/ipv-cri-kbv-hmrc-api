@@ -1,41 +1,7 @@
 {
   "Comment": "Populates the table of questions from the HMRC IVQ API",
-  "StartAt": "Check session ID present",
+  "StartAt": "Query questions table for session ID",
   "States": {
-    "Check session ID present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.sessionId",
-            "IsPresent": true
-          },
-          "Next": "Error Session ID missing"
-        }
-      ],
-      "Default": "Check NINO present"
-    },
-    "Check NINO present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.nino",
-            "IsPresent": true
-          },
-          "Next": "Error NINO missing"
-        }
-      ],
-      "Default": "Query questions table for session ID"
-    },
-    "Error NINO missing": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Error Session ID missing": {
-      "Type": "Pass",
-      "End": true
-    },
     "Query questions table for session ID": {
       "Type": "Task",
       "Next": "Check if questions already exist for session",
@@ -60,7 +26,7 @@
           "Next": "Get Bearer Token"
         }
       ],
-      "Default": "Questions already loaded - Do Nothing"
+      "Default": "Questions already loaded - Do nothing"
     },
     "Get Bearer Token": {
       "Type": "Task",
@@ -110,8 +76,10 @@
       "Next": "Create Question Loop Counter",
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "Error: FetchQuestions threw Exception"
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Err: FetchQuestions threw Exception"
         }
       ]
     },
@@ -123,21 +91,21 @@
         "count.$": "States.ArrayLength($.Payload.questions)"
       },
       "ResultPath": "$.iterator",
-      "Next": "finished looping over all the questions?"
+      "Next": "Finished looping over all the questions?"
     },
-    "finished looping over all the questions?": {
+    "Finished looping over all the questions?": {
       "Comment": "Check if index is less than or equal to number of questions in the response for get ivq questions",
       "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.iterator.index",
           "NumericLessThanPath": "$.iterator.count",
-          "Next": "get current question"
+          "Next": "Get current question"
         }
       ],
       "Default": "Filter questions"
     },
-    "get current question": {
+    "Get current question": {
       "Type": "Pass",
       "Parameters": {
         "count.$": "$.iterator.count",
@@ -145,10 +113,10 @@
         "correlationId.$": "$.Payload.correlationId",
         "index.$": "$.iterator.index"
       },
-      "Next": "Store question in DynamoDB",
+      "Next": "Store question",
       "ResultPath": "$.iterator"
     },
-    "Store question in DynamoDB": {
+    "Store question": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
@@ -172,9 +140,9 @@
         }
       },
       "ResultPath": "$.result",
-      "Next": "increment index by one"
+      "Next": "Increment index by one"
     },
-    "increment index by one": {
+    "Increment index by one": {
       "Type": "Pass",
       "Parameters": {
         "count.$": "$.iterator.count",
@@ -182,10 +150,10 @@
         "correlationId.$": "$.iterator.correlationId",
         "index.$": "States.MathAdd($.iterator.index, 1)"
       },
-      "Next": "continue looping?",
+      "Next": "Should we continue looping?",
       "ResultPath": "$.iterator"
     },
-    "continue looping?": {
+    "Should we continue looping?": {
       "Comment": "Exit loop when index exactly equal to number of questions",
       "Type": "Choice",
       "Choices": [
@@ -195,40 +163,41 @@
           "Next": "Filter questions"
         }
       ],
-      "Default": "finished looping over all the questions?"
+      "Default": "Finished looping over all the questions?"
     },
     "Filter questions": {
       "Type": "Pass",
-      "Next": "Are there sufficient questions?"
+      "Next": "Are there sufficient questions?",
+      "Comment": "TODO: Implement question filtering"
     },
-    "Error: FetchQuestions threw Exception": {
-      "Type": "Pass",
-      "End": true
+    "Err: FetchQuestions threw Exception": {
+      "Type": "Fail"
     },
     "Are there sufficient questions?": {
       "Type": "Choice",
       "Choices": [
         {
           "Not": {
-            "Variable": "$.sessionId",
+            "Variable": "$.Payload.questions",
             "IsPresent": true
           },
-          "Next": "Log: Insufficient questions"
+          "Next": "Err: Insufficient questions"
         }
       ],
-      "Default": "Log: Question Metric"
+      "Default": "Success"
     },
-    "Log: Insufficient questions": {
+    "Err: Insufficient questions": {
       "Type": "Pass",
-      "End": true
+      "End": true,
+      "Parameters": {
+        "error": "Insufficient Questions"
+      }
     },
-    "Log: Question Metric": {
-      "Type": "Pass",
-      "End": true
+    "Success": {
+      "Type": "Succeed"
     },
-    "Questions already loaded - Do Nothing": {
-      "Type": "Pass",
-      "End": true
+    "Questions already loaded - Do nothing": {
+      "Type": "Succeed"
     }
   }
 }
