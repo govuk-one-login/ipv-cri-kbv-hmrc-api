@@ -50,12 +50,13 @@ export class CredentialSubjectBuilder {
     return this;
   }
   build(): CredentialSubject {
-    const name = [{ nameParts: this.name } as Name];
+    const credentialSubject = {} as CredentialSubject;
+    if (this.name.length != 0)
+      credentialSubject.name = [{ nameParts: this.name } as Name];
+    if (this.address.length != 0) credentialSubject.address = this.address;
+    if (this.birthDate.length != 0)
+      credentialSubject.birthDate = this.birthDate;
 
-    return {
-      name,
-      birthDate: this.birthDate,
-      address: this.address,
-    } as CredentialSubject;
+    return credentialSubject;
   }
 }
