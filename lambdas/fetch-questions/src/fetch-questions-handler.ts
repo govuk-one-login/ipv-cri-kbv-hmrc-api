@@ -21,7 +21,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       try {
         json = await response.json();
       } catch (error: any) {
-        return await response.text();
+        throw new Error(await response.text());
       }
       if (json.questions.length <= 0) {
         throw new Error("No questions returned");
