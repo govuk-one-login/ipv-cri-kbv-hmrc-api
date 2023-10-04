@@ -1,7 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import {
   DeleteCommand,
   DynamoDBDocumentClient,
+  GetCommand,
   PutCommand,
 } from "@aws-sdk/lib-dynamodb";
 
@@ -24,6 +25,17 @@ export const clearItems = async (
   key: Record<string, unknown>
 ) => {
   const command = new DeleteCommand({
+    TableName: tableName,
+    Key: key,
+  });
+  return await docClient.send(command);
+};
+
+export const getTableItem = async (
+  tableName: string,
+  key: Record<string, unknown>
+) => {
+  const command = new GetCommand({
     TableName: tableName,
     Key: key,
   });

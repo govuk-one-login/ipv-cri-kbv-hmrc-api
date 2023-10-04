@@ -1,8 +1,12 @@
 import { stackOutputs } from "../resources/cloudformation-helper";
-import { clearItems, populateTable } from "../resources/dynamodb-helper";
+import {
+  clearItems,
+  populateTable,
+  getTableItem,
+} from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("post-ivq-answers-happy", () => {
+describe("post-ivq-answers", () => {
   const stateMachineInput = {
     sessionId: "12345",
     nino: "AA000003D",
@@ -28,7 +32,7 @@ describe("post-ivq-answers-happy", () => {
       sessionId: stateMachineInput.sessionId,
       answered: "true",
       answer: "100.30",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d572",
+      correlationId: "67b27ad0-53e3-4652-96a4-949d7d42b8e7",
       questionKey: "rti-p60-payment-for-year",
       info: {
         currentTaxYear: "2022/23",
@@ -38,7 +42,7 @@ describe("post-ivq-answers-happy", () => {
       sessionId: stateMachineInput.sessionId,
       answered: "true",
       answer: "100.40",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d573",
+      correlationId: "67b27ad0-53e3-4652-96a4-949d7d42b8e7",
       questionKey: "rti-p60-employee-ni-contributions",
       info: {
         currentTaxYear: "2022/23",
@@ -48,7 +52,7 @@ describe("post-ivq-answers-happy", () => {
       sessionId: stateMachineInput.sessionId,
       answered: "true",
       answer: "100.50",
-      correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d574",
+      correlationId: "67b27ad0-53e3-4652-96a4-949d7d42b8e7",
       questionKey: "rti-payslip-income-tax",
       info: {
         months: "3",
@@ -82,9 +86,16 @@ describe("post-ivq-answers-happy", () => {
     )) as any;
 
     const results = JSON.parse(startExecutionResult.output);
-
     for (const result of results) {
       expect(result.SdkHttpMetadata.HttpStatusCode).toBe(200);
+    }
+
+    for (const question of testQuestions) {
+      const tableItem = (await getTableItem(output.QuestionsTable as string, {
+        sessionId: question.sessionId,
+        questionKey: question.questionKey,
+      })) as any;
+      expect(tableItem.Item.score).toBe("incorrect");
     }
   });
 
@@ -99,7 +110,14 @@ describe("post-ivq-answers-happy", () => {
     )) as any;
 
     expect(startExecutionResult.output).toBe(
-      '{"sessionId":"12345","nino":"AA000003D","questions":{"Count":3,"Items":[{"questionKey":{"S":"rti-p60-employee-ni-contributions"},"answered":{"S":"false"},"answer":{"S":"100.40"},"correlationId":{"S":"93dcc67c-fe6d-4bd7-b68f-2bd848e0d573"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}},{"questionKey":{"S":"rti-p60-payment-for-year"},"answered":{"S":"false"},"answer":{"S":"100.30"},"correlationId":{"S":"93dcc67c-fe6d-4bd7-b68f-2bd848e0d572"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}},{"questionKey":{"S":"rti-payslip-income-tax"},"answered":{"S":"false"},"answer":{"S":"100.50"},"correlationId":{"S":"93dcc67c-fe6d-4bd7-b68f-2bd848e0d574"},"sessionId":{"S":"12345"},"info":{"M":{"months":{"S":"3"}}}}],"ScannedCount":3}}'
+      '{"sessionId":"12345","nino":"AA000003D","questions":{"Count":3,"Items":[{"questionKey":{"S":"rti-p60-employee-ni-contributions"},"answered":{"S":"false"},"answer":{"S":"100.40"},"correlationId":{"S":"67b27ad0-53e3-4652-96a4-949d7d42b8e7"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}},{"questionKey":{"S":"rti-p60-payment-for-year"},"answered":{"S":"false"},"answer":{"S":"100.30"},"correlationId":{"S":"67b27ad0-53e3-4652-96a4-949d7d42b8e7"},"sessionId":{"S":"12345"},"info":{"M":{"currentTaxYear":{"S":"2022/23"}}}},{"questionKey":{"S":"rti-payslip-income-tax"},"answered":{"S":"false"},"answer":{"S":"100.50"},"correlationId":{"S":"67b27ad0-53e3-4652-96a4-949d7d42b8e7"},"sessionId":{"S":"12345"},"info":{"M":{"months":{"S":"3"}}}}],"ScannedCount":3}}'
     );
+    for (const question of testQuestions) {
+      const tableItem = (await getTableItem(output.QuestionsTable as string, {
+        sessionId: question.sessionId,
+        questionKey: question.questionKey,
+      })) as any;
+      expect(tableItem.Item).toEqual(question);
+    }
   });
 });
