@@ -4,7 +4,6 @@ import { Logger } from "@aws-lambda-powertools/logger";
 const logger = new Logger();
 
 export class FetchQuestionsHandler implements LambdaInterface {
-
   public async handler(event: any, _context: unknown): Promise<string> {
     try {
       const response = await fetch(event.parameters.url, {
@@ -24,7 +23,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       } catch (error: any) {
         return await response.text();
       }
-      if(json.questions.length <= 0) {
+      if (json.questions.length <= 0) {
         throw new Error("No questions returned");
       }
       return json;

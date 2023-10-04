@@ -76,9 +76,7 @@
       "Next": "Create Question Loop Counter",
       "Catch": [
         {
-          "ErrorEquals": [
-            "States.ALL"
-          ],
+          "ErrorEquals": ["States.ALL"],
           "Next": "Err: FetchQuestions threw Exception"
         }
       ]
