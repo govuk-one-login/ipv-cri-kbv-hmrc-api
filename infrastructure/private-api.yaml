@@ -107,10 +107,14 @@ paths:
       summary: "Get question from HMRC"
       parameters:
         - $ref: "#/components/parameters/SessionHeader"
+      x-amazon-apigateway-request-validator: "Validate both"
       responses:
         "200":
-          description: "200 response"
-      x-amazon-apigateway-request-validator: "Validate both"
+          description: OK
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
       x-amazon-apigateway-integration:
         httpMethod: "POST"
         passthroughBehavior: "when_no_templates"
@@ -123,15 +127,30 @@ paths:
           application/json:
             Fn::Sub: |-
               {
-                "input": "{\"sessionId\": \"$input.params('session-id')\"}",
+                "input": "{\"sessionId\": \"$input.params('session-id').trim()\"}",
                 "stateMachineArn": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-GetQuestion"
               }
         responses:
-          "200":
+          default:
             statusCode: 200
             responseTemplates:
-              application/json:
-                Fn::Sub: $input.path('$').output
+              application/json: |
+                #set($resp = $util.parseJson($input.body))
+                #set($params = $util.parseJson($resp.output))
+                #foreach($paramName in $params.keySet())
+                #if($paramName == 'error')
+                #set($err = true)
+                #end
+                #end
+                #if($err == true)
+                #set($context.responseOverride.status = 400)
+                #elseif($resp.status == "FAILED")
+                #set($context.responseOverride.status = 500)
+                $resp.cause
+                #elseif($resp.output == "204")
+                #set($context.responseOverride.status = 204)
+                #end
+                $resp.output
   /answer:
     post:
       summary: "Post answer to HMRC"
