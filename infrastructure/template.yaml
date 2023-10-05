@@ -785,3 +785,7 @@ Outputs:
   PostAnswerStateMachineArn:
     Description: "Post Question StateMachine Arn"
     Value: !GetAtt PostAnswerStateMachine.Arn
+
+  PostIvqAnswersStateMachineArn:
+    Description: "Post IVQ Answer StateMachine Arn"
+    Value: !GetAtt PostIvqAnswersStateMachine.Arn
