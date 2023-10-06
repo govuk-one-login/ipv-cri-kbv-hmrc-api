@@ -26,7 +26,7 @@ describe("get-question-happy", () => {
     );
     const results = await sfnContainer.waitFor(
       (event: HistoryEvent) =>
-        event?.stateExitedEventDetails?.name === "HTTP 200",
+        event?.stateExitedEventDetails?.name === "Return Next Question",
       responseStepFunction
     );
     expect(results[0].stateExitedEventDetails?.output).toEqual(
@@ -44,11 +44,9 @@ describe("get-question-happy", () => {
     );
     const results = await sfnContainer.waitFor(
       (event: HistoryEvent) =>
-        event?.stateExitedEventDetails?.name === "HTTP 204 NO CONTENT",
+        event?.stateExitedEventDetails?.name === "204: No More Questions",
       responseStepFunction
     );
-    expect(results[0].stateExitedEventDetails?.output).toEqual(
-      '{"Count":0,"Items":[],"ScannedCount":0}'
-    );
+    expect(results[0].stateExitedEventDetails?.output).toEqual("204");
   });
 });
