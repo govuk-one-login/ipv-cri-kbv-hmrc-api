@@ -9,9 +9,9 @@ import {
   SFNClient,
   StartExecutionCommand,
   StartExecutionCommandOutput,
-  StateMachineType,
+  StateMachineType
 } from "@aws-sdk/client-sfn";
-import { StartedTestContainer, GenericContainer } from "testcontainers";
+import { GenericContainer, StartedTestContainer } from "testcontainers";
 import fs from "fs";
 import path from "path";
 import { StepFunctionConstants } from "./sfn-constants";
@@ -106,6 +106,18 @@ export class SfnContainerHelper {
     );
     return executionHistoryResult?.events?.filter(criteria) as HistoryEvent[];
   };
+
+  public waitForAllEvents = async (
+    executionResponse: StartExecutionCommandOutput,
+    sfnClient: Promise<SFNClient> = this.sfnClient
+  ): Promise<HistoryEvent[] | undefined> => {
+    const executionHistoryResult = await this.untilExecutionCompletes(
+      await sfnClient,
+      executionResponse
+    );
+    return executionHistoryResult?.events;
+  };
+
   sleep = (milliseconds: number) =>
     Promise.resolve((resolve: (arg: string) => unknown) =>
       setTimeout(() => {
@@ -190,7 +202,10 @@ export class SfnContainerHelper {
         sfnClient,
         executionResponse.executionArn
       );
-      if (this.executionState(historyResponse, "ExecutionSucceeded")) {
+      if (
+        this.executionState(historyResponse, "ExecutionSucceeded") ||
+        this.executionState(historyResponse, "ExecutionFailed")
+      ) {
         return historyResponse;
       }
       if (retries > 0) {
