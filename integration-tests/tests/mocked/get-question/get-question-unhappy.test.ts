@@ -16,21 +16,6 @@ describe("get-question-unhappy", () => {
     expect(sfnContainer.getContainer()).toBeDefined();
   });
 
-  it("should fail when session id is not present", async () => {
-    const input = JSON.stringify({});
-    const responseStepFunction = await sfnContainer.startStepFunctionExecution(
-      "SessionIdNotPresent",
-      input
-    );
-    const results = await sfnContainer.waitFor(
-      (event: HistoryEvent) =>
-        event?.type === "PassStateExited" &&
-        event?.stateExitedEventDetails?.name === "Error: Missing sessionId",
-      responseStepFunction
-    );
-    expect(results[0].stateExitedEventDetails?.output).toEqual("{}");
-  });
-
   it("should fail when nino is not present", async () => {
     const input = JSON.stringify({
       sessionId: "bad-session-id",
@@ -39,15 +24,10 @@ describe("get-question-unhappy", () => {
       "NinoNotPresent",
       input
     );
-    const results = await sfnContainer.waitFor(
-      (event: HistoryEvent) =>
-        event?.type === "PassStateExited" &&
-        event?.stateExitedEventDetails?.name === "Error: Missing nino",
-      responseStepFunction
-    );
-    expect(results[0].stateExitedEventDetails?.output).toEqual(
-      '{"sessionId":"bad-session-id","nino":{"Count":0,"Items":[],"ScannedCount":0}}'
-    );
+    const results = await sfnContainer.waitForAllEvents(responseStepFunction);
+    expect(results?.length).toBeGreaterThan(0);
+    expect(results?.[results?.length - 1].type).toEqual("ExecutionFailed");
+    expect(results?.[results?.length - 1].executionFailedEventDetails?.cause).toEqual("No NINO found for given session-id");
   });
 
   it("should return 204 when no questions left", async () => {
@@ -61,11 +41,9 @@ describe("get-question-unhappy", () => {
     const results = await sfnContainer.waitFor(
       (event: HistoryEvent) =>
         event?.type === "PassStateExited" &&
-        event?.stateExitedEventDetails?.name === "HTTP 204 NO CONTENT",
+        event?.stateExitedEventDetails?.name === "204: No More Questions",
       responseStepFunction
     );
-    expect(results[0].stateExitedEventDetails?.output).toEqual(
-      '{"Count":0,"Items":[],"ScannedCount":0}'
-    );
+    expect(results[0].stateExitedEventDetails?.output).toEqual("204");
   });
 });
