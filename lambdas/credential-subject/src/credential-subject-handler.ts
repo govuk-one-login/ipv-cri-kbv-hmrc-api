@@ -11,6 +11,7 @@ import {
 import { UserInfoEvent } from "./user-info-event";
 
 const logger = new Logger();
+const credentialSubjectBuilder = new CredentialSubjectBuilder();
 
 export class CredentialSubjectHandler implements LambdaInterface {
   public async handler(
@@ -18,7 +19,7 @@ export class CredentialSubjectHandler implements LambdaInterface {
     _context: unknown
   ): Promise<CredentialSubject> {
     try {
-      return new CredentialSubjectBuilder()
+      return credentialSubjectBuilder
         .addNames(this.convertEventInputToNames(event))
         .setAddresses(this.convertEventInputToAddress(event))
         .setBirthDate(
