@@ -24,12 +24,19 @@ describe("get-question-unhappy", () => {
       "NinoNotPresent",
       input
     );
-    const results = await sfnContainer.waitForAllEvents(responseStepFunction);
+    const results = await sfnContainer.waitFor(
+      (event: HistoryEvent) => event?.type === "ExecutionFailed",
+      responseStepFunction
+    );
     expect(results?.length).toBeGreaterThan(0);
-    expect(results?.[results?.length - 1].type).toEqual("ExecutionFailed");
-    expect(
-      results?.[results?.length - 1].executionFailedEventDetails?.cause
-    ).toEqual("No NINO found for given session-id");
+
+    expect(results[0]).toEqual(
+      expect.objectContaining({
+        executionFailedEventDetails: {
+          cause: "No NINO found for given session-id",
+        },
+      })
+    );
   });
 
   it("should return 204 when no questions left", async () => {
