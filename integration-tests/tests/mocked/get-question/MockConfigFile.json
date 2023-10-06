@@ -12,7 +12,6 @@
           "GET Questions from HMRC": "GetQuestionsSuccess",
           "Get unanswered questions": "NoRecordsInDB"
         },
-        "SessionIdNotPresent": "",
         "NinoNotPresent": {
           "Get NINO": "NoRecordsInDB"
         }

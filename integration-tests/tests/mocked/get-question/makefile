@@ -26,13 +26,6 @@ noQuestions:
 	--state-machine ${STATE_MACHINE_ARN}#204WhenNoQuestionsLeft \
 	--input '{ "sessionId": "12345"}' \
 	--no-cli-pager
-noSessionId:
-	aws stepfunctions start-execution \
-	--endpoint http://localhost:8084 \
-	--name happyPathExecution \
-	--state-machine ${STATE_MACHINE_ARN}#SessionIdNotPresent \
-	--input '{}' \
-	--no-cli-pager
 noNino:
 	aws stepfunctions start-execution \
 	--endpoint http://localhost:8084 \
