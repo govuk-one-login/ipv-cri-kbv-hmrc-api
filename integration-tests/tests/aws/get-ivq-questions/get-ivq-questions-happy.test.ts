@@ -90,7 +90,6 @@ describe("get-ivq-questions-happy", () => {
         output.IvqQuestionStateMachineArn
       )) as any;
       const result = JSON.parse(startExecutionResult.output);
-      console.log(result);
       const fetchedQuestion = result.Payload.questions;
       for (let counter = 0; counter < testQuestions.length; counter++) {
         expect(testQuestions[counter].questionKey).toBe(
