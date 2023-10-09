@@ -2,7 +2,7 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("post-questions-unhappy", () => {
+describe("post-answers-happy", () => {
   const stateMachineInput = {
     key: "rti-p60-employee-ni-contributions",
     value: "100.30",
@@ -28,7 +28,7 @@ describe("post-questions-unhappy", () => {
     });
   };
 
-  const testQuestions = [
+  let testQuestions = [
     {
       sessionId: stateMachineInput.sessionId,
       answered: "false",
@@ -40,7 +40,7 @@ describe("post-questions-unhappy", () => {
     },
     {
       sessionId: stateMachineInput.sessionId,
-      answered: "true",
+      answered: "false",
       correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d573",
       questionKey: "rti-p60-employee-ni-contributions",
       info: {
@@ -49,7 +49,7 @@ describe("post-questions-unhappy", () => {
     },
     {
       sessionId: stateMachineInput.sessionId,
-      answered: "true",
+      answered: "false",
       correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d574",
       questionKey: "rti-payslip-income-tax",
       info: {
@@ -67,9 +67,6 @@ describe("post-questions-unhappy", () => {
   beforeEach(async () => {
     output = await stackOutputs(process.env.STACK_NAME);
     await populateTable(testUser, output.PersonalIdenityTable);
-    for (const question of testQuestions) {
-      await populateTable(question, output.QuestionsTable);
-    }
   });
 
   afterEach(async () => {
@@ -77,7 +74,10 @@ describe("post-questions-unhappy", () => {
     await clearQuestionDB();
   });
 
-  it("should return error when provided question has already answered", async () => {
+  it("should pass and not post the answers to HMRC when there are unanswered questions", async () => {
+    for (const question of testQuestions) {
+      await populateTable(question, output.QuestionsTable);
+    }
     const startExecutionResult = (await executeStepFunction(
       stateMachineInput,
       output.PostAnswerStateMachineArn
@@ -85,18 +85,20 @@ describe("post-questions-unhappy", () => {
 
     expect(startExecutionResult.output).toBe("{}");
   });
-  it("should return error when nino is not present", async () => {
+
+  it("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
+    for (const question of testQuestions) {
+      if (question.questionKey !== stateMachineInput.key) {
+        question.answered = "true";
+      }
+
+      await populateTable(question, output.QuestionsTable);
+    }
     const startExecutionResult = (await executeStepFunction(
-      {
-        key: "rti-p60-employee-ni-contributions",
-        value: "100.30",
-        sessionId: "12346",
-      },
+      stateMachineInput,
       output.PostAnswerStateMachineArn
     )) as any;
 
-    expect(startExecutionResult.output).toBe(
-      '{"key":"rti-p60-employee-ni-contributions","value":"100.30","sessionId":"12346","nino":{"Count":0,"Items":[],"ScannedCount":0}}'
-    );
+    expect(startExecutionResult.output).toBe("{}");
   });
 });
