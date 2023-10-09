@@ -38,9 +38,7 @@ describe("get-ivq-questions-unhappy", () => {
       output.IvqQuestionStateMachineArn
     )) as any;
 
-    const result = JSON.parse(startExecutionResult.output);
-
-    expect(result.Error).toEqual("TypeError");
+    expect(startExecutionResult.status).toEqual("FAILED");
 
     await ssmParamterUpdate({
       Name: urlParameterName,

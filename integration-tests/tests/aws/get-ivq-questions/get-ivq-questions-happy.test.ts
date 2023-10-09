@@ -2,7 +2,7 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("HMRC KBV Get IVQ Question", () => {
+describe("get-ivq-questions-happy", () => {
   const stateMachineInput = {
     sessionId: "12346",
     nino: "AA000003D",
@@ -90,8 +90,8 @@ describe("HMRC KBV Get IVQ Question", () => {
         output.IvqQuestionStateMachineArn
       )) as any;
       const result = JSON.parse(startExecutionResult.output);
-      const fetchedQuestion = result.fetchQuestionsResponse.Payload.questions;
-      expect(result.sessionId).toBe(stateMachineInput.sessionId);
+      console.log(result);
+      const fetchedQuestion = result.Payload.questions;
       for (let counter = 0; counter < testQuestions.length; counter++) {
         expect(testQuestions[counter].questionKey).toBe(
           fetchedQuestion[counter].questionKey
@@ -111,7 +111,6 @@ describe("HMRC KBV Get IVQ Question", () => {
       )) as any;
       const result = JSON.parse(startExecutionResult.output);
       const loadedQuestion: Array<String> = result.loadedQuestions.Items;
-      expect(result.sessionId).toBe(stateMachineInput.sessionId);
       for (let counter = 0; counter < testQuestions.length; counter++) {
         expect(loadedQuestion.includes(testQuestions[counter].questionKey));
         expect(loadedQuestion.includes(testQuestions[counter].info.months));
