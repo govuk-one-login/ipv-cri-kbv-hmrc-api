@@ -1,50 +1,7 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "Check answer is present",
+  "StartAt": "GET NINO",
   "States": {
-    "Check answer is present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.value",
-            "IsPresent": true
-          },
-          "Next": "Error: No answer is present"
-        }
-      ],
-      "Default": "Check session ID is present"
-    },
-    "Error: No answer is present": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Check session ID is present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.sessionId",
-            "IsPresent": true
-          },
-          "Next": "Error: No session ID is present"
-        }
-      ],
-      "Default": "Check question key is present"
-    },
-    "Check question key is present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.key",
-            "IsPresent": true
-          },
-          "Next": "Error: No question key is present"
-        }
-      ],
-      "Default": "GET NINO"
-    },
     "GET NINO": {
       "Type": "Task",
       "Next": "Check NINO field is present",
@@ -68,14 +25,14 @@
             "Variable": "$.nino.Count",
             "NumericGreaterThan": 0
           },
-          "Next": "Error: Nino key missing"
+          "Next": "Err: NINO missing"
         }
       ],
       "Default": "Parse input"
     },
-    "Error: Nino key missing": {
-      "Type": "Pass",
-      "End": true
+    "Err: NINO missing": {
+      "Type": "Fail",
+      "Cause": "No NINO found for session-id"
     },
     "Parse input": {
       "Type": "Pass",
@@ -86,14 +43,6 @@
         "answer.$": "$.value",
         "questionKey.$": "$.key"
       }
-    },
-    "Error: No question key is present": {
-      "Type": "Pass",
-      "End": true
-    },
-    "Error: No session ID is present": {
-      "Type": "Pass",
-      "End": true
     },
     "Query database for the current question": {
       "Type": "Task",
@@ -125,7 +74,7 @@
             "Variable": "$.question.Count",
             "NumericGreaterThan": 0
           },
-          "Next": "Error: The question has already been answered"
+          "Next": "Err: The question has already been answered"
         }
       ],
       "Default": "Update database to store the answer"
@@ -181,7 +130,7 @@
         {
           "Variable": "$.questions.Count",
           "NumericGreaterThan": 0,
-          "Next": "HTTP 200 - question has been answered successfully"
+          "Next": "Response Filter"
         }
       ],
       "Default": "Post answers to HMRC"
@@ -267,17 +216,22 @@
           }
         }
       },
-      "Next": "HTTP 200 - question has been answered successfully"
+      "Next": "Response Filter"
     },
-    "Error: The question has already been answered": {
+    "Response Filter": {
       "Type": "Pass",
-      "End": true,
+      "Next": "Success",
       "Result": {}
     },
-    "HTTP 200 - question has been answered successfully": {
+    "Err: The question has already been answered": {
       "Type": "Pass",
       "End": true,
-      "Result": {}
+      "Result": {
+        "error": "Question has already been answered"
+      }
+    },
+    "Success": {
+      "Type": "Succeed"
     }
   }
 }
