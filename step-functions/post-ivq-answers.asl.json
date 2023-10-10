@@ -71,7 +71,7 @@
     "Fetch API URL and User Agent": {
       "Type": "Task",
       "Parameters": {
-        "Names": ["/suraj-kbv-hmrc/AnswersUrl", "/suraj-kbv-hmrc/UserAgent"]
+        "Names": ["${AnswersUrlName}", "${UserAgentName}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
       "Next": "Post answers to HMRC",
