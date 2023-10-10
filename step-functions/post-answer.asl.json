@@ -162,7 +162,16 @@
         }
       ],
       "Next": "Fetch Auth Code Expiry",
-      "ResultPath": null
+      "ResultPath": null,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Err: Post IVQ Answers threw Exception"
+        }
+      ]
+    },
+    "Err: Post IVQ Answers threw Exception": {
+      "Type": "Fail"
     },
     "Fetch Auth Code Expiry": {
       "Type": "Task",
