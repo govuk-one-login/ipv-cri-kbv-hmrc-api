@@ -4,7 +4,7 @@
   "States": {
     "Get all Unanswered Questions": {
       "Type": "Task",
-      "Next": "All Questions Answered",
+      "Next": "All Questions Answered?",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
@@ -21,20 +21,20 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.questions"
     },
-    "All Questions Answered": {
+    "All Questions Answered?": {
       "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.questions.Count",
           "NumericGreaterThan": 0,
-          "Next": "Do Nothing"
+          "Next": "Nothing left to do"
         }
       ],
       "Default": "Get all Answered Questions"
     },
     "Get all Answered Questions": {
       "Type": "Task",
-      "Next": "GetSecretValue",
+      "Next": "Fetch Bearer Token",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
@@ -51,9 +51,9 @@
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
       "ResultPath": "$.questions"
     },
-    "GetSecretValue": {
+    "Fetch Bearer Token": {
       "Type": "Task",
-      "Next": "GetParameters",
+      "Next": "Fetch API URL and User Agent",
       "Parameters": {
         "SecretId": "${BearerTokenName}"
       },
@@ -63,24 +63,25 @@
       },
       "ResultPath": "$.oAuthToken"
     },
-    "Do Nothing": {
+    "Nothing left to do": {
       "Type": "Pass",
-      "End": true
+      "End": true,
+      "Result": {}
     },
-    "GetParameters": {
+    "Fetch API URL and User Agent": {
       "Type": "Task",
       "Parameters": {
         "Names": ["${AnswersUrlName}", "${UserAgentName}"]
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-      "Next": "Lambda Invoke",
+      "Next": "Post answers to HMRC",
       "ResultSelector": {
         "url.$": "$.Parameters[0].Value",
         "userAgent.$": "$.Parameters[1].Value"
       },
       "ResultPath": "$.parameters"
     },
-    "Lambda Invoke": {
+    "Post answers to HMRC": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
@@ -101,7 +102,16 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Store Result"
+      "Next": "Store Result",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Err: Lambda threw exception"
+        }
+      ]
+    },
+    "Err: Lambda threw exception": {
+      "Type": "Fail"
     },
     "Store Result": {
       "Type": "Map",
@@ -135,8 +145,8 @@
           }
         }
       },
-      "End": true,
-      "InputPath": "$"
+      "InputPath": "$",
+      "Next": "Nothing left to do"
     }
   }
 }
