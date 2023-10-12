@@ -83,7 +83,9 @@ describe("post-answers-unhappy", () => {
       output.PostAnswerStateMachineArn
     )) as any;
 
-    expect(startExecutionResult.output).toBe("{}");
+    expect(startExecutionResult.output).toBe(
+      '{"error":"Question has already been answered"}'
+    );
   });
   it("should return error when nino is not present", async () => {
     const startExecutionResult = (await executeStepFunction(
@@ -94,9 +96,6 @@ describe("post-answers-unhappy", () => {
       },
       output.PostAnswerStateMachineArn
     )) as any;
-
-    expect(startExecutionResult.output).toBe(
-      '{"key":"rti-p60-employee-ni-contributions","value":"100.30","sessionId":"12346","nino":{"Count":0,"Items":[],"ScannedCount":0}}'
-    );
+    expect(startExecutionResult.status).toBe("FAILED");
   });
 });
