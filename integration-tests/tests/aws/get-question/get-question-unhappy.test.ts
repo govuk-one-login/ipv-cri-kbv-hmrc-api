@@ -2,7 +2,7 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-describe("HMRC KBV Check ", () => {
+describe("get-question-unhappy", () => {
   const testUser = {
     sessionId: "123456",
     nino: "AA000003D",
@@ -57,7 +57,7 @@ describe("HMRC KBV Check ", () => {
         {},
         output.QuestionStateMachineArn
       );
-      expect(startExecutionResult.output).toBe("{}");
+      expect(startExecutionResult.status).toBe("FAILED");
     });
   });
 });
