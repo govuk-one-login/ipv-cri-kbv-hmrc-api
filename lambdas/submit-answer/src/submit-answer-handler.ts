@@ -28,7 +28,11 @@ export class SubmitAnswerHandler implements LambdaInterface {
           answers: answers,
         }),
       });
-      return await response.json();
+      try {
+        return await response.json();
+      } catch (error: any) {
+        return await response.text();
+      }
     } catch (error: any) {
       logger.error("Failed to call HMRC API: " + error.message);
       throw error;
