@@ -1,0 +1,92 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Check SessionId is present",
+  "States": {
+    "Check SessionId is present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.sessionId",
+          "IsPresent": true,
+          "Next": "Fetch Current Time"
+        }
+      ],
+      "Default": "Err: No sessionId provided"
+    },
+    "Fetch Current Time": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${CurrentTimeFunctionArn}"
+      },
+      "Next": "Fetch Session",
+      "ResultPath": "$.currentTime"
+    },
+    "Fetch Session": {
+      "Type": "Task",
+      "Next": "Check Session Exists",
+      "Parameters": {
+        "TableName": "session-${CommonStackName}",
+        "KeyConditionExpression": "sessionId = :value",
+        "ExpressionAttributeValues": {
+          ":value": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "ResultPath": "$.sessionQuery"
+    },
+    "Check Session Exists": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.sessionQuery.Count",
+          "NumericLessThanEquals": 0,
+          "Next": "Err: No session found"
+        }
+      ],
+      "Default": "Check Session Has Not Expired"
+    },
+    "Check Session Has Not Expired": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.currentTime.Payload",
+          "StringGreaterThanPath": "$.sessionQuery.Items[0].expiryDate.N",
+          "Next": "Err: Session Expired"
+        }
+      ],
+      "Default": "Session OK"
+    },
+    "Err: Session Expired": {
+      "Type": "Pass",
+      "End": true,
+      "Parameters": {
+        "status": "SESSION_EXPIRED"
+      }
+    },
+    "Err: No session found": {
+      "Type": "Pass",
+      "End": true,
+      "Parameters": {
+        "status": "SESSION_NOT_FOUND"
+      }
+    },
+    "Session OK": {
+      "Type": "Pass",
+      "End": true,
+      "Parameters": {
+        "status": "SESSION_OK"
+      }
+    },
+    "Err: No sessionId provided": {
+      "Type": "Pass",
+      "End": true,
+      "Result": {
+        "status": "SESSION_NOT_PROVIDED"
+      }
+    }
+  }
+}

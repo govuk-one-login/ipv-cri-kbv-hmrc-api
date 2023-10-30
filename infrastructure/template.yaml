@@ -101,6 +101,51 @@ Resources:
       Value: !FindInMap [JwtTtlUnitMapping, Environment, !Ref Environment]
       Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
 
+  CurrentTimeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambdas/time
+      Handler: current-time-handler.lambdaHandler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - src/current-time-handler.ts
+
+  CheckSessionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "${AWS::StackName}-CheckSession"
+      Type: EXPRESS
+      DefinitionUri: ../step-functions/check_session.asl.json
+      DefinitionSubstitutions:
+        CurrentTimeFunctionArn: !GetAtt CurrentTimeFunction.Arn
+        CommonStackName: !Ref CommonStackName
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt CheckSessionStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CurrentTimeFunction
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
   PublicKbvHmrcApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -724,6 +769,12 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-IssueCredential-state-machine-logs
       RetentionInDays: 30
 
+  CheckSessionStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-CheckSession-state-machine-logs
+      RetentionInDays: 30
+
 Outputs:
   CreateAuthCodeFunction:
     Description: "Create Authorization Code Function ARN"
@@ -789,3 +840,15 @@ Outputs:
   PostIvqAnswersStateMachineArn:
     Description: "Post IVQ Answer StateMachine Arn"
     Value: !GetAtt PostIvqAnswersStateMachine.Arn
+
+  CurrentTimeFunction:
+    Description: "Fetch Current Time Function Arn"
+    Value: !GetAtt CurrentTimeFunction.Arn
+
+  CurrentTimeFunctionRoleArn:
+    Description: "Fetch Current Time Function Role Arn"
+    Value: !GetAtt CurrentTimeFunctionRole.Arn
+
+  CheckSessionStateMachineArn:
+    Description: "Session Check StateMachine Arn"
+    Value: !GetAtt CheckSessionStateMachine.Arn
