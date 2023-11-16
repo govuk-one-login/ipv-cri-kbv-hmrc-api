@@ -1,9 +1,6 @@
 # http://EditorConfig.org
-# https://gds-way.cloudapps.digital/manuals/programming-languages/editorconfig
-# Copy into project root and rename to .editorconfig
-
-# uncomment if top-most EditorConfig file
-# root = true
+# https://gds-way.digital.cabinet-office.gov.uk/manuals/programming-languages/editorconfig
+root = true
 
 [*.java]
 indent_size = 4
