@@ -776,6 +776,13 @@ Resources:
       RetentionInDays: 30
 
 Outputs:
+  PrivateApiGatewayId:
+    Description: "API GatewayID of the private Address CRI API"
+    Value:
+      !If [IsNotDevEnvironment, !Ref PrivateKbvHmrcApi, !Ref DevOnlyKbvHmrcApi]
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateApiGatewayId
+
   CreateAuthCodeFunction:
     Description: "Create Authorization Code Function ARN"
     Value: !GetAtt CreateAuthCodeFunction.Arn
