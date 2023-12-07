@@ -1,12 +1,10 @@
-/*
- * For a detailed explanation regarding each configuration property and type check, visit:
- * https://jestjs.io/docs/configuration
- */
-import type { Config } from "@jest/types";
-import commonConfig from "./jest.config.common";
+import { Config } from "jest";
+import baseConfig from "../jest.config.base";
 
-const config: Config.InitialOptions = {
-  ...commonConfig,
-  testMatch: ["**/tests/**/*.test.ts"],
-};
-export default config;
+export default {
+  ...baseConfig,
+  projects: ["tests/*/jest.config.ts"],
+  testMatch: ["<rootDir>/**/*.test.ts"],
+  collectCoverage: false,
+  modulePaths: [],
+} satisfies Config;

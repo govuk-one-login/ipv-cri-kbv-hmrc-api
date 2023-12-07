@@ -2,6 +2,7 @@
   "name": "ipv-cri-kbv-hmrc-api",
   "description": "",
   "workspaces": [
+    "integration-tests",
     "lambdas/*"
   ],
   "scripts": {
