@@ -24,7 +24,7 @@ export class CredentialSubjectHandler implements LambdaInterface {
         .setAddresses(this.convertEventInputToAddress(event))
         .setBirthDate(
           event.userInfoEvent.Items[0].birthDates.L.map(
-            (birthDate) => ({ value: birthDate.M.value.S } as BirthDate)
+            (birthDate) => ({ value: birthDate.M.value.S }) as BirthDate
           )
         )
         .build();
@@ -38,7 +38,7 @@ export class CredentialSubjectHandler implements LambdaInterface {
     event: UserInfoEvent
   ): Array<NamePart> => {
     return event.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
-      (part) => ({ type: part.M.type.S, value: part.M.value.S } as NamePart)
+      (part) => ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
     );
   };
   private convertEventInputToAddress = (
@@ -51,7 +51,7 @@ export class CredentialSubjectHandler implements LambdaInterface {
           postalCode: address.M.postalCode.S,
           buildingNumber: address.M.buildingNumber.S,
           validFrom: address.M.validFrom.S,
-        } as Address)
+        }) as Address
     );
   };
 }
