@@ -26,9 +26,9 @@ export type CredentialSubject = {
 };
 
 export class CredentialSubjectBuilder {
-  private name: Array<NamePart>;
-  private address: Array<Address>;
-  private birthDate: Array<BirthDate>;
+  private name: Array<NamePart> = [];
+  private address: Array<Address> = [];
+  private birthDate: Array<BirthDate> = [];
 
   constructor() {}
 
