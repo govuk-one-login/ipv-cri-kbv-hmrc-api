@@ -1,0 +1,27 @@
+name: Integration tests
+
+on: workflow_dispatch
+permissions: {}
+
+jobs:
+  deploy:
+    name: Preview
+    uses: ./.github/workflows/deploy-branch.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  aws-tests:
+    name: Integration tests
+    needs: deploy
+    uses: ./.github/workflows/run-aws-tests.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      stack-name: ${{ needs.deploy.outputs.stack-name }}
+      aws-region: ${{ needs.deploy.outputs.aws-region }}
+
+  mocked-tests:
+    name: Integration tests
+    uses: ./.github/workflows/run-mocked-tests.yml
