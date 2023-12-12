@@ -2,6 +2,7 @@
 set -eu
 
 stack_name="${1:-}"
+common_stack_name="${2:-}"
 
 if ! [[ "$stack_name" ]]; then
   echo "😱 Stack name expected as first argument, e.g. ./deploy.sh pdv-matching-user1"
@@ -21,9 +22,10 @@ sam deploy --stack-name "$stack_name" \
   --region "${AWS_REGION:-eu-west-2}" \
   --capabilities CAPABILITY_IAM \
   --tags \
-  cri:component=check-hmrc-api \
+  cri:component=kbv-hmrc-api \
   cri:stack-type=dev \
   cri:application=Orange \
   cri:deployment-source=manual \
   --parameter-overrides \
+  ${common_stack_name:+CommonStackName=$common_stack_name} \
   Environment=dev
