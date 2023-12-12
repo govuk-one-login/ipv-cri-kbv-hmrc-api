@@ -23,7 +23,7 @@ describe("post-answers-happy", () => {
   };
 
   const clearPersonalIdentityTable = async (sessionId: string) => {
-    await clearItems(output.PersonalIdenityTable as string, {
+    await clearItems(output.PersonalIdentityTable as string, {
       sessionId: sessionId,
     });
   };
@@ -59,14 +59,14 @@ describe("post-answers-happy", () => {
   ] as any;
 
   let output: Partial<{
-    PersonalIdenityTable: string;
+    PersonalIdentityTable: string;
     QuestionsTable: string;
     PostAnswerStateMachineArn: string;
   }>;
 
   beforeEach(async () => {
     output = await stackOutputs(process.env.STACK_NAME);
-    await populateTable(testUser, output.PersonalIdenityTable);
+    await populateTable(testUser, output.PersonalIdentityTable);
   });
 
   afterEach(async () => {

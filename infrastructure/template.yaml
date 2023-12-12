@@ -1,126 +1,37 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Transform: AWS::Serverless-2016-10-31
-Description: "Digital Identity IPV CRI KBV HMRC API"
+Description: Digital Identity IPV CRI KBV HMRC API
+Transform: [AWS::LanguageExtensions, AWS::Serverless-2016-10-31]
 
 Parameters:
-  CodeSigningEnabled:
-    Type: "String"
-    Default: "true"
+  BearerTokenName:
+    Type: String
+    Default: HMRCBearerToken
+    Description: >-
+      The name of the bearer token parameter.
+      Temporary solution to be changed once cross account behaviour implemented.
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, build, staging, integration, production]
+  CommonStackName:
+    Type: String
+    Default: common-cri-api
+    Description: The name of the stack containing the common CRI lambdas/infra
   CodeSigningConfigArn:
     Type: String
-    Default: "none"
-    Description: >
-      The ARN of the Code Signing Config to use, provided by the deployment pipeline
-  BearerTokenName:
-    Description: "The name of the bearer token parameter"
-    Type: String
-    # Temporary - solution to be changed once cross account behaviour implemented
-    Default: "HMRCBearerToken"
+    Default: ""
   PermissionsBoundary:
-    Description: "The ARN of the permissions boundary to apply when creating IAM roles"
     Type: String
-    Default: "none"
-  Environment:
-    Description: "The environment type"
-    Type: "String"
-    AllowedValues:
-      - "dev"
-      - "build"
-      - "staging"
-      - "integration"
-      - "production"
-    ConstraintDescription: must be dev, build, staging, integration or production
-  CommonStackName:
-    Description: "The name of the stack containing the common CRI lambdas/infra"
-    Type: String
-    Default: "common-cri-api"
+    Default: ""
 
 Conditions:
-  EnforceCodeSigning: !Equals
-    - !Ref CodeSigningEnabled
-    - true
-  UsePermissionsBoundary:
-    Fn::Not:
-      - Fn::Equals:
-          - !Ref PermissionsBoundary
-          - "none"
-  IsDevEnvironment: !Equals
-    - !Ref Environment
-    - dev
-  IsNotDevEnvironment: !Not
-    - Condition: IsDevEnvironment
-
-Globals:
-  Function:
-    Runtime: nodejs18.x
-    Architectures:
-      - arm64
-    Timeout: 3
-    PermissionsBoundary: !If
-      - UsePermissionsBoundary
-      - !Ref PermissionsBoundary
-      - !Ref AWS::NoValue
-    CodeSigningConfigArn: !If
-      - EnforceCodeSigning
-      - !Ref CodeSigningConfigArn
-      - !Ref AWS::NoValue
-    Environment:
-      Variables:
-        AWS_LAMBDA_EXEC_WRAPPER: /opt/dynatrace
-        DT_CONNECTION_AUTH_TOKEN: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_AUTH_TOKEN}}"
-          - SecretArn:
-              !FindInMap [
-                EnvironmentConfiguration,
-                !Ref Environment,
-                dynatraceSecretArn,
-              ]
-        DT_CONNECTION_BASE_URL: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_BASE_URL}}"
-          - SecretArn:
-              !FindInMap [
-                EnvironmentConfiguration,
-                !Ref Environment,
-                dynatraceSecretArn,
-              ]
-        DT_CLUSTER_ID: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CLUSTER_ID}}"
-          - SecretArn:
-              !FindInMap [
-                EnvironmentConfiguration,
-                !Ref Environment,
-                dynatraceSecretArn,
-              ]
-        DT_LOG_COLLECTION_AUTH_TOKEN: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_LOG_COLLECTION_AUTH_TOKEN}}"
-          - SecretArn:
-              !FindInMap [
-                EnvironmentConfiguration,
-                !Ref Environment,
-                dynatraceSecretArn,
-              ]
-        DT_TENANT: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_TENANT}}"
-          - SecretArn:
-              !FindInMap [
-                EnvironmentConfiguration,
-                !Ref Environment,
-                dynatraceSecretArn,
-              ]
-        DT_OPEN_TELEMETRY_ENABLE_INTEGRATION: "true"
-    Layers:
-      - !Sub
-        - "{{resolve:secretsmanager:${SecretArn}:SecretString:NODEJS_LAYER}}"
-        - SecretArn:
-            !FindInMap [
-              EnvironmentConfiguration,
-              !Ref Environment,
-              dynatraceSecretArn,
-            ]
+  EnforceCodeSigning: !Not [!Equals [!Ref CodeSigningConfigArn, ""]]
+  UsePermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundary, ""]]
+  IsDevEnvironment: !Equals [!Ref Environment, dev]
 
 Mappings:
   # Only numeric values should be assigned here
-  MaxJwtTtlMapping:
+  MaxJwtTtl:
     Environment:
       dev: 2
       build: 2
@@ -129,62 +40,88 @@ Mappings:
       production: 6
 
   # Permitted values: SECONDS,MINUTES,HOURS,DAYS,MONTHS,YEARS
-  JwtTtlUnitMapping:
+  JwtTtlUnit:
     Environment:
       dev: HOURS
       build: HOURS
       staging: MONTHS
       integration: MONTHS
       production: MONTHS
-  # Adding Dynatarce lambda layer
-  EnvironmentConfiguration:
-    dev:
-      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-    build:
-      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-    staging:
-      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-    integration:
-      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-    production:
-      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
+
+  Dynatrace:
+    SecretArn:
+      dev: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      build: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      staging: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      integration: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      production: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
+
+Globals:
+  Function:
+    Timeout: 3
+    CodeUri: ..
+    Runtime: nodejs18.x
+    Architectures: [arm64]
+    PermissionsBoundary:
+      !If [UsePermissionsBoundary, !Ref PermissionsBoundary, !Ref AWS::NoValue]
+    Layers:
+      - !Sub
+        - "{{resolve:secretsmanager:${SecretArn}:SecretString:NODEJS_LAYER}}"
+        - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+    Environment:
+      Variables:
+        NODE_OPTIONS: --enable-source-maps
+        AWS_LAMBDA_EXEC_WRAPPER: /opt/dynatrace
+        DT_OPEN_TELEMETRY_ENABLE_INTEGRATION: true
+        DT_CONNECTION_AUTH_TOKEN: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_AUTH_TOKEN}}"
+          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+        DT_CONNECTION_BASE_URL: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_BASE_URL}}"
+          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+        DT_CLUSTER_ID: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CLUSTER_ID}}"
+          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+        DT_LOG_COLLECTION_AUTH_TOKEN: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_LOG_COLLECTION_AUTH_TOKEN}}"
+          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+        DT_TENANT: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_TENANT}}"
+          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
 
 Resources:
   MaxJwtTtlParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AWS::StackName}/MaxJwtTtl"
       Type: String
-      Value: !FindInMap [MaxJwtTtlMapping, Environment, !Ref "Environment"]
-      Description: default time to live for an JWT in (seconds)
+      Name: !Sub /${AWS::StackName}/MaxJwtTtl
+      Value: !FindInMap [MaxJwtTtl, Environment, !Ref Environment]
+      Description: Default time to live for an JWT in (seconds)
 
   JwtTtlUnitParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AWS::StackName}/JwtTtlUnit"
       Type: String
-      Value: !FindInMap [JwtTtlUnitMapping, Environment, !Ref Environment]
+      Name: !Sub /${AWS::StackName}/JwtTtlUnit
+      Value: !FindInMap [JwtTtlUnit, Environment, !Ref Environment]
       Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
 
   CurrentTimeFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/time
-      Handler: current-time-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/current-time-handler.ts
+    Properties:
+      Handler: lambdas/time/src/current-time-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   CheckSessionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub "${AWS::StackName}-CheckSession"
       Type: EXPRESS
+      Name: !Sub ${AWS::StackName}-CheckSession
       DefinitionUri: ../step-functions/check_session.asl.json
       DefinitionSubstitutions:
         CurrentTimeFunctionArn: !GetAtt CurrentTimeFunction.Arn
@@ -202,10 +139,8 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -219,38 +154,36 @@ Resources:
         - LoggingLevel: INFO
           ResourcePath: "/*"
           HttpMethod: "*"
-          # Disable data trace in production to avoid logging customer sensitive information
           DataTraceEnabled: true
           MetricsEnabled: true
           ThrottlingRateLimit: 5
           ThrottlingBurstLimit: 10
       AccessLogSetting:
-        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PublicKbvHmrcApiAccessLogGroup}"
-        Format: >-
-          {
-          "requestId":"$context.requestId",
-          "ip":"$context.identity.sourceIp",
-          "requestTime":"$context.requestTime",
-          "httpMethod":"$context.httpMethod",
-          "path":"$context.path",
-          "routeKey":"$context.routeKey",
-          "status":"$context.status",
-          "protocol":"$context.protocol",
-          "responseLatency":"$context.responseLatency",
-          "responseLength":"$context.responseLength"
-          }
+        DestinationArn: !GetAtt PublicKbvHmrcApiAccessLogGroup.Arn
+        Format:
+          Fn::ToJsonString:
+            requestId: $context.requestId
+            ip: $context.identity.sourceIp
+            requestTime: $context.requestTime
+            httpMethod: $context.httpMethod
+            path: $context.path
+            routeKey: $context.routeKey
+            status: $context.status
+            protocol: $context.protocol
+            responseLatency: $context.responseLatency
+            responseLength: $context.responseLength
       TracingEnabled: true
-      Name: !Sub "${AWS::StackName}-public"
+      Name: !Sub ${AWS::StackName}-public
       StageName: !Ref Environment
       DefinitionBody:
-        openapi: "3.0.1" # workaround to get `sam validate` to work
+        openapi: 3.0.1
         paths: # workaround to get `sam validate` to work
           /never-created:
-            options: {} # workaround to get `sam validate` to work
+            options: {}
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: "./public-api.yaml"
+            Location: public-api.yaml
       OpenApiVersion: 3.0.1
       EndpointConfiguration:
         Type: REGIONAL
@@ -258,14 +191,13 @@ Resources:
   PublicKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
       RetentionInDays: 365
 
-  DevOnlyKbvHmrcApi:
+  PrivateKbvHmrcApi:
     Type: AWS::Serverless::Api
-    Condition: IsDevEnvironment
     Properties:
-      Description: Private Dev KBV HMRC CRI API
+      Description: Private KBV HMRC CRI API
       MethodSettings:
         - LoggingLevel: INFO
           ResourcePath: "/*"
@@ -275,139 +207,87 @@ Resources:
           ThrottlingRateLimit: 5
           ThrottlingBurstLimit: 10
       AccessLogSetting:
-        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${DevOnlyKbvHmrcApiAccessLogGroup}"
-        Format: >-
-          {
-          "requestId":"$context.requestId",
-          "ip":"$context.identity.sourceIp",
-          "requestTime":"$context.requestTime",
-          "httpMethod":"$context.httpMethod",
-          "path":"$context.path",
-          "routeKey":"$context.routeKey",
-          "status":"$context.status",
-          "protocol":"$context.protocol",
-          "responseLatency":"$context.responseLatency",
-          "responseLength":"$context.responseLength"
-          }
+        DestinationArn: !GetAtt PrivateKbvHmrcApiAccessLogGroup.Arn
+        Format:
+          Fn::ToJsonString:
+            requestId: $context.requestId
+            ip: $context.identity.sourceIp
+            requestTime: $context.requestTime
+            httpMethod: $context.httpMethod
+            path: $context.path
+            routeKey: $context.routeKey
+            status: $context.status
+            protocol: $context.protocol
+            responseLatency: $context.responseLatency
+            responseLength: $context.responseLength
       TracingEnabled: true
-      Name: !Sub "${AWS::StackName}-dev-only-private"
+      Name: !Sub ${AWS::StackName}-private
       StageName: !Ref Environment
       DefinitionBody:
-        openapi: "3.0.1"
-        paths:
+        openapi: 3.0.1
+        paths: # workaround to get `sam validate` to work
           /never-created:
             options: {}
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: "./private-api.yaml"
+            Location: private-api.yaml
       OpenApiVersion: 3.0.1
       EndpointConfiguration:
-        Type: REGIONAL
-
-  DevOnlyKbvHmrcApiAccessLogGroup:
-    Type: AWS::Logs::LogGroup
-    Condition: IsDevEnvironment
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${DevOnlyKbvHmrcApi}-dev-only-AccessLogs
-      RetentionInDays: 365
-
-  PrivateKbvHmrcApi:
-    Type: AWS::Serverless::Api
-    Condition: IsNotDevEnvironment
-    Properties:
-      Description: Private KBV HMRC CRI API
-      MethodSettings:
-        - ResourcePath: "/*"
-          LoggingLevel: INFO
-          HttpMethod: "*"
-          # Disable data trace in production to avoid logging customer sensitive information
-          DataTraceEnabled: true
-          MetricsEnabled: true
-          ThrottlingRateLimit: 5
-          ThrottlingBurstLimit: 10
-      AccessLogSetting:
-        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PrivateKbvHmrcApiAccessLogGroup}"
-        Format: >-
-          {
-          "requestId":"$context.requestId",
-          "ip":"$context.identity.sourceIp",
-          "requestTime":"$context.requestTime",
-          "httpMethod":"$context.httpMethod",
-          "path":"$context.path",
-          "routeKey":"$context.routeKey",
-          "status":"$context.status",
-          "protocol":"$context.protocol",
-          "responseLatency":"$context.responseLatency",
-          "responseLength":"$context.responseLength"
-          }
-      TracingEnabled: true
-      Name: !Sub "${AWS::StackName}-private"
-      StageName: !Ref Environment
-      DefinitionBody:
-        openapi: "3.0.1"
-        paths:
-          /never-created:
-            options: {}
-        Fn::Transform:
-          Name: AWS::Include
-          Parameters:
-            Location: "./private-api.yaml"
-      OpenApiVersion: 3.0.1
-      EndpointConfiguration:
-        Type: PRIVATE
+        Type: !If [IsDevEnvironment, REGIONAL, PRIVATE]
       Auth:
-        ResourcePolicy:
-          CustomStatements:
-            - Action: "execute-api:Invoke"
-              Effect: Allow
-              Principal: "*"
-              Resource:
-                - "execute-api:/*"
+        ResourcePolicy: !If
+          - IsDevEnvironment
+          - !Ref AWS::NoValue
+          - CustomStatements:
+              - Effect: Allow
+                Resource: execute-api:/*
+                Action: execute-api:Invoke
+                Principal: "*"
 
   PrivateKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
-    Condition: IsNotDevEnvironment
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
       RetentionInDays: 365
 
   ExecuteStateMachineRole:
     Type: AWS::IAM::Role
     Properties:
-      Description: Role to allow API gateway to execute step function
+      Description: Role to allow API gateway to execute step functions
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
+            Action: sts:AssumeRole
             Principal:
-              Service:
-                - apigateway.amazonaws.com
-            Action:
-              - "sts:AssumeRole"
+              Service: apigateway.amazonaws.com
       Policies:
         - PolicyName: AllowStateMachineInvoke
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: 2012-10-17
             Statement:
               - Effect: Allow
-                Action:
-                  - "states:StartExecution"
-                  - "states:StartSyncExecution"
                 Resource: "*"
-      PermissionsBoundary:
-        !If [
-          UsePermissionsBoundary,
-          !Ref PermissionsBoundary,
-          !Ref AWS::NoValue,
-        ]
+                Action:
+                  - states:StartExecution
+                  - states:StartSyncExecution
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
 
   ExecuteStateMachineFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
     Properties:
-      CodeUri: ../lambdas/execute-state-machine
-      Handler: execute-state-machine-handler.lambdaHandler
       Timeout: 60
+      Handler: lambdas/execute-state-machine/src/execute-state-machine-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
       Policies:
         - Statement:
             Effect: Allow
@@ -417,108 +297,94 @@ Resources:
             Resource:
               - !Ref GetIvqQuestionsStateMachine
               - !Ref PostIvqAnswersStateMachine
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: "es2020"
-        Sourcemap: true
-        EntryPoints:
-          - src/execute-state-machine-handler.ts
 
   SubmitAnswerFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/submit-answer
-      Handler: submit-answer-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/submit-answer-handler.ts
+    Properties:
+      Handler: lambdas/submit-answer/src/submit-answer-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   FetchQuestionsFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/fetch-questions
-      Handler: fetch-questions-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/fetch-questions-handler.ts
+    Properties:
+      Handler: lambdas/fetch-questions/src/fetch-questions-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   UserAgent:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AWS::StackName}/UserAgent"
-      Value: govuk-one-login
       Type: String
+      Name: !Sub /${AWS::StackName}/UserAgent
+      Value: govuk-one-login
       Description: User agent for HMRC requests
 
   QuestionsUrl:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AWS::StackName}/QuestionsUrl"
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/questions
       Type: String
+      Name: !Sub /${AWS::StackName}/QuestionsUrl
+      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/questions
       Description: URL for HMRC /questions endpoint
 
   AnswersUrl:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AWS::StackName}/AnswersUrl"
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
       Type: String
+      Name: !Sub /${AWS::StackName}/AnswersUrl
+      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
       Description: URL for HMRC /answers endpoint
 
   QuestionsTable:
-    Type: "AWS::DynamoDB::Table"
+    Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${AWS::StackName}-questions"
+      TableName: !Sub ${AWS::StackName}-questions
       BillingMode: "PAY_PER_REQUEST"
       AttributeDefinitions:
-        - AttributeName: "sessionId"
-          AttributeType: "S"
-        - AttributeName: "questionKey"
-          AttributeType: "S"
+        - AttributeName: sessionId
+          AttributeType: S
+        - AttributeName: questionKey
+          AttributeType: S
       KeySchema:
-        - AttributeName: "sessionId"
-          KeyType: "HASH"
-        - AttributeName: "questionKey"
-          KeyType: "RANGE"
+        - AttributeName: sessionId
+          KeyType: HASH
+        - AttributeName: questionKey
+          KeyType: RANGE
 
   # Temporary - remove once common lambdas deployed
   PersonalIdentityTable:
-    Type: "AWS::DynamoDB::Table"
+    Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${AWS::StackName}-personal-identity"
-      BillingMode: "PAY_PER_REQUEST"
+      TableName: !Sub ${AWS::StackName}-personal-identity
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: "sessionId"
-          AttributeType: "S"
+        - AttributeName: sessionId
+          AttributeType: S
       KeySchema:
-        - AttributeName: "sessionId"
-          KeyType: "HASH"
+        - AttributeName: sessionId
+          KeyType: HASH
 
   GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/get-ivq-questions.asl.json
       Type: EXPRESS
+      Name: !Sub ${AWS::StackName}-GetIvqQuestions
+      DefinitionUri: ../step-functions/get-ivq-questions.asl.json
       DefinitionSubstitutions:
         QuestionsTableName: !Ref QuestionsTable
         QuestionsUrl: !Ref QuestionsUrl
         UserAgent: !Ref UserAgent
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
-      Name: !Sub "${AWS::StackName}-GetIvqQuestions"
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -540,14 +406,12 @@ Resources:
               - ssm:GetParameters
               - ssm:GetParameter
             Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/QuestionsUrl"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/UserAgent"
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${QuestionsUrl}
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -556,15 +420,15 @@ Resources:
   GetIvqQuestionsStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-GetIvqQuestions-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetIvqQuestions-state-machine-logs
       RetentionInDays: 365
 
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/get-question.asl.json
       Type: EXPRESS
-      Name: !Sub "${AWS::StackName}-GetQuestion"
+      Name: !Sub ${AWS::StackName}-GetQuestion
+      DefinitionUri: ../step-functions/get-question.asl.json
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -582,10 +446,8 @@ Resources:
             FunctionName: !Ref ExecuteStateMachineFunction
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -593,74 +455,66 @@ Resources:
       DefinitionSubstitutions:
         PersonalIdentityTableName: !Ref PersonalIdentityTable
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
-        QuestionsTableName: !Ref "QuestionsTable"
-        GetIvqQuestionsStateMachineArn: !GetAtt GetIvqQuestionsStateMachine.Arn
+        QuestionsTableName: !Ref QuestionsTable
+        GetIvqQuestionsStateMachineArn: !Ref GetIvqQuestionsStateMachine
 
   GetQuestionStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-GetQuestion-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 365
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-PostAnswer-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
       RetentionInDays: 365
 
   PostIvqAnswersStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-PostIvqAnswers-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
       RetentionInDays: 365
 
   CreateAuthCodeFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/submit-answer
-      Handler: create-auth-code-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/create-auth-code-handler.ts
+    Properties:
+      Handler: lambdas/submit-answer/src/create-auth-code-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   CredentialSubjectFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/credential-subject
-      Handler: credential-subject-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/credential-subject-handler.ts
+    Properties:
+      Handler: lambdas/credential-subject/src/credential-subject-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   EvidenceCheckDetailsFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/evidence-check-details
-      Handler: check-details-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/check-details-handler.ts
+    Properties:
+      Handler: lambdas/evidence-check-details/src/check-details-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       Type: EXPRESS
+      Name: !Sub ${AWS::StackName}-PostAnswer
       DefinitionUri: ../step-functions/post-answer.asl.json
-      Name: !Sub "${AWS::StackName}-PostAnswer"
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -690,13 +544,11 @@ Resources:
               - ssm:GetParameters
               - ssm:GetParameter
             Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -704,15 +556,16 @@ Resources:
       DefinitionSubstitutions:
         CommonStackName: !Ref CommonStackName
         CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
-        AnswersIvqStateMachine: !Ref "PostIvqAnswersStateMachine"
-        QuestionsTableName: !Ref "QuestionsTable"
-        ExecuteStateMachineFunctionName: !Ref "ExecuteStateMachineFunction"
-        PersonalIdentityTableName: !Ref "PersonalIdentityTable"
+        AnswersIvqStateMachine: !Ref PostIvqAnswersStateMachine
+        QuestionsTableName: !Ref QuestionsTable
+        ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
+        PersonalIdentityTableName: !Ref PersonalIdentityTable
 
   PostIvqAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       Type: EXPRESS
+      Name: !Sub ${AWS::StackName}-PostIvqAnswers
       DefinitionUri: ../step-functions/post-ivq-answers.asl.json
       Logging:
         Destinations:
@@ -726,7 +579,7 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????"
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
         - SSMParameterWithSlashPrefixReadPolicy:
             ParameterName: !Ref AnswersUrl
         - SSMParameterWithSlashPrefixReadPolicy:
@@ -735,15 +588,12 @@ Resources:
             FunctionName: !Ref SubmitAnswerFunction
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
-      Name: !Sub "${AWS::StackName}-PostIvqAnswers"
       DefinitionSubstitutions:
         BearerTokenName: !Ref BearerTokenName
         AnswersUrlName: !Ref AnswersUrl
@@ -753,24 +603,21 @@ Resources:
 
   TimeFunction:
     Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../lambdas/issue-credential
-      Handler: time-handler.lambdaHandler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: "es2020"
         Sourcemap: true
-        EntryPoints:
-          - src/time-handler.ts
+    Properties:
+      Handler: lambdas/issue-credential/src/time-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   IssueCredentialStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: ../step-functions/issue-credential.asl.json
       Type: EXPRESS
-      Name: !Sub "${AWS::StackName}-IssueCredential"
+      Name: !Sub ${AWS::StackName}-IssueCredential
+      DefinitionUri: ../step-functions/issue-credential.asl.json
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -784,12 +631,12 @@ Resources:
               - ssm:GetParameters
               - ssm:GetParameter
             Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/MaxJwtTtl"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/JwtTtlUnit"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiableCredentialKmsSigningKeyId"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MaxJwtTtlParameter}
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${JwtTtlUnitParameter}
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiableCredentialKmsSigningKeyId
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
@@ -804,17 +651,14 @@ Resources:
             FunctionName: !Ref EvidenceCheckDetailsFunction
         - Statement:
             Effect: Allow
-            Action:
-              - kms:Sign
+            Action: kms:Sign
             Resource: !ImportValue core-infrastructure-CriVcSigningKey1Arn
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
         - Statement:
             Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - "*"
+            Action: logs:*
+            Resource: "*"
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -831,96 +675,32 @@ Resources:
   IssueCredentialStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-IssueCredential-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
       RetentionInDays: 30
 
   CheckSessionStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/aws/apigateway/${AWS::StackName}-CheckSession-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
       RetentionInDays: 30
 
 Outputs:
   PrivateApiGatewayId:
-    Description: "API GatewayID of the private Address CRI API"
-    Value:
-      !If [IsNotDevEnvironment, !Ref PrivateKbvHmrcApi, !Ref DevOnlyKbvHmrcApi]
+    Description: API Gateway ID of the private Experian CRI API
+    Value: !Ref PrivateKbvHmrcApi
     Export:
       Name: !Sub ${AWS::StackName}-PrivateApiGatewayId
-
-  CreateAuthCodeFunction:
-    Description: "Create Authorization Code Function ARN"
-    Value: !GetAtt CreateAuthCodeFunction.Arn
-  CreateAuthCodeFunctionRoleArn:
-    Description: "Create Authorization Code Function Arn"
-    Value: !GetAtt CreateAuthCodeFunctionRole.Arn
-
-  ExecuteStateMachineFunction:
-    Description: "ExecuteStateMachine Lambda Function ARN"
-    Value: !GetAtt ExecuteStateMachineFunction.Arn
-  ExecuteStateMachineFunctionIamRole:
-    Description: "Implicit IAM Role created for ExecuteStateMachine function"
-    Value: !GetAtt ExecuteStateMachineFunctionRole.Arn
-
-  SubmitAnswerFunction:
-    Description: "SubmitAnswer Lambda Function ARN"
-    Value: !GetAtt SubmitAnswerFunction.Arn
-  SubmitAnswerFunctionIamRole:
-    Description: "Implicit IAM Role created for SubmitAnswer function"
-    Value: !GetAtt SubmitAnswerFunctionRole.Arn
-
-  FetchQuestionsFunction:
-    Description: "FetchQuestions Lambda Function ARN"
-    Value: !GetAtt FetchQuestionsFunction.Arn
-  FetchQuestionsFunctionIamRole:
-    Description: "Implicit IAM Role created for FetchQuestions function"
-    Value: !GetAtt FetchQuestionsFunctionRole.Arn
-
-  TimeFunction:
-    Description: "Time Lambda Function ARN"
-    Value: !GetAtt TimeFunction.Arn
-
-  TimeFunctionRoleArn:
-    Description: "TimeFunctionRole Arn"
-    Value: !GetAtt TimeFunctionRole.Arn
-
-  CredentialSubjectFunction:
-    Description: "Time Lambda Function ARN"
-    Value: !GetAtt CredentialSubjectFunction.Arn
-
   QuestionStateMachineArn:
-    Description: "GetQuestion StateMachine Arn"
-    Value: !GetAtt GetQuestionStateMachine.Arn
-
-  PersonalIdenityTable:
-    Description: "Get Personal Identity Name"
-    # Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
-    Value: !Ref PersonalIdentityTable
-
-  QuestionsTable:
-    Description: "Get Question Table"
-    Value: !Ref QuestionsTable
-
+    Value: !Ref GetQuestionStateMachine
   IvqQuestionStateMachineArn:
-    Description: "GetIVQQuestion StateMachine Arn"
-    Value: !GetAtt GetIvqQuestionsStateMachine.Arn
-
+    Value: !Ref GetIvqQuestionsStateMachine
   PostAnswerStateMachineArn:
-    Description: "Post Question StateMachine Arn"
-    Value: !GetAtt PostAnswerStateMachine.Arn
-
+    Value: !Ref PostAnswerStateMachine
   PostIvqAnswersStateMachineArn:
-    Description: "Post IVQ Answer StateMachine Arn"
-    Value: !GetAtt PostIvqAnswersStateMachine.Arn
-
-  CurrentTimeFunction:
-    Description: "Fetch Current Time Function Arn"
-    Value: !GetAtt CurrentTimeFunction.Arn
-
-  CurrentTimeFunctionRoleArn:
-    Description: "Fetch Current Time Function Role Arn"
-    Value: !GetAtt CurrentTimeFunctionRole.Arn
-
-  CheckSessionStateMachineArn:
-    Description: "Session Check StateMachine Arn"
-    Value: !GetAtt CheckSessionStateMachine.Arn
+    Value: !Ref PostIvqAnswersStateMachine
+  PersonalIdentityTable:
+    Description: Personal Identity table name
+    Value: !Ref PersonalIdentityTable
+  QuestionsTable:
+    Description: Questions table name
+    Value: !Ref QuestionsTable

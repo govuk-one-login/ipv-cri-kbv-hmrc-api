@@ -22,7 +22,7 @@ describe("post-ivq-answers", () => {
   };
 
   const clearPersonalIdentityTable = async (sessionId: string) => {
-    await clearItems(output.PersonalIdenityTable as string, {
+    await clearItems(output.PersonalIdentityTable as string, {
       sessionId: sessionId,
     });
   };
@@ -61,7 +61,7 @@ describe("post-ivq-answers", () => {
   ] as any;
 
   let output: Partial<{
-    PersonalIdenityTable: string;
+    PersonalIdentityTable: string;
     QuestionsTable: string;
     PostIvqAnswersStateMachineArn: string;
   }>;

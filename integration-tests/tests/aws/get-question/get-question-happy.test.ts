@@ -8,8 +8,8 @@ describe("get-question", () => {
     nino: "AA000003D",
   };
 
-  const clearPersonalIdenityTable = async (sessionId: string) => {
-    await clearItems(output.PersonalIdenityTable as string, {
+  const clearPersonalIdentityTable = async (sessionId: string) => {
+    await clearItems(output.PersonalIdentityTable as string, {
       sessionId: sessionId,
     });
   };
@@ -87,18 +87,18 @@ describe("get-question", () => {
   ] as any;
 
   let output: Partial<{
-    PersonalIdenityTable: string;
+    PersonalIdentityTable: string;
     QuestionsTable: string;
     QuestionStateMachineArn: string;
   }>;
 
   beforeEach(async () => {
     output = await stackOutputs(process.env.STACK_NAME);
-    await populateTable(stateMachineInput, output.PersonalIdenityTable);
+    await populateTable(stateMachineInput, output.PersonalIdentityTable);
   });
 
   afterEach(async () => {
-    await clearPersonalIdenityTable(stateMachineInput.sessionId);
+    await clearPersonalIdentityTable(stateMachineInput.sessionId);
     await clearQuestionDB();
   });
 

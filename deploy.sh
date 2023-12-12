@@ -26,5 +26,4 @@ sam deploy --stack-name "$stack_name" \
   cri:application=Orange \
   cri:deployment-source=manual \
   --parameter-overrides \
-  CodeSigningEnabled=false \
   Environment=dev
