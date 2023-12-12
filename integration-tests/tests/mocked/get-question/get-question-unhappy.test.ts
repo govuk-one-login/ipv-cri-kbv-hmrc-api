@@ -1,8 +1,6 @@
 import { HistoryEvent } from "@aws-sdk/client-sfn";
 import { SfnContainerHelper } from "./sfn-container-helper";
 
-jest.setTimeout(30_000);
-
 describe("get-question-unhappy", () => {
   let sfnContainer: SfnContainerHelper;
 

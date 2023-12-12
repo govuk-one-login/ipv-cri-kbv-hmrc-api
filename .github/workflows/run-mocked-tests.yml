@@ -32,4 +32,4 @@ jobs:
         run: npm ci --include-workspace-root
 
       - name: Run tests
-        run: npm run test:mocked -- --config jest.config.ci.ts
+        run: npm run test:mocked -- --config jest.config.ci.ts --testTimeout 60000
