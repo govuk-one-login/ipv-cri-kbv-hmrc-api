@@ -52,7 +52,7 @@ export type UserInfoEvent = {
                   Nul: boolean;
                 };
               };
-            }
+            },
           ];
         };
         names: {
@@ -70,11 +70,11 @@ export type UserInfoEvent = {
                           S: string;
                         };
                       };
-                    }
+                    },
                   ];
                 };
               };
-            }
+            },
           ];
         };
         birthDates: {
@@ -85,10 +85,10 @@ export type UserInfoEvent = {
                   S: string;
                 };
               };
-            }
+            },
           ];
         };
-      }
+      },
     ];
   };
 };

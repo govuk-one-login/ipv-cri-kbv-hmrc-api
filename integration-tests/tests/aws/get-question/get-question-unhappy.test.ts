@@ -26,21 +26,21 @@ describe("get-question-unhappy", () => {
   ];
 
   let output: Partial<{
-    PersonalIdenityTable: string;
+    PersonalIdentityTable: string;
     QuestionsTable: string;
     QuestionStateMachineArn: string;
   }>;
 
   beforeEach(async () => {
     output = await stackOutputs(process.env.STACK_NAME);
-    await populateTable(testUser, output.PersonalIdenityTable);
+    await populateTable(testUser, output.PersonalIdentityTable);
     for (const question of testQuestions) {
       await populateTable(question, output.QuestionsTable);
     }
   });
 
   afterEach(async () => {
-    await clearItems(output.PersonalIdenityTable as string, {
+    await clearItems(output.PersonalIdentityTable as string, {
       sessionId: testUser.sessionId,
     });
     for (const question of testQuestions) {

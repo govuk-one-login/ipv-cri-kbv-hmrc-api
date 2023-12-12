@@ -1,7 +1,7 @@
 import type { Config } from "jest";
-import baseConfig from "../../jest.config.base";
+import baseConfig from "../../jest.config";
 
 export default {
   ...baseConfig,
-  displayName: "lambdas/submit-answer",
+  displayName: "integration-tests/aws",
 } satisfies Config;

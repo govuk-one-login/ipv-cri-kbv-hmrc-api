@@ -73,6 +73,7 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
+dotenv
 .env
 .env.development.local
 .env.test.local
@@ -131,3 +132,4 @@ dist
 
 # SAM
 **/.aws-sam/
+build
