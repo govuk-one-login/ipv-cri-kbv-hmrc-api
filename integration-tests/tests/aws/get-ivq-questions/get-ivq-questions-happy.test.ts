@@ -2,6 +2,8 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
+jest.setTimeout(10_000);
+
 describe("get-ivq-questions-happy", () => {
   const stateMachineInput = {
     sessionId: "12346",
