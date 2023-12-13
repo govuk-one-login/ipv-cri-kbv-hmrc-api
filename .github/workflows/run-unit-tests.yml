@@ -44,4 +44,4 @@ jobs:
         with:
           name: ${{ inputs.coverage-artifact }}
           retention-days: 3
-          path: coverage
+          path: coverage/lcov.info

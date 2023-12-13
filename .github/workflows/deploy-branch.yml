@@ -20,15 +20,12 @@ jobs:
     name: Build SAM app
     runs-on: ubuntu-latest
     permissions: {}
-    outputs:
-      artifact-name: ${{ steps.build.outputs.artifact-name }}
     steps:
       - name: Build SAM application
-        uses: govuk-one-login/github-actions/sam/build-application@d233e5a687f5c816b19bb25991d5709658b29ebc
+        uses: govuk-one-login/github-actions/sam/build-application@cd7d35dde348251237efbbaee5345e95adef0321
         id: build
         with:
           template: infrastructure/template.yaml
-          artifact-name: kbv-hmrc-api
           cache-key: kbv-hmrc-api
           pull-repository: true
 
@@ -47,17 +44,16 @@ jobs:
       stack-name: ${{ steps.deploy.outputs.stack-name }}
     steps:
       - name: Deploy stack
-        uses: govuk-one-login/github-actions/sam/deploy-stack@d233e5a687f5c816b19bb25991d5709658b29ebc
+        uses: govuk-one-login/github-actions/sam/deploy-stack@cd7d35dde348251237efbbaee5345e95adef0321
         id: deploy
         with:
           sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
           aws-role-arn: ${{ vars.DEPLOYMENT_ROLE_ARN }}
           stack-name-prefix: preview-kbv-hmrc-api
+          cache-key: kbv-hmrc-api
           s3-prefix: preview
           pull-repository: true
           delete-failed-stack: true
-          artifact-path: .aws-sam/build
-          artifact-name: ${{ needs.build.outputs.artifact-name }}
           tags: |
             cri:component=ipv-cri-kbv-hmrc-api
             cri:stack-type=preview

@@ -11,6 +11,7 @@
     "test:all": "npm run unit:all --",
     "test:aws": "npm run unit:aws --",
     "test:mocked": "npm run unit:mocked --",
+    "deploy": "../deploy.sh",
     "compile": "tsc"
   },
   "author": "alphagov",
