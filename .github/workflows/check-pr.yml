@@ -1,0 +1,43 @@
+name: Check PR
+
+on: pull_request
+permissions: {}
+
+jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pre-commit-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: true
+    steps:
+      - name: Run pre-commit
+        uses: govuk-one-login/github-actions/code-quality/run-pre-commit@d233e5a687f5c816b19bb25991d5709658b29ebc
+        with:
+          all-files: true
+
+  unit-tests:
+    name: Run tests
+    uses: ./.github/workflows/run-unit-tests.yml
+
+  mocked-tests:
+    name: Run tests
+    uses: ./.github/workflows/run-mocked-tests.yml
+
+  deploy:
+    name: Preview
+    uses: ./.github/workflows/deploy-branch.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  aws-tests:
+    name: Run tests
+    needs: deploy
+    uses: ./.github/workflows/run-aws-tests.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      stack-name: ${{ needs.deploy.outputs.stack-name }}
+      aws-region: ${{ needs.deploy.outputs.aws-region }}
