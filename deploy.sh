@@ -6,7 +6,7 @@ stack_name="${1:-}"
 common_stack_name="${2:-}"
 
 if ! [[ "$stack_name" ]]; then
-  [[ $(aws whoami --query Arn --output text) =~ \/([^\/\.]+)\. ]] && user="${BASH_REMATCH[1]}" || exit
+  [[ $(aws sts get-caller-identity --query Arn --output text) =~ \/([^\/\.]+)\. ]] && user="${BASH_REMATCH[1]}" || exit
   stack_name="$user-kbv-hmrc-api"
   echo "» Using stack name '$stack_name'"
 fi
