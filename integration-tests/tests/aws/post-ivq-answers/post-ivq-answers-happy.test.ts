@@ -8,7 +8,7 @@ import { executeStepFunction } from "../resources/stepfunction-helper";
 
 describe("post-ivq-answers", () => {
   const stateMachineInput = {
-    sessionId: "12345",
+    sessionId: "post-ivq-answers-happy",
     nino: "AA000003D",
   };
 

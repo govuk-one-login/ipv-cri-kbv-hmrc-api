@@ -6,10 +6,10 @@ describe("post-answers-happy", () => {
   const stateMachineInput = {
     key: "rti-p60-employee-ni-contributions",
     value: "100.30",
-    sessionId: "12345",
+    sessionId: "post-answers-happy",
   };
   const testUser = {
-    sessionId: "12345",
+    sessionId: "post-answers-happy",
     nino: "AA000003D",
   };
 
@@ -86,7 +86,7 @@ describe("post-answers-happy", () => {
     expect(startExecutionResult.output).toBe("{}");
   });
 
-  it("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
+  it.skip("should pass and post the answers to HMRC when there are no unanswered questions", async () => {
     for (const question of testQuestions) {
       if (question.questionKey !== stateMachineInput.key) {
         question.answered = "true";

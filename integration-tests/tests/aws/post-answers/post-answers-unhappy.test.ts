@@ -6,10 +6,10 @@ describe("post-answers-unhappy", () => {
   const stateMachineInput = {
     key: "rti-p60-employee-ni-contributions",
     value: "100.30",
-    sessionId: "12345",
+    sessionId: "post-answers-unhappy",
   };
   const testUser = {
-    sessionId: "12345",
+    sessionId: "post-answers-unhappy",
     nino: "AA000003D",
   };
 
