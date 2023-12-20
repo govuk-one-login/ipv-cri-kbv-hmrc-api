@@ -685,8 +685,13 @@ Resources:
       RetentionInDays: 30
 
 Outputs:
+  PublicApiGatewayId:
+    Description: API Gateway ID of the public HMRC KBV CRI API
+    Value: !Ref PublicKbvHmrcApi
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicApiGatewayId
   PrivateApiGatewayId:
-    Description: API Gateway ID of the private Experian CRI API
+    Description: API Gateway ID of the private HMRC KBV CRI API
     Value: !Ref PrivateKbvHmrcApi
     Export:
       Name: !Sub ${AWS::StackName}-PrivateApiGatewayId
