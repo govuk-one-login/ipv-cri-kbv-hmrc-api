@@ -139,4 +139,3 @@ dist
 # SAM
 **/.aws-sam/
 build
-/feature-tests/results
