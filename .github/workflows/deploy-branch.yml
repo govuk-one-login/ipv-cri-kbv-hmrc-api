@@ -57,7 +57,7 @@ jobs:
           tags: |
             cri:component=ipv-cri-kbv-hmrc-api
             cri:stack-type=preview
-            cri:application=Orange
+            cri:application=Lime
             cri:deployment-source=github-actions
           parameters: |
             Environment=dev
