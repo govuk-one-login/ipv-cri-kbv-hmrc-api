@@ -51,4 +51,4 @@ jobs:
         env:
           AWS_REGION: ${{ inputs.aws-region }}
           STACK_NAME: ${{ inputs.stack-name }}
-        run: npm run test:aws -- --config jest.config.ci.ts
+        run: npm run test:aws -- --config jest.config.ci.ts --runInBand

@@ -26,7 +26,8 @@ describe("get-ivq-questions-happy", () => {
       correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d572",
       questionKey: "rti-p60-payment-for-year",
       info: {
-        currentTaxYear: "2022/23",
+        currentTaxYear: "2023/24",
+        previousTaxYear: "2022/23",
       },
     },
     {
@@ -35,7 +36,8 @@ describe("get-ivq-questions-happy", () => {
       correlationId: "93dcc67c-fe6d-4bd7-b68f-2bd848e0d573",
       questionKey: "rti-p60-employee-ni-contributions",
       info: {
-        currentTaxYear: "2022/23",
+        currentTaxYear: "2023/24",
+        previousTaxYear: "2022/23",
       },
     },
     {

@@ -11,7 +11,6 @@ if ! [[ "$stack_name" ]]; then
   echo "» Using stack name '$stack_name'"
 fi
 
-sam validate -t infrastructure/template.yaml
 sam validate -t infrastructure/template.yaml --lint
 
 sam build -t infrastructure/template.yaml --cached --parallel
@@ -26,7 +25,7 @@ sam deploy --stack-name "$stack_name" \
   --tags \
   cri:component=ipv-cri-kbv-hmrc-api \
   cri:stack-type=dev \
-  cri:application=Orange \
+  cri:application=Lime \
   cri:deployment-source=manual \
   --parameter-overrides \
   ${common_stack_name:+CommonStackName=$common_stack_name} \
