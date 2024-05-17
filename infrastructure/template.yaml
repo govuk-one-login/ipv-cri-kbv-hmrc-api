@@ -13,6 +13,14 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: [dev, build, staging, integration, production]
+  AuditEventNamePrefix:
+    Description: "The audit event name prefix"
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: "/common-cri-parameters/AuditEventNamePrefix"
+  CriIdentifier:
+    Description: "The unique credential issuer identifier"
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: "/common-cri-parameters/CriIdentifier"
   CommonStackName:
     Type: String
     Default: common-cri-api
@@ -71,6 +79,11 @@ Globals:
     Environment:
       Variables:
         NODE_OPTIONS: --enable-source-maps
+        AWS_STACK_NAME: !Sub ${AWS::StackName}
+        POWERTOOLS_LOG_LEVEL: INFO
+        SQS_AUDIT_EVENT_QUEUE_URL: !ImportValue AuditEventQueueUrl
+        SQS_AUDIT_EVENT_PREFIX: !Ref AuditEventNamePrefix
+        POWERTOOLS_METRICS_NAMESPACE: !Ref CriIdentifier
         AWS_LAMBDA_EXEC_WRAPPER: /opt/dynatrace
         DT_OPEN_TELEMETRY_ENABLE_INTEGRATION: true
         DT_CONNECTION_AUTH_TOKEN: !Sub
@@ -317,6 +330,11 @@ Resources:
         Sourcemap: true
     Properties:
       Handler: lambdas/fetch-questions/src/fetch-questions-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-fetchquestions"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-fetchquestions"
+      Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
