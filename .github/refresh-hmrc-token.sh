@@ -5,12 +5,12 @@ expiry_parameter=$(aws ssm describe-parameters \
   --query "Parameters[0].Name" --output text)
 
 expiry_ms=$(aws ssm get-parameter --name "$expiry_parameter" --query "Parameter.Value" --output text)
-refresh_ms=$(("$expiry_ms" - 20 * 60 * 1000))
+refresh_ms=$(($expiry_ms - (20 * 60 * 1000)))
 current_ms=$(($(date +%s) * 1000))
 
 if [[ $current_ms -lt $refresh_ms ]]; then
-  remaining_ms=$(("$expiry_ms" - "$current_ms"))
-  echo "Token expires in $(("$remaining_ms" / 1000 / 60)) minutes"
+  remaining_ms=$(($expiry_ms - $current_ms))
+  echo "Token expires in $(($remaining_ms / 1000 / 60)) minutes"
   exit
 fi
 
