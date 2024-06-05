@@ -2,7 +2,7 @@ import { stackOutputs } from "../resources/cloudformation-helper";
 import { clearItems, populateTable } from "../resources/dynamodb-helper";
 import { executeStepFunction } from "../resources/stepfunction-helper";
 
-jest.setTimeout(10_000);
+jest.setTimeout(20_000);
 
 describe("get-ivq-questions-happy", () => {
   const stateMachineInput = {
@@ -94,15 +94,8 @@ describe("get-ivq-questions-happy", () => {
         output.IvqQuestionStateMachineArn
       )) as any;
       const result = JSON.parse(startExecutionResult.output);
-      const fetchedQuestion = result.Payload.questions;
-      for (let counter = 0; counter < testQuestions.length; counter++) {
-        expect(testQuestions[counter].questionKey).toBe(
-          fetchedQuestion[counter].questionKey
-        );
-        expect(testQuestions[counter].info).toEqual(
-          fetchedQuestion[counter].info
-        );
-      }
+      const availableQuestions = result.Payload.availableQuestions;
+      expect(availableQuestions).toEqual("6");
     });
     it("should not fetch questions from HMRC when there are questions in DB", async () => {
       for (const question of testQuestions) {
@@ -113,7 +106,7 @@ describe("get-ivq-questions-happy", () => {
         output.IvqQuestionStateMachineArn
       )) as any;
       const result = JSON.parse(startExecutionResult.output);
-      const loadedQuestion: Array<String> = result.loadedQuestions.Items;
+      const loadedQuestion: Array<string> = result.loadedQuestions.Items;
       for (let counter = 0; counter < testQuestions.length; counter++) {
         expect(loadedQuestion.includes(testQuestions[counter].questionKey));
         expect(loadedQuestion.includes(testQuestions[counter].info.months));

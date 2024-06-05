@@ -28,7 +28,7 @@ describe("post-answers-happy", () => {
     });
   };
 
-  let testQuestions = [
+  const testQuestions = [
     {
       sessionId: stateMachineInput.sessionId,
       answered: "false",

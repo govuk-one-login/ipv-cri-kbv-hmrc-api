@@ -23,7 +23,7 @@ describe("get-question", () => {
     }
   };
 
-  let testQuestions = [
+  const testQuestions = [
     {
       sessionId: stateMachineInput.sessionId,
       answered: "false",
@@ -117,7 +117,7 @@ describe("get-question", () => {
         );
       });
       it("should return 204 when there are no unanswered left", async () => {
-        for (let question of testQuestions) {
+        for (const question of testQuestions) {
           question.answered = "true";
           await populateTable(question, output.QuestionsTable);
         }

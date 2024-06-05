@@ -27,7 +27,7 @@ describe("post-ivq-answers", () => {
     });
   };
 
-  let testQuestions = [
+  const testQuestions = [
     {
       sessionId: stateMachineInput.sessionId,
       answered: "true",

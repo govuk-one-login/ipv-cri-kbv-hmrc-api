@@ -11,6 +11,11 @@ if ! [[ "$stack_name" ]]; then
   echo "» Using stack name '$stack_name'"
 fi
 
+if [ -z "$common_stack_name" ]
+then
+  common_stack_name="hmrc-kbv-common-cri-api-local"
+fi
+
 sam validate -t infrastructure/template.yaml --lint
 
 sam build -t infrastructure/template.yaml --cached --parallel
@@ -28,5 +33,5 @@ sam deploy --stack-name "$stack_name" \
   cri:application=Lime \
   cri:deployment-source=manual \
   --parameter-overrides \
-  ${common_stack_name:+CommonStackName=$common_stack_name} \
+  CommonStackName=$common_stack_name \
   Environment=dev

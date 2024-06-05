@@ -1,38 +1,91 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { MetricUnits } from "@aws-lambda-powertools/metrics";
 import { Logger } from "@aws-lambda-powertools/logger";
+import { LambdaInterface } from "@aws-lambda-powertools/commons";
 
-const logger = new Logger();
+import {
+  HandlerMetricExport,
+  MetricsProbe,
+} from "../../../lib/src/Service/metrics-probe";
+
+import {
+  HandlerMetric,
+  CompletionStatus,
+} from "../../../lib/src/MetricTypes/handler-metric-types";
+
+import { QuestionsRetrievalService } from "./services/questions-retrieval-service";
+import { QuestionsResult } from "./types/questions-result-types";
+
+const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
 export class FetchQuestionsHandler implements LambdaInterface {
-  public async handler(event: any, _context: unknown): Promise<string> {
+  metricProbe: MetricsProbe;
+  questionsRetrievalService: QuestionsRetrievalService;
+
+  constructor(
+    metricProbe: MetricsProbe,
+    questionsRetrievalService: QuestionsRetrievalService
+  ) {
+    this.metricProbe = metricProbe;
+    this.questionsRetrievalService = questionsRetrievalService;
+  }
+
+  @logger.injectLambdaContext({ clearState: true })
+  @HandlerMetricExport.logMetrics({
+    throwOnEmptyMetrics: false,
+    captureColdStartMetric: true,
+  })
+  public async handler(event: any, _context: unknown): Promise<object> {
     try {
-      const response = await fetch(event.parameters.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": event.parameters.userAgent,
-          Authorization: "Bearer " + event.bearerToken.value,
-        },
-        body: JSON.stringify({
-          nino: event.nino,
-        }),
-      });
-      let json;
-      try {
-        json = await response.json();
-      } catch (error: any) {
-        throw new Error(await response.text());
-      }
-      if (json.questions.length <= 0) {
-        throw new Error("No questions returned");
-      }
-      return json;
+      logger.info("handler start");
+
+      const questionsResult: QuestionsResult =
+        await this.questionsRetrievalService.retrieveQuestions(event);
+
+      const correlationId: string = questionsResult.getCorrelationId();
+      const questionCount: number = questionsResult.getQuestionCount();
+
+      logger.info(
+        `Result returned - correlationId : ${correlationId}, questionCount ${questionCount}`
+      );
+
+      // Request sent audit event
+      // Response recieved audit event
+      // TBD if placed in handler or questionsRetrievalService
+
+      // Next
+      // TBD Save question count/keys to DynamoDB (even if not enough)
+
+      metricProbe.captureMetric(
+        HandlerMetric.CompletionStatus,
+        MetricUnits.Count,
+        CompletionStatus.OK
+      );
+
+      // A simple json object with the questionCount
+      return { availableQuestions: `${questionCount}` };
     } catch (error: any) {
-      logger.error("Error in MatchingHandler: " + error.message);
-      throw error;
+      const lambdaName = FetchQuestionsHandler.name;
+      const errorText: string = error.message;
+
+      const errorMessage = `${lambdaName} : ${errorText}`;
+
+      logger.error(errorMessage);
+
+      metricProbe.captureMetric(
+        HandlerMetric.CompletionStatus,
+        MetricUnits.Count,
+        CompletionStatus.ERROR
+      );
+
+      return { error: errorMessage };
     }
   }
 }
 
-const handlerClass = new FetchQuestionsHandler();
+// Handler Export
+const metricProbe = new MetricsProbe();
+const handlerClass = new FetchQuestionsHandler(
+  metricProbe,
+  new QuestionsRetrievalService(metricProbe)
+);
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);
