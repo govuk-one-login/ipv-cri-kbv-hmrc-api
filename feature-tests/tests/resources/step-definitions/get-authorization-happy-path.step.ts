@@ -32,16 +32,11 @@ test('Happy Path - Get Request to Authorization Endpoint for sessionId', ({
     });
 
     then(
-      /^I should receive a response with (.*) and valid (.*)$/,
-      async () => {
-        await timeDelayForTestEnvironment(3000);
-        const events = ['userActionIdResetSuccess', 'userActionPswResetSuccess'];
-        // if (!events.includes(aisEventType)) {
-        //   const receivedMessage = await filterUserIdInMessages(testUserId);
-        //   const body = receivedMessage[0].Body;
-        //   const extensions = body ? attemptParseJSON(body).extensions : {};
-        //   expect(extensions.allowable_interventions).toEqual(aisEventResponse[aisEventType].allowable_interventions);
-        // }
+      /^I should receive a response with (.*) and valid sessionId$/,
+      async (statusCode: string) => {
+        expect(getAuthorizationToken.statusCode).toBe(Number(statusCode));
+        getAuthorizationToken.body();
+        expect(getAuthorizationToken.body.vcs).toEqual(sessionId);
       },
     );
   });
