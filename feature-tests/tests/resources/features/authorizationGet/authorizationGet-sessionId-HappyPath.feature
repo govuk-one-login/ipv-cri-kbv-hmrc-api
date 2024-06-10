@@ -6,3 +6,4 @@ Feature: HMRC-KBV-GET-Authorization-HappyPath.feture
         Examples:
             | contentType      | accept | statusCode |
             | application/json | */*    | 202        |
+            | html             | */*    | 400        |

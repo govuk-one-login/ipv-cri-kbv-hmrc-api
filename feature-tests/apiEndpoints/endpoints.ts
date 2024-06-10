@@ -1,5 +1,5 @@
 export default class EndPoints {
-    // public static BASE_URL1 =
+    public static BASE_URL1 = 'https://ipv-cri-hmrc-kbv-api-cbgds-CreateAuthCodeFunction-vIb2dixuKw6s';
     //   process.env.TEST_ENVIRONMENT === 'dev'
     //     ? `https://${process.env.SAM_STACK_NAME}.credential-store.${process.env.TEST_ENVIRONMENT}.account.gov.uk`
     //     : process.env.CFN_PrivateApiEndpoint;

@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="2" failures="0" errors="0" time="10.626">
-  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-07T11:13:47" time="4.432" tests="1">
-    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for sessionId" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for sessionId" time="3.014">
+<testsuites name="jest tests" tests="2" failures="1" errors="0" time="7.489">
+  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="1" skipped="0" timestamp="2024-06-07T11:28:40" time="1.35" tests="1">
+    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for sessionId" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for sessionId" time="0.001">
+      <failure>TypeError: Failing step: &quot;I should receive a response with 202 and valid sessionId&quot;
+
+Step arguments: [&quot;202&quot;]
+
+Error: Cannot read properties of undefined (reading &apos;body&apos;)
+    at Object.stepFunction (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/tests/resources/step-definitions/get-authorization-happy-path.step.ts:38:31)
+    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/src/feature-definition-creation.ts:220:45
+    at step (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:33:23)
+    at Object.next (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:14:53)
+    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:8:71
+    at new Promise (&lt;anonymous&gt;)
+    at Object.&lt;anonymous&gt;.__awaiter (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:4:12)
+    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/src/feature-definition-creation.ts:207:21</failure>
     </testcase>
   </testsuite>
-  <testsuite name="HMRC-KBV-POST-Questions-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-07T11:13:52" time="6.116" tests="1">
-    <testcase classname="HMRC-KBV-POST-Questions-HappyPath.feture Happy Path - Post Request to HMRC KBV Questions Endpoint" name="HMRC-KBV-POST-Questions-HappyPath.feture Happy Path - Post Request to HMRC KBV Questions Endpoint" time="6.006">
+  <testsuite name="HMRC-KBV-POST-Questions-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-07T11:28:41" time="6.082" tests="1">
+    <testcase classname="HMRC-KBV-POST-Questions-HappyPath.feture Happy Path - Post Request to HMRC KBV Questions Endpoint" name="HMRC-KBV-POST-Questions-HappyPath.feture Happy Path - Post Request to HMRC KBV Questions Endpoint" time="6.016">
     </testcase>
   </testsuite>
 </testsuites>
