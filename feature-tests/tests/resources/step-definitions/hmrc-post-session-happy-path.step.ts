@@ -35,6 +35,7 @@ async function userIdentityAsJwtStringForUpdatedUser(
 test('Happy Path - Post Request to Session Endpoint', ({
     given,
     then,
+    when,
   }) => {
     given(/^I send a Valid POST request for (.*) to the session endpoint with (.*) and (.*) and (.*)$/, async (user: keyof typeof SESSION_REQUEST_BODY, contentType, accept, xForwardedFor) => {
     // console.log('sending happy path post request for simple test, with user id ' + testUserId);
@@ -42,7 +43,7 @@ test('Happy Path - Post Request to Session Endpoint', ({
   
     postRequestToSessionEndpoint = await request(EndPoints.PRIVATE_API_ENDPOINT)
       .post(EndPoints.SESSION_URL)
-      .send(JSON.stringify(user))
+      .send(JSON.stringify(EndPoints.CORE_STUB_URL + 'hmrc-kbv-cri-dev' + user))
       .set('Accept', accept)
       .set('X-Forwarded-For', xForwardedFor)
       .set('Content-Type', contentType);
@@ -50,12 +51,11 @@ test('Happy Path - Post Request to Session Endpoint', ({
     console.log(JSON.stringify(postRequestToSessionEndpoint, undefined, 2));
   });
 
-  then(
+  when(
     /^I should receive a response with (.*) and valid sessionId$/,
-    async () => {
-      // expect(getAuthorizationToken.statusCode).toBe(Number(statusCode));
-      postRequestToSessionEndpoint.body();
-      // expect(getAuthorizationToken.body.vcs).toEqual(sessionId);
+    async (statusCode) => {
+      expect(postRequestToSessionEndpoint.statusCode).toEqual(Number(statusCode));
+      console.log(JSON.stringify(postRequestToSessionEndpoint.body))
     });
   });
 });

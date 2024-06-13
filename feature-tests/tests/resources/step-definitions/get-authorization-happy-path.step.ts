@@ -16,15 +16,6 @@ defineFeature(feature, (test) => {
 // beforeEach(async () => {
 //   });
 
-async function userIdentityAsJwtStringForHmrcUpdatedUser(  
-  givenName: string,
-  familyName: string,
-  criId: string,
-  rowNumber: string): Promise<void> {
-    const coreStubUrl = EndPoints.CORE_STUB_URL;
-
-    const SESSION_REQUEST_BODY = await createRequest(coreStubUrl, criId, updatedJsonString);
-}
 
 test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
     given,
@@ -52,23 +43,3 @@ test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
     );
   });
 });
-
-
-
-
-async function getSessionJwtAsJson(criId: string, rowNumber: string): Promise<JsonNode> {
-  // Implementation of getSessionJwtAsJson
-  return new JsonNode();
-}
-
-async function createRequest(coreStubUrl: string, criId: string, updatedJsonString: string): Promise<string> {
-  // Implementation of createRequest
-  return '';
-}
-
-const objectMapper = {
-  readValue: async <T>(input: string, typeReference: TypeReference<T>, p0: {}): Promise<T> => {
-      // Implementation of readValue
-      return {} as T;
-  }
-};
