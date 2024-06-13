@@ -11,6 +11,6 @@ export default class EndPoints {
     public static PRIVATE_GATEWAY_ID = 'http://cri-3rdparty.core.stubs.account.gov.uk'
     public static SESSION_URL = '/session'
     public static PRIVATE_API_ENDPOINT = 'https://494upsqu6f.execute-api.eu-west-2.amazonaws.com/dev'
-
+    public static CRI_ID = 'hmrc-kbv-cri-dev'
   }
   
