@@ -8,12 +8,12 @@ const feature = loadFeature(
 );
 
 defineFeature(feature, (test) => {
-  // let getAuthorizationToken: any;
   let postRequestToSessionEndpoint: any;
 
 
 // beforeEach(async () => {
 //   });
+
 
 
 
@@ -38,7 +38,7 @@ test('Happy Path - Post Request to Session Endpoint', ({
     /^I should receive a response with (.*) and valid sessionId$/,
     async (statusCode: string) => {
       // expect(getAuthorizationToken.statusCode).toBe(Number(statusCode));
-      getAuthorizationToken.body();
+      postRequestToSessionEndpoint.body();
       // expect(getAuthorizationToken.body.vcs).toEqual(sessionId);
     },
   );
