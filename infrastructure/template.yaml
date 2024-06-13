@@ -103,12 +103,11 @@ Mappings:
       production: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
 
 Resources:
-
-####################################################################
-#                                                                  #
-# API Gateway                                                      #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # API Gateway                                                      #
+  #                                                                  #
+  ####################################################################
 
   PublicKbvHmrcApi:
     Type: AWS::Serverless::Api
@@ -262,11 +261,11 @@ Resources:
               - !Ref GetIvqQuestionsStateMachine
               - !Ref PostIvqAnswersStateMachine
 
-####################################################################
-#                                                                  #
-# GetIvqQuestionsStateMachine                                      #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # GetIvqQuestionsStateMachine                                      #
+  #                                                                  #
+  ####################################################################
 
   GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -318,11 +317,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetIvqQuestions-state-machine-logs
       RetentionInDays: 365
 
-####################################################################
-#                                                                  #
-# CheckSessionStateMachine                                         #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # CheckSessionStateMachine                                         #
+  #                                                                  #
+  ####################################################################
 
   CheckSessionStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -359,11 +358,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
       RetentionInDays: 30
 
-####################################################################
-#                                                                  #
-# GetQuestionStateMachine                                          #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # GetQuestionStateMachine                                          #
+  #                                                                  #
+  ####################################################################
 
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -406,11 +405,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 365
 
-####################################################################
-#                                                                  #
-# PostAnswerStateMachine                                          #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # PostAnswerStateMachine                                          #
+  #                                                                  #
+  ####################################################################
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -470,11 +469,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
       RetentionInDays: 365
 
-####################################################################
-#                                                                  #
-# PostIvqAnswersStateMachine                                       #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # PostIvqAnswersStateMachine                                       #
+  #                                                                  #
+  ####################################################################
 
   PostIvqAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -522,11 +521,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
       RetentionInDays: 365
 
-####################################################################
-#                                                                  #
-# IssueCredentialStateMachine                                      #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # IssueCredentialStateMachine                                      #
+  #                                                                  #
+  ####################################################################
 
   IssueCredentialStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -592,13 +591,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
-      RetentionInDays: 30      
+      RetentionInDays: 30
 
-####################################################################
-#                                                                  #
-# FetchQuestionsFunction                                           #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # FetchQuestionsFunction                                           #
+  #                                                                  #
+  ####################################################################
 
   FetchQuestionsFunction:
     Type: AWS::Serverless::Function
@@ -612,15 +611,25 @@ Resources:
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-fetchquestions"
+          QUESTIONS_TABLE_NAME: !Ref QuestionsTable
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
 
-####################################################################
-#                                                                  #
-# TimeFunction                                                     #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # TimeFunction                                                     #
+  #                                                                  #
+  ####################################################################
 
   TimeFunction:
     Type: AWS::Serverless::Function
@@ -633,11 +642,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-####################################################################
-#                                                                  #
-# CurrentTimeFunction                                              #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # CurrentTimeFunction                                              #
+  #                                                                  #
+  ####################################################################
 
   CurrentTimeFunction:
     Type: AWS::Serverless::Function
@@ -650,11 +659,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-####################################################################
-#                                                                  #
-# SubmitAnswerFunction                                             #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # SubmitAnswerFunction                                             #
+  #                                                                  #
+  ####################################################################
 
   SubmitAnswerFunction:
     Type: AWS::Serverless::Function
@@ -667,12 +676,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-
-####################################################################
-#                                                                  #
-# CreateAuthCodeFunction                                           #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # CreateAuthCodeFunction                                           #
+  #                                                                  #
+  ####################################################################
 
   CreateAuthCodeFunction:
     Type: AWS::Serverless::Function
@@ -685,11 +693,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-####################################################################
-#                                                                  #
-# CredentialSubjectFunction                                        #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # CredentialSubjectFunction                                        #
+  #                                                                  #
+  ####################################################################
 
   CredentialSubjectFunction:
     Type: AWS::Serverless::Function
@@ -702,11 +710,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-####################################################################
-#                                                                  #
-# EvidenceCheckDetailsFunction                                     #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # EvidenceCheckDetailsFunction                                     #
+  #                                                                  #
+  ####################################################################
 
   EvidenceCheckDetailsFunction:
     Type: AWS::Serverless::Function
@@ -719,11 +727,11 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
-####################################################################
-#                                                                  #
-# Database Tables                                                  #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # Database Tables                                                  #
+  #                                                                  #
+  ####################################################################
 
   QuestionsTable:
     Type: AWS::DynamoDB::Table
@@ -733,13 +741,9 @@ Resources:
       AttributeDefinitions:
         - AttributeName: sessionId
           AttributeType: S
-        - AttributeName: questionKey
-          AttributeType: S
       KeySchema:
         - AttributeName: sessionId
           KeyType: HASH
-        - AttributeName: questionKey
-          KeyType: RANGE
 
   # Temporary - remove once common lambdas deployed
   PersonalIdentityTable:
@@ -754,19 +758,17 @@ Resources:
         - AttributeName: sessionId
           KeyType: HASH
 
-####################################################################
-#                                                                  #
-# API config                                                       #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # API config                                                       #
+  #                                                                  #
+  ####################################################################
 
-# TODO
-
-####################################################################
-#                                                                  #
-# Parameters                                                       #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # Parameters                                                       #
+  #                                                                  #
+  ####################################################################
 
   MaxJwtTtlParameter:
     Type: AWS::SSM::Parameter
@@ -813,8 +815,6 @@ Resources:
 # Alerts                                                           #
 #                                                                  #
 ####################################################################
-
-# TODO
 
 ####################################################################
 #                                                                  #

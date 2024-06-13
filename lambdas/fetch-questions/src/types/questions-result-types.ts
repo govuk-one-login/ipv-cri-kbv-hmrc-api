@@ -2,7 +2,10 @@ export class Info {
   readonly taxYearCurrent: string | undefined;
   readonly taxYearPrevious: string | undefined;
 
-  constructor(taxYearCurrent: string, taxYearPrevious: string | undefined) {
+  constructor(
+    taxYearCurrent: string | undefined,
+    taxYearPrevious: string | undefined
+  ) {
     this.taxYearCurrent = taxYearCurrent;
     this.taxYearPrevious = taxYearPrevious;
   }
@@ -23,6 +26,10 @@ export class Question {
       ? new Info(taxYearCurrent, taxYearPrevious)
       : undefined;
   }
+
+  getQuestionKey(): string {
+    return this.questionKey;
+  }
 }
 
 export class QuestionsResult {
@@ -40,5 +47,56 @@ export class QuestionsResult {
 
   getQuestionCount(): number {
     return this.questions.length;
+  }
+}
+
+export class QuestionResultItem {
+  sessionId: string;
+  correlationId: string;
+  ttl: number;
+  questions: QuestionResultItemQuestion[];
+
+  constructor(
+    sessionId: string,
+    correlationId: string,
+    ttl: number,
+    questions: QuestionResultItemQuestion[]
+  ) {
+    this.sessionId = sessionId;
+    this.correlationId = correlationId;
+    this.ttl = ttl;
+    this.questions = questions;
+  }
+}
+
+export class QuestionResultItemInfo {
+  taxYearCurrent: string | undefined;
+  taxYearPrevious: string | undefined;
+
+  constructor(
+    taxYearCurrent: string | undefined,
+    taxYearPrevious: string | undefined
+  ) {
+    this.taxYearCurrent = taxYearCurrent;
+    this.taxYearPrevious = taxYearPrevious;
+  }
+}
+
+export class QuestionResultItemQuestion {
+  questionKey: string;
+  info: QuestionResultItemInfo;
+  answered: boolean;
+  order: number;
+
+  constructor(
+    questionKey: string,
+    info: QuestionResultItemInfo,
+    answered: boolean,
+    order: number
+  ) {
+    this.questionKey = questionKey;
+    this.info = info;
+    this.answered = answered;
+    this.order = order;
   }
 }

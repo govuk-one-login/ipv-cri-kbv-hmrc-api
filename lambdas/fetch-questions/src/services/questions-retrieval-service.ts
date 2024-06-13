@@ -84,7 +84,6 @@ export class QuestionsRetrievalService {
                   MetricUnits.Count,
                   ResponseValidity.Valid
                 );
-
                 return questionsResult;
               })
               .catch((error: Error) => {
