@@ -54,31 +54,7 @@ test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
 });
 
 
-async function userIdentityAsJwtStringForupdatedUser(
-  givenName: string,
-  familyName: string,
-  criId: string,
-  rowNumber: string
-): Promise<void> {
-  const coreStubUrl = EndPoints.CORE_STUB_URL;
-  
-  const jsonNode = await getSessionJwtAsJson(criId, rowNumber);
-  const nameArray = jsonNode.get('shared_claims').get('name');
-  const firstItemInNameArray = nameArray.get(0);
-  const namePartsNode = firstItemInNameArray.get('nameParts');
-  const firstItemInNamePartsArray = namePartsNode.get(0);
-  (firstItemInNamePartsArray as ObjectNode).put('value', givenName);
-  const secondItemInNamePartsArray = namePartsNode.get(1);
-  (secondItemInNamePartsArray as ObjectNode).put('value', familyName);
-  const updatedJsonString = jsonNode.toString();
-  console.log(`updatedJsonString = ${updatedJsonString}`);
-  const SESSION_REQUEST_BODY = await createRequest(coreStubUrl, criId, updatedJsonString);
-  console.log(`SESSION_REQUEST_BODY = ${SESSION_REQUEST_BODY}`);
 
-  // Capture client id for using later in the auth request
-  const CLIENT_ID = ['client_id'];
-  console.log(`CLIENT_ID = ${CLIENT_ID}`);
-}
 
 async function getSessionJwtAsJson(criId: string, rowNumber: string): Promise<JsonNode> {
   // Implementation of getSessionJwtAsJson
