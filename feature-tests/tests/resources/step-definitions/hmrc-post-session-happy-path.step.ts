@@ -15,24 +15,31 @@ defineFeature(feature, (test) => {
 // beforeEach(async () => {
 //   });
 
-const 
+
 
 test('Happy Path - Post Request to Session Endpoint', ({
     given,
     then,
   }) => {
-    given(/^I send a Valid POST request to the session endpoint with (.*) and (.*) and (.*)$/, async (contentType, accept, x-forwarded-for ) => {
+    given(/^I send a Valid POST request to the session endpoint with (.*) and (.*) and (.*)$/, async (contentType, accept, xForwardedFor) => {
     // console.log('sending happy path post request for simple test, with user id ' + testUserId);
     await timeDelayForTestEnvironment(3000);
     postRequestToSessionEndpoint = await request(EndPoints.PRIVATE_API_ENDPOINT)
       .post(EndPoints.SESSION_URL)
-      .send(JSON.stringify(getArrayOfValidVcTokens(numberOfVCsToPersist)))
+      // .send(JSON.stringify(getArrayOfValidVcTokens(numberOfVCsToPersist)))
       .set('Accept', accept)
-      .set('X-Forwarded-For', x-forwarded-for)
-      .set('Authorization', 'Bearer' + ' ' + authorizationToken)
+      .set('X-Forwarded-For', xForwardedFor)
       .set('Content-Type', contentType);
-    console.log('response from post request: ' + vcsPOSTResponse.statusCode);
-    console.log(JSON.stringify(vcsPOSTResponse, undefined, 2));
-    };
-    });
+    console.log('response from post request: ' + postRequestToSessionEndpoint.statusCode);
+    console.log(JSON.stringify(postRequestToSessionEndpoint, undefined, 2));
+  });
+
+  then(
+    /^I should receive a response with (.*) and valid sessionId$/,
+    async (statusCode: string) => {
+      // expect(getAuthorizationToken.statusCode).toBe(Number(statusCode));
+      getAuthorizationToken.body();
+      // expect(getAuthorizationToken.body.vcs).toEqual(sessionId);
+    },
+  );
 });
