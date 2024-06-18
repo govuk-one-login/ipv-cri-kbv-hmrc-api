@@ -38,7 +38,7 @@ describe("SaveQuestionsService", () => {
     const questionsResultItem = {
       sessionId: "sessionId",
       correlationId: "correlationId",
-      ttl: 7200,
+      expiryDate: 1234,
       questions: [questionResultItemQuestion],
     };
     const questions: Question[] = [
@@ -47,6 +47,7 @@ describe("SaveQuestionsService", () => {
 
     const result = await service.saveQuestions(
       "sessionId",
+      1234,
       "correlationId",
       questions
     );
@@ -61,5 +62,22 @@ describe("SaveQuestionsService", () => {
       })
     );
     expect(result).toBe(true);
+  });
+
+  it("should return exisitng item from questions table", async () => {
+    const sessionId: any = "sessionId";
+
+    service.getExistingSavedItem(sessionId);
+
+    const expected = {
+      input: {
+        Key: { sessionId: "sessionId" },
+        TableName: "QUESTIONS_TABLE_NAME",
+      },
+    };
+
+    expect(mockDynamoDocument.send).toHaveBeenCalledWith(
+      expect.objectContaining(expected)
+    );
   });
 });

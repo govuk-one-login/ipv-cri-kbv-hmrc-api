@@ -26,10 +26,6 @@ export class Question {
       ? new Info(taxYearCurrent, taxYearPrevious)
       : undefined;
   }
-
-  getQuestionKey(): string {
-    return this.questionKey;
-  }
 }
 
 export class QuestionsResult {
@@ -53,18 +49,18 @@ export class QuestionsResult {
 export class QuestionResultItem {
   sessionId: string;
   correlationId: string;
-  ttl: number;
+  expiryDate: number;
   questions: QuestionResultItemQuestion[];
 
   constructor(
     sessionId: string,
     correlationId: string,
-    ttl: number,
+    expiryDate: number,
     questions: QuestionResultItemQuestion[]
   ) {
     this.sessionId = sessionId;
     this.correlationId = correlationId;
-    this.ttl = ttl;
+    this.expiryDate = expiryDate;
     this.questions = questions;
   }
 }

@@ -1,40 +1,9 @@
 openapi: "3.0.1"
 info:
-  title: "KBV HMRC Credential Issuer Private Api"
-  version: "1.0"
+  title: "HMRC KBV Credential Issuer Private Api Specification"
+  version: "2.0"
 
 paths:
-  /authorization:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/SessionHeader"
-      responses:
-        "200":
-          description: "200 response"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthorizationResponse"
-        "400":
-          description: "400 response"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          description: "500 response"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      x-amazon-apigateway-request-validator: "Validate both"
-      x-amazon-apigateway-integration:
-        type: "aws_proxy"
-        httpMethod: "POST"
-        uri:
-          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CommonStackName}-AuthorizationFunctionTS/invocations
-        passthroughBehavior: "when_no_match"
-
   /session:
     post:
       summary: "IP address of the client."
@@ -55,6 +24,8 @@ paths:
                 description: "Example body to receive a HTTP 201 response"
                 value:
                   session_id: "1fbc5730-9d17-416d-b2ca-0be90e1e93f5"
+                  state: "string"
+                  redirect_uri: "string"
               400:
                 description: "Example body to receive a HTTP 400 response"
                 value:
@@ -102,19 +73,187 @@ paths:
         contentHandling: "CONVERT_TO_TEXT"
         type: "aws_proxy"
 
+  /fetchQuestions:
+    post:
+      description: >
+        Endpoint provided by the private api gateway, triggers the retrival of questions for the NINO supplied previously in the shared claims of the JWT.
+        Returns 200 if the matching NINO has sufficient questions,
+        else returns 400 with an oauth error containing invalid_request if there are not sufficient questions.
+      parameters:
+        - $ref: "#/components/parameters/SessionHeader"
+      requestBody:
+        content:
+          application/json: {}
+        required: false
+      x-amazon-apigateway-request-validator: "Validate both"
+      responses:
+        "200":
+          description: There are sufficient questions
+          content:
+            application/json: {}
+        "204":
+          description: Request already retrieved, but continue the user has sufficient questions (User back button recovery path)
+          content:
+            application/json: {}
+        "400":
+          description: Insufficient questions for this NINO
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "invalid_request"
+                  error_description: "Invalid request"
+        "403":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "access_denied"
+                  error_description: "Access denied"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+        "504":
+          description: Server error caused by a network issue with the remote api (Timeout/Unexpected Status Codes)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "server_error"
+                  error_description: "Unexpected server error"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        passthroughBehavior: "when_no_templates"
+        type: "aws"
+        credentials:
+          Fn::Sub: ${ExecuteStateMachineRole.Arn}
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution
+        requestTemplates:
+          application/json:
+            Fn::Sub: |-
+              {
+                "input": "{\"sessionId\": \"$input.params('session-id').trim()\"}",
+                "stateMachineArn": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-FetchQuestionsStateMachine"
+              }
+        responses:
+          default:
+            statusCode: 200
+            responseTemplates:
+              application/json: |
+                #set($inputRoot = $input.path('$'))
+                #set($status = $inputRoot.status)
+                #if($status == "SUCCEEDED")
+                  #set($output = $util.parseJson($input.path('$.output')))
+                  #set($payload = $output.Payload)
+                  #set($fetchQuestionsState = $payload.fetchQuestionsState)
+                  #if($fetchQuestionsState == "SufficientQuestions")
+                    #set($context.responseOverride.status = 200)
+                  #elseif($fetchQuestionsState == "ContinueSufficientQuestionAlreadyRetrieved")
+                    #set($context.responseOverride.status = 204)
+                  #elseif($fetchQuestionsState == "InsufficientQuestions")
+                    #set($context.responseOverride.status = 400)
+                    {
+                      "oauth_error": {
+                        "error": "invalid_request",
+                        "error_description": "Invalid request"
+                      }
+                    }
+                  #else
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #end
+                #else
+                  #set($errMsg = $inputRoot.get("error"))
+                  #if(($errMsg == "Fail SessionId missing") || ($errMsg == "SessionItem not found"))
+                    #set($context.responseOverride.status = 403)
+                    {
+                      "oauth_error": {
+                        "error": "access_denied",
+                        "error_description": "Access denied"
+                        }
+                    }
+                  #elseif($errMsg == "Lambda responded unexpectedly")
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #else
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #end
+                #end
+
   /question:
     get:
-      summary: "Get question from HMRC"
+      description: >
+        Retrieves the next question for the NINO matching this session
       parameters:
         - $ref: "#/components/parameters/SessionHeader"
       x-amazon-apigateway-request-validator: "Validate both"
       responses:
         "200":
-          description: OK
-        "400":
-          description: Bad Request
+          description: Single question response (Formats TBC)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+              examples:
+                P60CurrentYear:
+                  value:
+                    questionKey: "rti-p60-payment-for-year"
+                    info:
+                      currentTaxYear: "2021/2022"
+                P60CurrentYearOrPrevious:
+                  value:
+                    questionKey: "rti-p60-payment-for-year"
+                    info:
+                      currentTaxYear: "2021/2022"
+                      previousTaxYear: "2020/2021"
+                TaxCreditAmount:
+                  value:
+                    questionKey: "tc-amount"
+        "204":
+          description: No more questions for this NINO
+        "403":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "access_denied"
+                  error_description: "Access denied"
         "500":
-          description: Internal Server Error
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
       x-amazon-apigateway-integration:
         httpMethod: "POST"
         passthroughBehavior: "when_no_templates"
@@ -153,32 +292,85 @@ paths:
                 $resp.output
   /answer:
     post:
-      summary: "Post answer to HMRC"
+      description: >
+        Saves the answer to questions, where the key provided must match the question keys for the NINO matching this session.
+        On the final question being saved, all the saved answers will be auto submitted to the 3rd party api answers endpoint.
       parameters:
         - $ref: "#/components/parameters/SessionHeader"
       requestBody:
-        required: true
+        description: Questions with single value answer (Other formats or example TBC)
         content:
           application/json:
             schema:
-              required:
-                - "key"
-                - "value"
-              type: "object"
-              properties:
-                key:
-                  description: The unique identifier for the question
-                  type: "string"
-                value:
-                  description: Answer provided by the user
-                  type: "string"
+              $ref: "#/components/schemas/AnswerPost"
+        required: true
       responses:
         "200":
-          description: OK
+          description: >
+            All expected answers have been recieved and forwarded to the the thirdparty.
+            The response has been processed and VC evidence is now saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+              example:
+                response: "VC evidence is saved"
+        "202":
+          description: Submitted answer saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+              example:
+                response: "Submitted answer saved"
+        "204":
+          description: This question already answered, but continue (User back button recovery path)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+              example:
+                response: "Continue"
         "400":
-          description: Bad Request
+          description: Client Submission Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "invalid_request"
+                  error_description: "Invalid request"
+        "409":
+          description: Error with answer key summitted - e.g unknown question key / question key answered out of sequence - (unrecoverable)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "invalid_request"
+                  error_description: "Invalid request"
         "500":
-          description: Internal Server Error
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "server_error"
+                  error_description: "Unexpected server error"
+        "504":
+          description: Server error caused by a network issue with the remote api (Timeout/Unexpected Status Codes)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
+              example:
+                oauth_error:
+                  error: "server_error"
+                  error_description: "Unexpected server error"
       x-amazon-apigateway-request-validator: "Validate both"
       x-amazon-apigateway-integration:
         httpMethod: "POST"
@@ -216,12 +408,44 @@ paths:
                 #set($context.responseOverride.status = 204)
                 #end
                 $resp.output
+
+  /authorization:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/SessionHeader"
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "400":
+          description: "400 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "500 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-amazon-apigateway-request-validator: "Validate both"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CommonStackName}-AuthorizationFunctionTS/invocations
+        passthroughBehavior: "when_no_match"
+
 components:
   parameters:
     SessionHeader:
       name: "session-id"
       in: header
-      description: "A UUID generated by the Session API to act as a primary key for the Session in DynamoDB"
+      description: A UUID generated by the Session API to act as a primary key for the Session in DynamoDB
       required: true
       schema:
         type: "string"
@@ -241,11 +465,14 @@ components:
       type: "object"
       properties:
         client_id:
+          description: client identifier
           type: "string"
           minLength: 1
           example: "ipv-core-stub"
         request:
+          description: Encrypted JWT Session Object
           type: "string"
+          example: "eyAiBiCKD1EiFCGlHmIiJiKBLjM2N0ONPiQaR...."
     AuthorizationResponse:
       required:
         - "redirect_uri"
@@ -264,12 +491,29 @@ components:
           type: "string"
           format: "uri"
           example: "https://di-ipv-core-stub.london.cloudapps.digital/callback"
+
     Error:
       title: "Error Schema"
       type: "object"
       properties:
         message:
           type: "string"
+
+    CommmonExpressOauthAxiosError:
+      title: Common Express Oauth Error Schema
+      description: Error format expected by CommonExpress Error Handler
+      type: "object"
+      properties:
+        oauth_error:
+          type: "object"
+          properties:
+            error:
+              type: "string"
+              example: "server_error"
+            error_description:
+              type: "string"
+              example: "Unexpected server error"
+
     Session:
       required:
         - "session_id"
@@ -283,6 +527,50 @@ components:
           type: "string"
         redirect_uri:
           type: "string"
+
+    QuestionResponse:
+      type: "object"
+      properties:
+        questionKey:
+          description: The unique identifier for the question
+          type: "string"
+          example: "rti-p60-payment-for-year"
+        info:
+          description: Not present for all question keys
+          type: "object"
+          nullable: true
+          properties:
+            currentTaxYear:
+              type: "string"
+              example: "2021/2022"
+            previousTaxYear:
+              description: May not be present - dependant on tax year rules
+              type: "string"
+              nullable: true
+              example: "2020/2021"
+
+    AnswerPost:
+      required:
+        - "key"
+        - "value"
+      type: "object"
+      properties:
+        questionKey:
+          description: The unique identifier for the question
+          type: "string"
+          example: "rti-p60-payment-for-year"
+        value:
+          description: Answer provided by the user
+          type: "string"
+          example: "400.94"
+
+    AnswerResponse:
+      type: "object"
+      properties:
+        response:
+          description: Human readable indication of the current state
+          type: "string"
+          example: "Answer Saved"
 
 x-amazon-apigateway-request-validators:
   Validate both:

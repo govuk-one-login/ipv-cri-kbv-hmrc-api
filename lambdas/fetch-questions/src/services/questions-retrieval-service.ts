@@ -42,7 +42,7 @@ export class QuestionsRetrievalService {
         Authorization: "Bearer " + event.bearerToken.value,
       },
       body: JSON.stringify({
-        nino: event.nino,
+        nino: event.personIdentityItem.nino,
       }),
     })
       .then(async (response) => {
@@ -106,7 +106,9 @@ export class QuestionsRetrievalService {
             // any other status code
             const errorText: string = await Promise.resolve(response.text());
 
-            throw new Error(`Unexpected Response - ${errorText}`);
+            throw new Error(
+              `Unexpected Response ${response.status} - ${errorText}`
+            );
           }
         }
       })
