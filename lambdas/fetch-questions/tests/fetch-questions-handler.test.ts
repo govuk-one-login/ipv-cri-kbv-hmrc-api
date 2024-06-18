@@ -3,6 +3,7 @@ import { Logger } from "@aws-lambda-powertools/logger";
 import { FetchQuestionsHandler } from "../src/fetch-questions-handler";
 import { Question } from "../src/types/questions-result-types";
 import { QuestionsRetrievalService } from "../src/services/questions-retrieval-service";
+import { SaveQuestionsService } from "../src/services/save-questions-service";
 import { QuestionsResult } from "../src/types/questions-result-types";
 import { MetricsProbe } from "../src/../../../lib/src/Service/metrics-probe";
 
@@ -15,6 +16,7 @@ jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("@aws-lambda-powertools/logger");
 jest.mock("../src/services/questions-retrieval-service");
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
+jest.mock("../src/services/save-questions-service");
 
 describe("FetchQuestionsHandler", () => {
   let fetchQuestionsHandler: FetchQuestionsHandler;
@@ -23,8 +25,14 @@ describe("FetchQuestionsHandler", () => {
   let mockQuestionsRetrievalService: jest.MockedObjectDeep<
     typeof QuestionsRetrievalService
   >;
+
+  let mockSaveQuestionsService: jest.MockedObjectDeep<
+    typeof SaveQuestionsService
+  >;
+
   let questionsRetrievalServiceSpy: jest.SpyInstance;
   let mockMetricsProbeSpy: jest.SpyInstance;
+  let saveQuestionsServiceSpy: jest.SpyInstance;
 
   const mockInputEvent = {
     parameters: {
@@ -42,6 +50,7 @@ describe("FetchQuestionsHandler", () => {
 
     mockMetricsProbe = jest.mocked(MetricsProbe);
     mockQuestionsRetrievalService = jest.mocked(QuestionsRetrievalService);
+    mockSaveQuestionsService = jest.mocked(SaveQuestionsService);
 
     questionsRetrievalServiceSpy = jest.spyOn(
       mockQuestionsRetrievalService.prototype,
@@ -55,7 +64,8 @@ describe("FetchQuestionsHandler", () => {
 
     fetchQuestionsHandler = new FetchQuestionsHandler(
       mockMetricsProbe.prototype,
-      mockQuestionsRetrievalService.prototype
+      mockQuestionsRetrievalService.prototype,
+      mockSaveQuestionsService.prototype
     );
   });
 

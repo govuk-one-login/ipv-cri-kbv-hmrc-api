@@ -37,33 +37,6 @@ Conditions:
   UsePermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundary, ""]]
   IsDevEnvironment: !Equals [!Ref Environment, dev]
 
-Mappings:
-  # Only numeric values should be assigned here
-  MaxJwtTtl:
-    Environment:
-      dev: 2
-      build: 2
-      staging: 6
-      integration: 6
-      production: 6
-
-  # Permitted values: SECONDS,MINUTES,HOURS,DAYS,MONTHS,YEARS
-  JwtTtlUnit:
-    Environment:
-      dev: HOURS
-      build: HOURS
-      staging: MONTHS
-      integration: MONTHS
-      production: MONTHS
-
-  Dynatrace:
-    SecretArn:
-      dev: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      build: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      staging: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      integration: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      production: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
-
 Globals:
   Function:
     Timeout: 3
@@ -102,62 +75,39 @@ Globals:
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_TENANT}}"
           - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
 
+Mappings:
+  # Only numeric values should be assigned here
+  MaxJwtTtl:
+    Environment:
+      dev: 2
+      build: 2
+      staging: 6
+      integration: 6
+      production: 6
+
+  # Permitted values: SECONDS,MINUTES,HOURS,DAYS,MONTHS,YEARS
+  JwtTtlUnit:
+    Environment:
+      dev: HOURS
+      build: HOURS
+      staging: MONTHS
+      integration: MONTHS
+      production: MONTHS
+
+  Dynatrace:
+    SecretArn:
+      dev: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      build: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      staging: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      integration: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      production: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
+
 Resources:
-  MaxJwtTtlParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/MaxJwtTtl
-      Value: !FindInMap [MaxJwtTtl, Environment, !Ref Environment]
-      Description: Default time to live for an JWT in (seconds)
-
-  JwtTtlUnitParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/JwtTtlUnit
-      Value: !FindInMap [JwtTtlUnit, Environment, !Ref Environment]
-      Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
-
-  CurrentTimeFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/time/src/current-time-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  CheckSessionStateMachine:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      Type: EXPRESS
-      Name: !Sub ${AWS::StackName}-CheckSession
-      DefinitionUri: ../step-functions/check_session.asl.json
-      DefinitionSubstitutions:
-        CurrentTimeFunctionArn: !GetAtt CurrentTimeFunction.Arn
-        CommonStackName: !Ref CommonStackName
-      Logging:
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt CheckSessionStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref CurrentTimeFunction
-        - DynamoDBReadPolicy:
-            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        - Statement:
-            Effect: Allow
-            Action: logs:*
-            Resource: "*"
-      PermissionsBoundary: !If
-        - UsePermissionsBoundary
-        - !Ref PermissionsBoundary
-        - !Ref AWS::NoValue
+  ####################################################################
+  #                                                                  #
+  # API Gateway                                                      #
+  #                                                                  #
+  ####################################################################
 
   PublicKbvHmrcApi:
     Type: AWS::Serverless::Api
@@ -311,85 +261,11 @@ Resources:
               - !Ref GetIvqQuestionsStateMachine
               - !Ref PostIvqAnswersStateMachine
 
-  SubmitAnswerFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/submit-answer/src/submit-answer-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  FetchQuestionsFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/fetch-questions/src/fetch-questions-handler.lambdaHandler
-      FunctionName: !Sub "${AWS::StackName}-fetchquestions"
-      Environment:
-        Variables:
-          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-fetchquestions"
-      Timeout: 15
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  UserAgent:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/UserAgent
-      Value: govuk-one-login
-      Description: User agent for HMRC requests
-
-  QuestionsUrl:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/QuestionsUrl
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/questions
-      Description: URL for HMRC /questions endpoint
-
-  AnswersUrl:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/AnswersUrl
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
-      Description: URL for HMRC /answers endpoint
-
-  QuestionsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub ${AWS::StackName}-questions
-      BillingMode: "PAY_PER_REQUEST"
-      AttributeDefinitions:
-        - AttributeName: sessionId
-          AttributeType: S
-        - AttributeName: questionKey
-          AttributeType: S
-      KeySchema:
-        - AttributeName: sessionId
-          KeyType: HASH
-        - AttributeName: questionKey
-          KeyType: RANGE
-
-  # Temporary - remove once common lambdas deployed
-  PersonalIdentityTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub ${AWS::StackName}-personal-identity
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: sessionId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: sessionId
-          KeyType: HASH
+  ####################################################################
+  #                                                                  #
+  # GetIvqQuestionsStateMachine                                      #
+  #                                                                  #
+  ####################################################################
 
   GetIvqQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -441,6 +317,53 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetIvqQuestions-state-machine-logs
       RetentionInDays: 365
 
+  ####################################################################
+  #                                                                  #
+  # CheckSessionStateMachine                                         #
+  #                                                                  #
+  ####################################################################
+
+  CheckSessionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: EXPRESS
+      Name: !Sub ${AWS::StackName}-CheckSession
+      DefinitionUri: ../step-functions/check_session.asl.json
+      DefinitionSubstitutions:
+        CurrentTimeFunctionArn: !GetAtt CurrentTimeFunction.Arn
+        CommonStackName: !Ref CommonStackName
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt CheckSessionStateMachineLogGroup.Arn
+        IncludeExecutionData: True
+        Level: ALL
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CurrentTimeFunction
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - Statement:
+            Effect: Allow
+            Action: logs:*
+            Resource: "*"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
+  CheckSessionStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
+      RetentionInDays: 30
+
+  ####################################################################
+  #                                                                  #
+  # GetQuestionStateMachine                                          #
+  #                                                                  #
+  ####################################################################
+
   GetQuestionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -482,50 +405,11 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 365
 
-  PostAnswerStateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
-      RetentionInDays: 365
-
-  PostIvqAnswersStateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
-      RetentionInDays: 365
-
-  CreateAuthCodeFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/submit-answer/src/create-auth-code-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  CredentialSubjectFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/credential-subject/src/credential-subject-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  EvidenceCheckDetailsFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/evidence-check-details/src/check-details-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+  ####################################################################
+  #                                                                  #
+  # PostAnswerStateMachine                                          #
+  #                                                                  #
+  ####################################################################
 
   PostAnswerStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -579,6 +463,18 @@ Resources:
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
         PersonalIdentityTableName: !Ref PersonalIdentityTable
 
+  PostAnswerStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
+      RetentionInDays: 365
+
+  ####################################################################
+  #                                                                  #
+  # PostIvqAnswersStateMachine                                       #
+  #                                                                  #
+  ####################################################################
+
   PostIvqAnswersStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -619,16 +515,17 @@ Resources:
         PostIvqAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
         QuestionsTableName: !Ref QuestionsTable
 
-  TimeFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
+  PostIvqAnswersStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Handler: lambdas/issue-credential/src/time-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
+      RetentionInDays: 365
+
+  ####################################################################
+  #                                                                  #
+  # IssueCredentialStateMachine                                      #
+  #                                                                  #
+  ####################################################################
 
   IssueCredentialStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -696,11 +593,234 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
       RetentionInDays: 30
 
-  CheckSessionStateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
+  ####################################################################
+  #                                                                  #
+  # FetchQuestionsFunction                                           #
+  #                                                                  #
+  ####################################################################
+
+  FetchQuestionsFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
-      RetentionInDays: 30
+      Handler: lambdas/fetch-questions/src/fetch-questions-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-fetchquestions"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-fetchquestions"
+          QUESTIONS_TABLE_NAME: !Ref QuestionsTable
+      Timeout: 15
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref QuestionsTable
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
+  ####################################################################
+  #                                                                  #
+  # TimeFunction                                                     #
+  #                                                                  #
+  ####################################################################
+
+  TimeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/issue-credential/src/time-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # CurrentTimeFunction                                              #
+  #                                                                  #
+  ####################################################################
+
+  CurrentTimeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/time/src/current-time-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # SubmitAnswerFunction                                             #
+  #                                                                  #
+  ####################################################################
+
+  SubmitAnswerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/submit-answer/src/submit-answer-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # CreateAuthCodeFunction                                           #
+  #                                                                  #
+  ####################################################################
+
+  CreateAuthCodeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/submit-answer/src/create-auth-code-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # CredentialSubjectFunction                                        #
+  #                                                                  #
+  ####################################################################
+
+  CredentialSubjectFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/credential-subject/src/credential-subject-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # EvidenceCheckDetailsFunction                                     #
+  #                                                                  #
+  ####################################################################
+
+  EvidenceCheckDetailsFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/evidence-check-details/src/check-details-handler.lambdaHandler
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  ####################################################################
+  #                                                                  #
+  # Database Tables                                                  #
+  #                                                                  #
+  ####################################################################
+
+  QuestionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-questions
+      BillingMode: "PAY_PER_REQUEST"
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+
+  # Temporary - remove once common lambdas deployed
+  PersonalIdentityTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-personal-identity
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+
+  ####################################################################
+  #                                                                  #
+  # API config                                                       #
+  #                                                                  #
+  ####################################################################
+
+  ####################################################################
+  #                                                                  #
+  # Parameters                                                       #
+  #                                                                  #
+  ####################################################################
+
+  MaxJwtTtlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AWS::StackName}/MaxJwtTtl
+      Value: !FindInMap [MaxJwtTtl, Environment, !Ref Environment]
+      Description: Default time to live for an JWT in (seconds)
+
+  JwtTtlUnitParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AWS::StackName}/JwtTtlUnit
+      Value: !FindInMap [JwtTtlUnit, Environment, !Ref Environment]
+      Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
+
+  UserAgent:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AWS::StackName}/UserAgent
+      Value: govuk-one-login
+      Description: User agent for HMRC requests
+
+  QuestionsUrl:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AWS::StackName}/QuestionsUrl
+      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/questions
+      Description: URL for HMRC /questions endpoint
+
+  AnswersUrl:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AWS::StackName}/AnswersUrl
+      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
+      Description: URL for HMRC /answers endpoint
+
+####################################################################
+#                                                                  #
+# Alerts                                                           #
+#                                                                  #
+####################################################################
+
+####################################################################
+#                                                                  #
+# Outputs                                                          #
+#                                                                  #
+####################################################################
 
 Outputs:
   PublicApiGatewayId:

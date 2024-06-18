@@ -14,19 +14,24 @@ import {
 
 import { QuestionsRetrievalService } from "./services/questions-retrieval-service";
 import { QuestionsResult } from "./types/questions-result-types";
+import { SaveQuestionsService } from "./services/save-questions-service";
+import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
 export class FetchQuestionsHandler implements LambdaInterface {
   metricProbe: MetricsProbe;
   questionsRetrievalService: QuestionsRetrievalService;
+  saveQuestionsService: SaveQuestionsService;
 
   constructor(
     metricProbe: MetricsProbe,
-    questionsRetrievalService: QuestionsRetrievalService
+    questionsRetrievalService: QuestionsRetrievalService,
+    saveQuestionsService: SaveQuestionsService
   ) {
     this.metricProbe = metricProbe;
     this.questionsRetrievalService = questionsRetrievalService;
+    this.saveQuestionsService = saveQuestionsService;
   }
 
   @logger.injectLambdaContext({ clearState: true })
@@ -41,6 +46,8 @@ export class FetchQuestionsHandler implements LambdaInterface {
       const questionsResult: QuestionsResult =
         await this.questionsRetrievalService.retrieveQuestions(event);
 
+      const sessionId: string = event.sessionId;
+
       const correlationId: string = questionsResult.getCorrelationId();
       const questionCount: number = questionsResult.getQuestionCount();
 
@@ -54,6 +61,14 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
       // Next
       // TBD Save question count/keys to DynamoDB (even if not enough)
+
+      const questionsSaved = await this.saveQuestionsService.saveQuestions(
+        sessionId,
+        correlationId,
+        questionsResult.questions
+      );
+
+      logger.info("Questions have been saved " + questionsSaved);
 
       metricProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -86,6 +101,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
 const metricProbe = new MetricsProbe();
 const handlerClass = new FetchQuestionsHandler(
   metricProbe,
-  new QuestionsRetrievalService(metricProbe)
+  new QuestionsRetrievalService(metricProbe),
+  new SaveQuestionsService(createDynamoDbClient())
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);

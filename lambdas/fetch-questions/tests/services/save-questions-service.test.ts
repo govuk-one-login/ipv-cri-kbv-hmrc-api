@@ -1,0 +1,65 @@
+import { SaveQuestionsService } from "../../src/services/save-questions-service";
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
+import {
+  Question,
+  QuestionResultItemInfo,
+  QuestionResultItemQuestion,
+} from "../../src/types/questions-result-types";
+import { mock } from "jest-mock-extended";
+
+const questionKey = "testkey";
+const taxYearCurrent = "testTaxYearCurrent";
+const taxYearPrevious = "testTaxYearPrevious";
+
+describe("SaveQuestionsService", () => {
+  process.env.QUESTIONS_TABLE_NAME = "QUESTIONS_TABLE_NAME";
+  let service: SaveQuestionsService;
+
+  const mockDynamoDocument = mock<DynamoDBDocument>();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    service = new SaveQuestionsService(mockDynamoDocument);
+  });
+
+  it("should save questions", async () => {
+    const questionResultItemInfo: QuestionResultItemInfo =
+      new QuestionResultItemInfo(taxYearCurrent, taxYearPrevious);
+
+    const questionResultItemQuestion: QuestionResultItemQuestion =
+      new QuestionResultItemQuestion(
+        questionKey,
+        questionResultItemInfo,
+        false,
+        0
+      );
+
+    const questionsResultItem = {
+      sessionId: "sessionId",
+      correlationId: "correlationId",
+      ttl: 7200,
+      questions: [questionResultItemQuestion],
+    };
+    const questions: Question[] = [
+      new Question(questionKey, taxYearCurrent, taxYearPrevious),
+    ];
+
+    const result = await service.saveQuestions(
+      "sessionId",
+      "correlationId",
+      questions
+    );
+
+    expect(mockDynamoDocument.send).toHaveBeenCalledTimes(1);
+    expect(mockDynamoDocument.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Item: expect.objectContaining(questionsResultItem),
+          TableName: "QUESTIONS_TABLE_NAME",
+        }),
+      })
+    );
+    expect(result).toBe(true);
+  });
+});
