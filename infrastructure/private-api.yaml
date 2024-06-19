@@ -73,7 +73,7 @@ paths:
         contentHandling: "CONVERT_TO_TEXT"
         type: "aws_proxy"
 
-  /fetchQuestions:
+  /fetchquestions:
     post:
       description: >
         Endpoint provided by the private api gateway, triggers the retrival of questions for the NINO supplied previously in the shared claims of the JWT.
