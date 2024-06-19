@@ -123,18 +123,19 @@ Resources:
           ThrottlingBurstLimit: 10
       AccessLogSetting:
         DestinationArn: !GetAtt PublicKbvHmrcApiAccessLogGroup.Arn
-        Format:
-          Fn::ToJsonString:
-            requestId: $context.requestId
-            ip: $context.identity.sourceIp
-            requestTime: $context.requestTime
-            httpMethod: $context.httpMethod
-            path: $context.path
-            routeKey: $context.routeKey
-            status: $context.status
-            protocol: $context.protocol
-            responseLatency: $context.responseLatency
-            responseLength: $context.responseLength
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
       TracingEnabled: true
       Name: !Sub ${AWS::StackName}-public
       StageName: !Ref Environment
@@ -171,18 +172,19 @@ Resources:
           ThrottlingBurstLimit: 10
       AccessLogSetting:
         DestinationArn: !GetAtt PrivateKbvHmrcApiAccessLogGroup.Arn
-        Format:
-          Fn::ToJsonString:
-            requestId: $context.requestId
-            ip: $context.identity.sourceIp
-            requestTime: $context.requestTime
-            httpMethod: $context.httpMethod
-            path: $context.path
-            routeKey: $context.routeKey
-            status: $context.status
-            protocol: $context.protocol
-            responseLatency: $context.responseLatency
-            responseLength: $context.responseLength
+        Format: >-
+          {
+          "requestId":"$context.requestId",
+          "ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime",
+          "httpMethod":"$context.httpMethod",
+          "path":"$context.path",
+          "routeKey":"$context.routeKey",
+          "status":"$context.status",
+          "protocol":"$context.protocol",
+          "responseLatency":"$context.responseLatency",
+          "responseLength":"$context.responseLength"
+          }
       TracingEnabled: true
       Name: !Sub ${AWS::StackName}-private
       StageName: !Ref Environment
@@ -258,34 +260,41 @@ Resources:
               - states:StartSyncExecution
               - states:StartExecution
             Resource:
-              - !Ref GetIvqQuestionsStateMachine
+              - !Ref FetchQuestionsStateMachine
               - !Ref PostIvqAnswersStateMachine
 
   ####################################################################
   #                                                                  #
-  # GetIvqQuestionsStateMachine                                      #
+  # FetchQuestionsStateMachine                                      #
   #                                                                  #
   ####################################################################
 
-  GetIvqQuestionsStateMachine:
+  FetchQuestionsStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       Type: EXPRESS
-      Name: !Sub ${AWS::StackName}-GetIvqQuestions
-      DefinitionUri: ../step-functions/get-ivq-questions.asl.json
+      Name: !Sub ${AWS::StackName}-FetchQuestionsStateMachine
+      DefinitionUri: ../step-functions/fetch-questions.asl.json
       DefinitionSubstitutions:
         QuestionsTableName: !Ref QuestionsTable
         QuestionsUrl: !Ref QuestionsUrl
         UserAgent: !Ref UserAgent
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
+        SessionTtl: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTtl}}"
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt GetIvqQuestionsStateMachineLogGroup.Arn
+              LogGroupArn: !GetAtt FetchQuestionsStateMachineLogGroup.Arn
         IncludeExecutionData: True
         Level: ALL
       Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
@@ -300,6 +309,9 @@ Resources:
               - ssm:GetParameters
               - ssm:GetParameter
             Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTtl"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${QuestionsUrl}
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
         - Statement:
@@ -311,10 +323,10 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
 
-  GetIvqQuestionsStateMachineLogGroup:
+  FetchQuestionsStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetIvqQuestions-state-machine-logs
+      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-FetchQuestionsStateMachine-logs
       RetentionInDays: 365
 
   ####################################################################
@@ -379,10 +391,10 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref PersonalIdentityTable
+        # - DynamoDBReadPolicy:
+        #     TableName: !Ref PersonalIdentityTable
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+            StateMachineName: !GetAtt FetchQuestionsStateMachine.Name
         - LambdaInvokePolicy:
             FunctionName: !Ref ExecuteStateMachineFunction
         - Statement:
@@ -394,10 +406,10 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
       DefinitionSubstitutions:
-        PersonalIdentityTableName: !Ref PersonalIdentityTable
+        # PersonalIdentityTableName: !Ref PersonalIdentityTable
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
         QuestionsTableName: !Ref QuestionsTable
-        GetIvqQuestionsStateMachineArn: !Ref GetIvqQuestionsStateMachine
+        FetchQuestionsStateMachineArn: !Ref FetchQuestionsStateMachine
 
   GetQuestionStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -407,7 +419,7 @@ Resources:
 
   ####################################################################
   #                                                                  #
-  # PostAnswerStateMachine                                          #
+  # PostAnswerStateMachine                                           #
   #                                                                  #
   ####################################################################
 
@@ -432,8 +444,8 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        - DynamoDBReadPolicy:
-            TableName: !Ref PersonalIdentityTable
+        # - DynamoDBReadPolicy:
+        #     TableName: !Ref PersonalIdentityTable
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - StepFunctionsExecutionPolicy:
@@ -461,7 +473,7 @@ Resources:
         AnswersIvqStateMachine: !Ref PostIvqAnswersStateMachine
         QuestionsTableName: !Ref QuestionsTable
         ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
-        PersonalIdentityTableName: !Ref PersonalIdentityTable
+        # PersonalIdentityTableName: !Ref PersonalIdentityTable
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -553,11 +565,11 @@ Resources:
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer
         - DynamoDBReadPolicy:
-            TableName: !Ref QuestionsTable
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBReadPolicy:
-            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+            TableName: !Ref QuestionsTable
         - LambdaInvokePolicy:
             FunctionName: !Ref TimeFunction
         - LambdaInvokePolicy:
@@ -569,7 +581,7 @@ Resources:
             Action: kms:Sign
             Resource: !ImportValue core-infrastructure-CriVcSigningKey1Arn
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt GetIvqQuestionsStateMachine.Name
+            StateMachineName: !GetAtt FetchQuestionsStateMachine.Name
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -625,6 +637,12 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
 
+  FetchQuestionsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${FetchQuestionsFunction}"
+      RetentionInDays: 30
+
   ####################################################################
   #                                                                  #
   # TimeFunction                                                     #
@@ -673,8 +691,19 @@ Resources:
         Sourcemap: true
     Properties:
       Handler: lambdas/submit-answer/src/submit-answer-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-submit-answer"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-submit-answer"
+      Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  SubmitAnswerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SubmitAnswerFunction}"
+      RetentionInDays: 30
 
   ####################################################################
   #                                                                  #
@@ -734,35 +763,29 @@ Resources:
   ####################################################################
 
   QuestionsTable:
-    Type: AWS::DynamoDB::Table
+    Type: "AWS::DynamoDB::Table"
     Properties:
-      TableName: !Sub ${AWS::StackName}-questions
+      TableName: !Sub "questions-table-${AWS::StackName}"
       BillingMode: "PAY_PER_REQUEST"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
-        - AttributeName: sessionId
-          AttributeType: S
+        - AttributeName: "sessionId"
+          AttributeType: "S"
       KeySchema:
-        - AttributeName: sessionId
-          KeyType: HASH
-
-  # Temporary - remove once common lambdas deployed
-  PersonalIdentityTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub ${AWS::StackName}-personal-identity
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: sessionId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: sessionId
-          KeyType: HASH
+        - AttributeName: "sessionId"
+          KeyType: "HASH"
+      TimeToLiveSpecification:
+        AttributeName: expiryDate
+        Enabled: true
 
   ####################################################################
   #                                                                  #
   # API config                                                       #
   #                                                                  #
   ####################################################################
+
+  # TODO
 
   ####################################################################
   #                                                                  #
@@ -833,17 +856,24 @@ Outputs:
     Value: !Ref PrivateKbvHmrcApi
     Export:
       Name: !Sub ${AWS::StackName}-PrivateApiGatewayId
+  FetchQuestionsStateMachineArn:
+    Description: Exported for integration test
+    Value: !Ref FetchQuestionsStateMachine
   QuestionStateMachineArn:
+    Description: Exported for integration test
     Value: !Ref GetQuestionStateMachine
-  IvqQuestionStateMachineArn:
-    Value: !Ref GetIvqQuestionsStateMachine
   PostAnswerStateMachineArn:
+    Description: Exported for integration test
     Value: !Ref PostAnswerStateMachine
   PostIvqAnswersStateMachineArn:
+    Description: Exported for integration test
     Value: !Ref PostIvqAnswersStateMachine
-  PersonalIdentityTable:
-    Description: Personal Identity table name
-    Value: !Ref PersonalIdentityTable
-  QuestionsTable:
-    Description: Questions table name
+  CommonAPISessionTableName:
+    Description: Exported for integration test (Common API session table name)
+    Value: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+  CommonAPIPersonIdentityTableName:
+    Description: Exported for integration test (Common API person identity table name)
+    Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+  QuestionsTableName:
+    Description: Exported for integration test
     Value: !Ref QuestionsTable

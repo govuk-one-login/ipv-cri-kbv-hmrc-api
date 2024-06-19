@@ -6,7 +6,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "unit:all": "jest --runInBand",
-    "unit:aws": "jest --silent --select-projects integration-tests/aws --runInBand",
+    "unit:aws": "jest --select-projects integration-tests/aws --runInBand",
     "unit:mocked": "jest --silent --select-projects integration-tests/mocked",
     "test:all": "npm run unit:all --",
     "test:aws": "npm run unit:aws --",
@@ -18,11 +18,12 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "@aws-sdk/client-cloudformation": "^3.405.0",
+    "@aws-sdk/client-cloudformation": "3.405.0",
     "@aws-sdk/client-dynamodb": "3.398.0",
-    "@aws-sdk/client-sfn": "^3.405.0",
+    "@aws-sdk/client-sfn": "3.405.0",
     "@aws-sdk/lib-dynamodb": "3.398.0",
-    "aws-testing-library": "^4.0.6",
-    "testcontainers": "^10.0.2"
+    "aws-testing-library": "4.0.6",
+    "@types/uuid": "9.0.8",
+    "testcontainers": "10.0.2"
   }
 }

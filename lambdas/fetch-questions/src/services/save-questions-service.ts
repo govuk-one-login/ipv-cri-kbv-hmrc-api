@@ -6,7 +6,11 @@ import {
   QuestionResultItemInfo,
   QuestionResultItemQuestion,
 } from "../types/questions-result-types";
-import { DynamoDBDocument, PutCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocument,
+  GetCommand,
+  PutCommand,
+} from "@aws-sdk/lib-dynamodb";
 
 const ServiceName: string = "SaveQuestionsService";
 const logger = new Logger({ serviceName: `${ServiceName}` });
@@ -20,12 +24,18 @@ export class SaveQuestionsService {
 
   public async saveQuestions(
     sessionId: string,
+    expiryDate: number,
     correlationId: string,
     questions: Question[]
   ): Promise<boolean> {
     logger.info("Start of saveQuestions method");
-    const questionsResultItem: QuestionResultItem =
-      this.createQuestionResultItem(sessionId, correlationId, 7200, questions);
+    const questionsResultItem: QuestionResultItem = new QuestionResultItem(
+      sessionId,
+      correlationId,
+      expiryDate,
+      this.mapQuestions(questions)
+    );
+    logger.info("Question result mapped to questions result item");
     try {
       const putQuestionsCommand = new PutCommand({
         TableName: process.env.QUESTIONS_TABLE_NAME,
@@ -39,21 +49,6 @@ export class SaveQuestionsService {
       const errorText: string = error.message;
       throw new Error(`Error saving questions to dynamoDb ${errorText}`);
     }
-  }
-
-  private createQuestionResultItem(
-    sessionId: string,
-    correlationId: string,
-    sessionExpiryEpoch: number,
-    questions: Question[]
-  ): QuestionResultItem {
-    logger.info("mappingQuestionResultItem");
-    return {
-      sessionId: sessionId,
-      correlationId: correlationId,
-      ttl: sessionExpiryEpoch,
-      questions: this.mapQuestions(questions),
-    };
   }
 
   private mapQuestions(questions: Question[]): QuestionResultItemQuestion[] {
@@ -82,5 +77,17 @@ export class SaveQuestionsService {
     const questionResultItemInfo: QuestionResultItemInfo =
       new QuestionResultItemInfo(info?.taxYearCurrent, info?.taxYearPrevious);
     return questionResultItemInfo;
+  }
+
+  public async getExistingSavedItem(
+    sessionId: Record<string, unknown>
+  ): Promise<any> {
+    const command = new GetCommand({
+      TableName: process.env.QUESTIONS_TABLE_NAME,
+      Key: {
+        sessionId: sessionId,
+      },
+    });
+    return await this.dynamo.send(command);
   }
 }

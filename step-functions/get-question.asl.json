@@ -48,7 +48,7 @@
       "Parameters": {
         "FunctionName": "${ExecuteStateMachineFunctionName}",
         "Payload": {
-          "stateMachineArn": "${GetIvqQuestionsStateMachineArn}",
+          "stateMachineArn": "${FetchQuestionsStateMachineArn}",
           "input": {
             "sessionId.$": "$.sessionId",
             "nino.$": "$.nino"

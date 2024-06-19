@@ -1,0 +1,200 @@
+{
+  "Comment": "Populates the table of questions from the HMRC IVQ API",
+  "StartAt": "Check Session-Id is Present",
+  "States": {
+    "Check Session-Id is Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionId",
+              "IsString": true
+            }
+          ],
+          "Next": "DynamoDB Get SessionItem"
+        }
+      ],
+      "Default": "Err: Fail SessionId missing"
+    },
+    "DynamoDB Get SessionItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${SessionTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Is there a sessionItem for the sessionId",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.sessionItem"
+    },
+    "Is there a sessionItem for the sessionId": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "IsString": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "StringEqualsPath": "$.sessionId"
+            }
+          ],
+          "Next": "DynamoDB Get PersonIdentityItem"
+        }
+      ],
+      "Default": "Err: SessionItem not found"
+    },
+    "Err: SessionItem not found": {
+      "Type": "Fail",
+      "Error": "SessionItem not found"
+    },
+    "DynamoDB Get PersonIdentityItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${PersonIdentityTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Is there a PersonIdentityItem for the sessionId",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.personIdentityItem"
+    },
+    "Is there a PersonIdentityItem for the sessionId": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.Item",
+          "IsPresent": true,
+          "Next": "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present"
+        }
+      ],
+      "Default": "Err: PersonIdentityItem not found"
+    },
+    "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.Item.socialSecurityRecord.L[0].M.personalNumber.S",
+          "IsPresent": true,
+          "Next": "Filter all data but NINO from PersonIdentity"
+        }
+      ],
+      "Default": "Err: NINO was not present in shared claims"
+    },
+    "Err: PersonIdentityItem not found": {
+      "Type": "Fail",
+      "Error": "PersonIdentityItem not found"
+    },
+    "Filter all data but NINO from PersonIdentity": {
+      "Type": "Pass",
+      "Next": "Check PersonIdentityItem NINO Is now present",
+      "ResultPath": "$.personIdentityItem",
+      "Parameters": {
+        "nino.$": "$.personIdentityItem.Item.socialSecurityRecord.L[0].M.personalNumber.S"
+      }
+    },
+    "Check PersonIdentityItem NINO Is now present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.personIdentityItem.nino",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.personIdentityItem.nino",
+              "IsString": true
+            }
+          ],
+          "Next": "Get Bearer Token"
+        }
+      ],
+      "Default": "Err: Failed to reduce PersonIdentityItem"
+    },
+    "Err: Failed to reduce PersonIdentityItem": {
+      "Type": "Fail",
+      "Error": "Failed to reduce PersonIdentityItem"
+    },
+    "Err: NINO was not present in shared claims": {
+      "Type": "Fail",
+      "Error": "NINO was not present in shared claims"
+    },
+    "Err: Fail SessionId missing": {
+      "Type": "Fail",
+      "Error": "SessionId missing or not found"
+    },
+    "Get Bearer Token": {
+      "Type": "Task",
+      "Parameters": {
+        "SecretId": "HMRCBearerToken"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
+      "Next": "Get Questions URL and User Agent",
+      "ResultSelector": {
+        "value.$": "$.SecretString"
+      },
+      "ResultPath": "$.bearerToken"
+    },
+    "Get Questions URL and User Agent": {
+      "Type": "Task",
+      "Next": "Invoke FetchQuestions Lambda",
+      "Parameters": {
+        "Names": ["${QuestionsUrl}", "${UserAgent}"]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
+      "ResultPath": "$.parameters",
+      "ResultSelector": {
+        "url.$": "$.Parameters[0].Value",
+        "userAgent.$": "$.Parameters[1].Value"
+      }
+    },
+    "Invoke FetchQuestions Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${FetchQuestionsArn}"
+      },
+      "Next": "Is fetchQuestionsState present?"
+    },
+    "Is fetchQuestionsState present?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Payload.fetchQuestionsState",
+          "IsPresent": true,
+          "Next": "Success FetchQuestionsState returned"
+        }
+      ],
+      "Default": "Err: Lambda responded unexpectedly"
+    },
+    "Err: Lambda responded unexpectedly": {
+      "Type": "Fail",
+      "Error": "Lambda responded unexpectedly"
+    },
+    "Success FetchQuestionsState returned": {
+      "Type": "Succeed",
+      "Comment": "Contains FetchQuestionsState"
+    }
+  }
+}

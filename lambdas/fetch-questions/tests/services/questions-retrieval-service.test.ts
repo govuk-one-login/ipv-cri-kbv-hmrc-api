@@ -1,4 +1,3 @@
-import { Logger } from "@aws-lambda-powertools/logger";
 import { MetricUnits } from "@aws-lambda-powertools/metrics";
 import { QuestionsResult } from "../../src/types/questions-result-types";
 
@@ -34,7 +33,9 @@ describe("QuestionsRetrievalService", () => {
     bearerToken: {
       value: "dummyOAuthToken",
     },
-    nino: "dummyNino",
+    personIdentityItem: {
+      nino: "dummyNino",
+    },
   };
 
   beforeEach(() => {
@@ -209,9 +210,6 @@ describe("QuestionsRetrievalService", () => {
         })
       ) as jest.Mock;
 
-      // const questionsResult: QuestionsResult =
-      //   await questionsRetrievalService.retrieveQuestions(mockInputEvent);
-
       await expect(
         questionsRetrievalService.retrieveQuestions(mockInputEvent)
       ).rejects.toEqual(
@@ -290,46 +288,49 @@ describe("QuestionsRetrievalService", () => {
       );
     });
 
-    it("should throw an Error if API response is unexpected", async () => {
-      const errorReponseText: string = "Unit test server error response body";
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 500,
-          headers: {
-            get: jest.fn(() => {
-              return "application/json";
-            }),
-          },
-          // json: () => Promise.resolve(invalidJsonResponse),
-          text: () => Promise.resolve(errorReponseText),
-        })
-      ) as jest.Mock;
+    it.each([[500], [400], [300]])(
+      "should throw an Error if API HTTP status response is unexpected",
+      async (httpStatus: number) => {
+        const errorReponseText: string = `Unit test server ${httpStatus} - error response body`;
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: httpStatus,
+            headers: {
+              get: jest.fn(() => {
+                return "application/json";
+              }),
+            },
+            // json: () => Promise.resolve(invalidJsonResponse),
+            text: () => Promise.resolve(errorReponseText),
+          })
+        ) as jest.Mock;
 
-      await expect(
-        questionsRetrievalService.retrieveQuestions(mockInputEvent)
-      ).rejects.toEqual(
-        new Error(
-          `API Request Failed : Unexpected Response - ${errorReponseText}`
-        )
-      );
+        await expect(
+          questionsRetrievalService.retrieveQuestions(mockInputEvent)
+        ).rejects.toEqual(
+          new Error(
+            `API Request Failed : Unexpected Response ${httpStatus} - ${errorReponseText}`
+          )
+        );
 
-      // Latency Metric
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
-        HTTPMetric.ResponseLatency,
-        Classification.HTTP,
-        "QuestionsRetrievalService",
-        MetricUnits.Count,
-        expect.any(Number)
-      );
+        // Latency Metric
+        expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
+          HTTPMetric.ResponseLatency,
+          Classification.HTTP,
+          "QuestionsRetrievalService",
+          MetricUnits.Count,
+          expect.any(Number)
+        );
 
-      // Status code
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
-        HTTPMetric.HTTPStatusCode,
-        Classification.HTTP,
-        "QuestionsRetrievalService",
-        MetricUnits.Count,
-        500
-      );
-    });
+        // Status code
+        expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
+          HTTPMetric.HTTPStatusCode,
+          Classification.HTTP,
+          "QuestionsRetrievalService",
+          MetricUnits.Count,
+          httpStatus
+        );
+      }
+    );
   });
 });

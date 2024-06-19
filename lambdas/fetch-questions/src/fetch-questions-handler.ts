@@ -19,6 +19,12 @@ import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
+enum FetchQuestionsState {
+  SufficientQuestions = "SufficientQuestions",
+  ContinueSufficientQuestionAlreadyRetrieved = "ContinueSufficientQuestionAlreadyRetrieved",
+  InsufficientQuestions = "InsufficientQuestions",
+}
+
 export class FetchQuestionsHandler implements LambdaInterface {
   metricProbe: MetricsProbe;
   questionsRetrievalService: QuestionsRetrievalService;
@@ -43,32 +49,72 @@ export class FetchQuestionsHandler implements LambdaInterface {
     try {
       logger.info("handler start");
 
-      const questionsResult: QuestionsResult =
-        await this.questionsRetrievalService.retrieveQuestions(event);
+      let fetchQuestionsState: FetchQuestionsState =
+        FetchQuestionsState.InsufficientQuestions;
 
-      const sessionId: string = event.sessionId;
-
-      const correlationId: string = questionsResult.getCorrelationId();
-      const questionCount: number = questionsResult.getQuestionCount();
-
+      // Look up questions table and see if already stored for this session/nino
+      const existingSavedItem = (
+        await this.saveQuestionsService.getExistingSavedItem(event.sessionId)
+      )?.Item;
+      const alreadyExistingQuestionsResult: boolean =
+        existingSavedItem != undefined;
       logger.info(
-        `Result returned - correlationId : ${correlationId}, questionCount ${questionCount}`
+        `Already existing questions result - ${alreadyExistingQuestionsResult}`
       );
 
-      // Request sent audit event
-      // Response recieved audit event
-      // TBD if placed in handler or questionsRetrievalService
+      if (!alreadyExistingQuestionsResult) {
+        const questionsResult: QuestionsResult =
+          await this.questionsRetrievalService.retrieveQuestions(event);
 
-      // Next
-      // TBD Save question count/keys to DynamoDB (even if not enough)
+        const correlationId = questionsResult.getCorrelationId();
+        const questionResultCount: number = questionsResult.getQuestionCount();
 
-      const questionsSaved = await this.saveQuestionsService.saveQuestions(
-        sessionId,
-        correlationId,
-        questionsResult.questions
-      );
+        logger.info(
+          `Result returned - correlationId : ${correlationId}, questionResultCount ${questionResultCount}`
+        );
 
-      logger.info("Questions have been saved " + questionsSaved);
+        // Request sent audit event
+        // Response recieved audit event
+        // TBD if placed in handler or questionsRetrievalService
+
+        logger.info("Filtering questions");
+        // Placeholder - do the filtering
+
+        // Check filter outcome (questionResultCount placeholder)
+        const filterQuestionsResultCount: number = questionResultCount;
+        if (filterQuestionsResultCount > 0) {
+          fetchQuestionsState = FetchQuestionsState.SufficientQuestions;
+        }
+
+        // Save question keys to DynamoDB only if they pass filtering - other wise save an empty questions result
+        const sessionTtl: number = Number(event.sessionItem.Item.expiryDate.N);
+        logger.info(`Saving questions ${event.sessionId} - ${sessionTtl}`);
+        const questionsSaved = await this.saveQuestionsService.saveQuestions(
+          event.sessionId,
+          sessionTtl,
+          correlationId,
+          questionsResult.questions
+        );
+        logger.info("Questions have been saved " + questionsSaved);
+      } else {
+        // If the user arrives in fetch questions, with question keys already saved
+        // We need to indicate to the front end if they can continue or not
+        const existingQuestionsNonZero: boolean =
+          existingSavedItem?.questions?.length;
+
+        if (existingQuestionsNonZero) {
+          logger.info(
+            "Continue there are sufficient questions in the existing result NINO"
+          );
+          fetchQuestionsState =
+            FetchQuestionsState.ContinueSufficientQuestionAlreadyRetrieved;
+        } else {
+          logger.info(
+            "InsufficientQuestions in the existing result for this NINO"
+          );
+          fetchQuestionsState = FetchQuestionsState.InsufficientQuestions;
+        }
+      }
 
       metricProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -76,14 +122,13 @@ export class FetchQuestionsHandler implements LambdaInterface {
         CompletionStatus.OK
       );
 
-      // A simple json object with the questionCount
-      return { availableQuestions: `${questionCount}` };
+      // fetchQuestionsState is retuned to the state machine
+      return { fetchQuestionsState: `${fetchQuestionsState}` };
     } catch (error: any) {
       const lambdaName = FetchQuestionsHandler.name;
       const errorText: string = error.message;
 
       const errorMessage = `${lambdaName} : ${errorText}`;
-
       logger.error(errorMessage);
 
       metricProbe.captureMetric(
@@ -92,6 +137,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
         CompletionStatus.ERROR
       );
 
+      // Indicate to the statemachine a lambda error has occured
       return { error: errorMessage };
     }
   }
