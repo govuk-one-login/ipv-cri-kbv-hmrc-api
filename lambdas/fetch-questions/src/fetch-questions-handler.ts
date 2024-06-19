@@ -13,8 +13,9 @@ import {
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
 import { QuestionsRetrievalService } from "./services/questions-retrieval-service";
-import { QuestionsResult } from "./types/questions-result-types";
+import { QuestionsResult, Question } from "./types/questions-result-types";
 import { SaveQuestionsService } from "./services/save-questions-service";
+import { FilterQuestionsService } from "./services/filter-questions-service";
 import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
@@ -29,15 +30,18 @@ export class FetchQuestionsHandler implements LambdaInterface {
   metricProbe: MetricsProbe;
   questionsRetrievalService: QuestionsRetrievalService;
   saveQuestionsService: SaveQuestionsService;
+  filterQuestionsService: FilterQuestionsService;
 
   constructor(
     metricProbe: MetricsProbe,
     questionsRetrievalService: QuestionsRetrievalService,
-    saveQuestionsService: SaveQuestionsService
+    saveQuestionsService: SaveQuestionsService,
+    filterQuestionsService: FilterQuestionsService
   ) {
     this.metricProbe = metricProbe;
     this.questionsRetrievalService = questionsRetrievalService;
     this.saveQuestionsService = saveQuestionsService;
+    this.filterQuestionsService = filterQuestionsService;
   }
 
   @logger.injectLambdaContext({ clearState: true })
@@ -78,11 +82,16 @@ export class FetchQuestionsHandler implements LambdaInterface {
         // TBD if placed in handler or questionsRetrievalService
 
         logger.info("Filtering questions");
-        // Placeholder - do the filtering
+
+        const filteredQuestions: Question[] =
+          await this.filterQuestionsService.filterQuestions(
+            questionsResult.questions
+          );
+        logger.info("Question keys have been filtered successfully");
 
         // Check filter outcome (questionResultCount placeholder)
-        const filterQuestionsResultCount: number = questionResultCount;
-        if (filterQuestionsResultCount > 0) {
+        const filterQuestionsResultCount: number = filteredQuestions.length;
+        if (filterQuestionsResultCount > 1) {
           fetchQuestionsState = FetchQuestionsState.SufficientQuestions;
         }
 
@@ -93,7 +102,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
           event.sessionId,
           sessionTtl,
           correlationId,
-          questionsResult.questions
+          filteredQuestions
         );
         logger.info("Questions have been saved " + questionsSaved);
       } else {
@@ -148,6 +157,7 @@ const metricProbe = new MetricsProbe();
 const handlerClass = new FetchQuestionsHandler(
   metricProbe,
   new QuestionsRetrievalService(metricProbe),
-  new SaveQuestionsService(createDynamoDbClient())
+  new SaveQuestionsService(createDynamoDbClient()),
+  new FilterQuestionsService(metricProbe)
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);
