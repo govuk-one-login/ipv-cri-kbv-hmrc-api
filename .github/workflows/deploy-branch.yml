@@ -60,4 +60,7 @@ jobs:
             cri:application=Lime
             cri:deployment-source=github-actions
           parameters: |
+            DeploymentType=pre-merge-integration
+            UseApiKey=" "
+            ParameterPrefix=ipv-cri-kbv-hmrc-api
             Environment=dev

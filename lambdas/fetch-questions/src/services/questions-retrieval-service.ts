@@ -128,7 +128,7 @@ export class QuestionsRetrievalService {
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
 
-        logger.error(`$errorText, , Latency : ${latency}`);
+        logger.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });

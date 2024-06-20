@@ -7,7 +7,7 @@ jest.setTimeout(20_000);
 
 describe("fetch-questions-happy", () => {
   // UUID used to link up all the items
-  const sessionId = uuidv4();
+  let sessionId = uuidv4();
 
   // ttl for all items in test
   const ttl = Math.floor((Date.now() + 7200 * 1000) / 1000);
@@ -31,7 +31,7 @@ describe("fetch-questions-happy", () => {
 
   // Both the same until happy path test user has questions
   const happyPathSocialSecurityRecord = {
-    socialSecurityRecord: [{ personalNumber: "AA300004D" }],
+    socialSecurityRecord: [{ personalNumber: "AA000003D" }],
   };
 
   const unhappyPathSocialSecurityRecord = {
@@ -53,6 +53,12 @@ describe("fetch-questions-happy", () => {
 
   beforeEach(async () => {
     stackOutputValues = await stackOutputs(process.env.STACK_NAME);
+
+    // Unique Session ID for each test
+    sessionId = uuidv4();
+    stateMachineInput.sessionId = sessionId;
+    sessionItem.sessionId = sessionId;
+    personIdentity.sessionId = sessionId;
   });
 
   afterEach(async () => {
@@ -84,9 +90,7 @@ describe("fetch-questions-happy", () => {
       expect(result.StatusCode).toEqual(200);
 
       // Will be SufficientQuestions when test user has questions
-      expect(result.Payload.fetchQuestionsState).toEqual(
-        "InsufficientQuestions"
-      );
+      expect(result.Payload.fetchQuestionsState).toEqual("SufficientQuestions");
 
       const questionItemResult = (
         await getTableItem(stackOutputValues.QuestionsTableName as string, {
@@ -95,7 +99,7 @@ describe("fetch-questions-happy", () => {
       ).Item;
 
       // Will be the count of questions after question filtering
-      expect(questionItemResult?.questions?.length).toEqual(0);
+      expect(questionItemResult?.questions?.length).toEqual(6);
 
       const questions = questionItemResult?.questions;
 
@@ -117,8 +121,8 @@ describe("fetch-questions-happy", () => {
       // Check unique orders are sequential
       const sorterOrders = Array.from(uniqueOrders).sort((a, b) => a - b);
       for (let i = 0; i < sorterOrders.length; i++) {
-        // orders are base 1
-        expect(sorterOrders[i]).toEqual(i + 1);
+        // orders are base 0
+        expect(sorterOrders[i]).toEqual(i);
       }
     });
 
