@@ -35,7 +35,7 @@ jobs:
         run: sam validate --region ${{ env.AWS_REGION }} -t infrastructure/template.yaml
 
       - name: Deploy SAM app
-        uses: alphagov/di-devplatform-upload-action@v3.2
+        uses: alphagov/di-devplatform-upload-action@v3.9
         with:
           artifact-bucket-name: "${{ secrets.DEV_ARTIFACT_SOURCE_BUCKET_NAME }}"
           signing-profile-name: "${{ secrets.DEV_SIGNING_PROFILE_NAME }}"
