@@ -2,6 +2,10 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 set -eu
 
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+NOCOLOR="\033[0m"
+
 stack_name="${1:-}"
 common_stack_name="${2:-}"
 
@@ -11,14 +15,16 @@ if ! [[ "$stack_name" ]]; then
   echo "» Using stack name '$stack_name'"
 fi
 
-if [ -z "$common_stack_name" ]
-then
+if [ -z "$common_stack_name" ]; then
   common_stack_name="hmrc-kbv-common-cri-api-local"
 fi
 
 sam validate -t infrastructure/template.yaml --lint
 
 sam build -t infrastructure/template.yaml --cached --parallel
+
+echo -e "👉 deploying ipv-cri-hmrc-kbv-api with:"
+echo -e "\tstack name: ${GREEN}$stack_name${NOCOLOR}"
 
 sam deploy --stack-name "$stack_name" \
   --no-fail-on-empty-changeset \
@@ -33,5 +39,8 @@ sam deploy --stack-name "$stack_name" \
   cri:application=Lime \
   cri:deployment-source=manual \
   --parameter-overrides \
-  CommonStackName=$common_stack_name \
-  Environment=dev
+  CommonStackName="$common_stack_name" \
+  Environment=dev \
+  ParameterPrefix="kbv-hmrc-cri-api" \
+  UseApiKey="' '" \
+  DeploymentType="not-pipeline"

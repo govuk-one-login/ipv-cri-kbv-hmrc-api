@@ -12,6 +12,7 @@
 <!-- Describe the reason these changes were made - the "why" -->
 
 ### Issue tracking
+
 <!-- List any related Jira tickets or GitHub issues -->
 
 - [LIME-XXXX](https://govukverify.atlassian.net/browse/LIME-XXXX)

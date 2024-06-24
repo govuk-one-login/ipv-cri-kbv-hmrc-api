@@ -3,12 +3,18 @@ Description: Digital Identity IPV CRI KBV HMRC API
 Transform: [AWS::LanguageExtensions, AWS::Serverless-2016-10-31]
 
 Parameters:
-  BearerTokenName:
+  VpcStackName:
+    Description: >
+      The name of the stack that defines the VPC in which this container will
+      run.
     Type: String
-    Default: HMRCBearerToken
-    Description: >-
-      The name of the bearer token parameter.
-      Temporary solution to be changed once cross account behaviour implemented.
+    Default: "cri-vpc"
+  CodeSigningConfigArn:
+    Type: String
+    Default: ""
+  PermissionsBoundary:
+    Type: String
+    Default: ""
   Environment:
     Type: String
     Default: dev
@@ -25,21 +31,40 @@ Parameters:
     Type: String
     Default: common-cri-api
     Description: The name of the stack containing the common CRI lambdas/infra
-  CodeSigningConfigArn:
+  DeploymentType:
     Type: String
-    Default: ""
-  PermissionsBoundary:
+    Default: "pipeline"
+    Description: Private Api gateway resources are not be reachable in stacks deployed via pipelines, this override enables less restrictive settings for manual/pre-merge-test deployments.
+  UseApiKey:
     Type: String
-    Default: ""
+    Default: "true"
+    Description: Value used to indicate if the public api should be protected by a api key.
+  BearerTokenName:
+    Type: String
+    Default: HMRCBearerToken
+    Description: >-
+      The name of the bearer token parameter.
+      Temporary solution to be changed once cross account behaviour implemented.
 
 Conditions:
+  IsDeployedFromPipeline:
+    Fn::Equals:
+      - !Ref DeploymentType
+      - "pipeline"
+  # Don't send logs in dev to avoid overwhelming the destination with debug
+  # LogSendingEnabled: !And
+  #   - !Not [!Equals [!Ref Environment, "dev"]]
+  #   - !Condition IsDeployedFromPipeline
   EnforceCodeSigning: !Not [!Equals [!Ref CodeSigningConfigArn, ""]]
   UsePermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundary, ""]]
-  IsDevEnvironment: !Equals [!Ref Environment, dev]
+  IsProdEnvironment:
+    Fn::Equals:
+      - !Ref Environment
+      - production
 
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
     CodeUri: ..
     Runtime: nodejs18.x
     Architectures: [arm64]
@@ -112,15 +137,20 @@ Resources:
   PublicKbvHmrcApi:
     Type: AWS::Serverless::Api
     Properties:
+      Name: !Sub "${AWS::StackName}-PublicKbvHmrcApi"
       Description: Public KBV HMRC CRI API
+      StageName: !Ref Environment
+      Auth:
+        ApiKeyRequired: !Ref UseApiKey
       MethodSettings:
         - LoggingLevel: INFO
           ResourcePath: "/*"
           HttpMethod: "*"
-          DataTraceEnabled: true
+          # Disable data trace in production to avoid logging customer sensitive information
+          DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 5
-          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 200
+          ThrottlingBurstLimit: 400
       AccessLogSetting:
         DestinationArn: !GetAtt PublicKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -137,8 +167,6 @@ Resources:
           "responseLength":"$context.responseLength"
           }
       TracingEnabled: true
-      Name: !Sub ${AWS::StackName}-public
-      StageName: !Ref Environment
       DefinitionBody:
         openapi: 3.0.1
         paths: # workaround to get `sam validate` to work
@@ -147,7 +175,14 @@ Resources:
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: public-api.yaml
+            Location: "./public-api.yaml"
+          securitySchemes: !If
+            - IsDeployedFromPipeline
+            - api_key:
+                type: "apiKey"
+                name: "x-api-key"
+                in: "header"
+            - !Ref "AWS::NoValue"
       OpenApiVersion: 3.0.1
       EndpointConfiguration:
         Type: REGIONAL
@@ -156,20 +191,32 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
-      RetentionInDays: 365
+      RetentionInDays: 30
+      KmsKeyId: !GetAtt LoggingKmsKey.Arn
+
+  # PublicKbvHmrcApiAccessLogGroupSubscriptionFilter:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref PublicKbvHmrcApiAccessLogGroup
 
   PrivateKbvHmrcApi:
     Type: AWS::Serverless::Api
     Properties:
+      Name: !Sub "${AWS::StackName}-PrivateKbvHmrcApi"
       Description: Private KBV HMRC CRI API
+      StageName: !Ref Environment
       MethodSettings:
         - LoggingLevel: INFO
           ResourcePath: "/*"
           HttpMethod: "*"
-          DataTraceEnabled: true
+          # Disable data trace in production to avoid logging customer sensitive information
+          DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 5
-          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 200
+          ThrottlingBurstLimit: 400
       AccessLogSetting:
         DestinationArn: !GetAtt PrivateKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -186,35 +233,53 @@ Resources:
           "responseLength":"$context.responseLength"
           }
       TracingEnabled: true
-      Name: !Sub ${AWS::StackName}-private
-      StageName: !Ref Environment
       DefinitionBody:
-        openapi: 3.0.1
+        openapi: "3.0.1" # workaround to get `sam validate` to work
         paths: # workaround to get `sam validate` to work
           /never-created:
-            options: {}
+            options: {} # workaround to get `sam validate` to work
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: private-api.yaml
+            Location: "./private-api.yaml"
       OpenApiVersion: 3.0.1
       EndpointConfiguration:
-        Type: !If [IsDevEnvironment, REGIONAL, PRIVATE]
+        Type: !If [IsDeployedFromPipeline, PRIVATE, REGIONAL]
       Auth:
-        ResourcePolicy: !If
-          - IsDevEnvironment
-          - !Ref AWS::NoValue
-          - CustomStatements:
-              - Effect: Allow
-                Resource: execute-api:/*
-                Action: execute-api:Invoke
+        ResourcePolicy:
+          CustomStatements:
+            - Action: "execute-api:Invoke"
+              Effect: Allow
+              Principal: "*"
+              Resource:
+                - "execute-api:/*"
+            - !If
+              - IsDeployedFromPipeline
+              - Action: "execute-api:Invoke"
+                Effect: Deny
                 Principal: "*"
+                Resource:
+                  - "execute-api:/*"
+                Condition:
+                  StringNotEquals:
+                    aws:SourceVpce:
+                      - Fn::ImportValue: !Sub "${VpcStackName}-ExecuteApiGatewayEndpointId"
+              - !Ref AWS::NoValue
 
   PrivateKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
-      RetentionInDays: 365
+      RetentionInDays: 30
+      KmsKeyId: !GetAtt LoggingKmsKey.Arn
+
+  # PrivateKbvHmrcApiAccessLogGroupSubscriptionFilter:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref PrivateKbvHmrcApiAccessLogGroup
 
   ExecuteStateMachineRole:
     Type: AWS::IAM::Role
@@ -327,7 +392,15 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-FetchQuestionsStateMachine-logs
-      RetentionInDays: 365
+      RetentionInDays: 30
+
+  # FetchQuestionsStateMachineLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref FetchQuestionsStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -369,6 +442,14 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
       RetentionInDays: 30
+
+  # CheckSessionStateMachineLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref CheckSessionStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -415,7 +496,15 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
-      RetentionInDays: 365
+      RetentionInDays: 30
+
+  # GetQuestionStateMachineLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref GetQuestionStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -479,7 +568,15 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
-      RetentionInDays: 365
+      RetentionInDays: 30
+
+  # PostAnswerStateMachineLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref PostAnswerStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -531,7 +628,15 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
-      RetentionInDays: 365
+      RetentionInDays: 30
+
+  # PostIvqAnswersStateMachineSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref PostIvqAnswersStateMachine
 
   ####################################################################
   #                                                                  #
@@ -605,6 +710,14 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
       RetentionInDays: 30
 
+  # IssueCredentialStateMachineLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref IssueCredentialStateMachineLogGroup
+
   ####################################################################
   #                                                                  #
   # FetchQuestionsFunction                                           #
@@ -627,6 +740,12 @@ Resources:
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
+        SubnetIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdA"
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdB"
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
@@ -640,8 +759,16 @@ Resources:
   FetchQuestionsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${FetchQuestionsFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${FetchQuestionsFunction}"
       RetentionInDays: 30
+
+  # FetchQuestionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref FetchQuestionsFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -660,6 +787,20 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
+  TimeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${TimeFunction}"
+      RetentionInDays: 30
+
+  # TimeFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref TimeFunctionLogGroup
+
   ####################################################################
   #                                                                  #
   # CurrentTimeFunction                                              #
@@ -676,6 +817,20 @@ Resources:
       Handler: lambdas/time/src/current-time-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  CurrentTimeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CurrentTimeFunction}"
+      RetentionInDays: 30
+
+  # CurrentTimeFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref CurrentTimeFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -702,8 +857,16 @@ Resources:
   SubmitAnswerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${SubmitAnswerFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${SubmitAnswerFunction}"
       RetentionInDays: 30
+
+  # SubmitAnswerFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref SubmitAnswerFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -722,6 +885,20 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
+  CreateAuthCodeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CreateAuthCodeFunction}"
+      RetentionInDays: 30
+
+  # CreateAuthCodeFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref CreateAuthCodeFunctionLogGroup
+
   ####################################################################
   #                                                                  #
   # CredentialSubjectFunction                                        #
@@ -739,6 +916,20 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
+  CredentialSubjectFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CredentialSubjectFunction}"
+      RetentionInDays: 30
+
+  # CredentialSubjectFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref CredentialSubjectFunctionLogGroup
+
   ####################################################################
   #                                                                  #
   # EvidenceCheckDetailsFunction                                     #
@@ -755,6 +946,20 @@ Resources:
       Handler: lambdas/evidence-check-details/src/check-details-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  EvidenceCheckDetailsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${EvidenceCheckDetailsFunction}"
+      RetentionInDays: 30
+
+  # EvidenceCheckDetailsFunctionLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref EvidenceCheckDetailsFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -785,7 +990,53 @@ Resources:
   #                                                                  #
   ####################################################################
 
-  # TODO
+  PublicKbvHmrcApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Condition: IsDeployedFromPipeline
+    # DependsOn:
+    #   - PublicKbvHmrcApiStage
+    Properties:
+      ApiStages:
+        - ApiId: !Ref PublicKbvHmrcApi
+          Stage: !Ref Environment
+      Quota:
+        Limit: 500000
+        Period: DAY
+      Throttle:
+        RateLimit: 200 # allowed requests per second
+        BurstLimit: 400 # requests the API can handle concurrently
+
+  PrivateKbvHmrcApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Condition: IsDeployedFromPipeline
+    # DependsOn:
+    #   - PrivateKbvHmrcApiStage
+    Properties:
+      ApiStages:
+        - ApiId: !Ref PrivateKbvHmrcApi
+          Stage: !Ref Environment
+      Quota:
+        Limit: 500000
+        Period: DAY
+      Throttle:
+        RateLimit: 200 # allowed requests per second
+        BurstLimit: 400 # requests the API can handle concurrently
+
+  LinkUsagePlanApiKey1:
+    Condition: IsDeployedFromPipeline
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !ImportValue core-infrastructure-ApiKey1
+      KeyType: API_KEY
+      UsagePlanId: !Ref PublicKbvHmrcApiUsagePlan
+
+  LinkUsagePlanApiKey2:
+    Condition: IsDeployedFromPipeline
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !ImportValue core-infrastructure-ApiKey2
+      KeyType: API_KEY
+      UsagePlanId: !Ref PublicKbvHmrcApiUsagePlan
 
   ####################################################################
   #                                                                  #
@@ -832,6 +1083,33 @@ Resources:
       Name: !Sub /${AWS::StackName}/AnswersUrl
       Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
       Description: URL for HMRC /answers endpoint
+
+  LoggingKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+            Action:
+              - "kms:Encrypt*"
+              - "kms:Decrypt*"
+              - "kms:ReEncrypt*"
+              - "kms:GenerateDataKey*"
+              - "kms:Describe*"
+            Resource: "*"
+            Condition:
+              ArnLike:
+                "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
 
 ####################################################################
 #                                                                  #
