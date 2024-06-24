@@ -384,7 +384,7 @@ paths:
           application/json:
             Fn::Sub: |-
               {
-                "input": "{\"sessionId\": \"$input.params('session-id').trim()\", \"key\": \"$input.path('$.key').trim()\", \"value\": \"$input.path('$.value').trim()\"}",
+                "input": "{\"sessionId\": \"$input.params('session-id').trim()\", \"key\": \"$input.path('$.questionKey').trim()\", \"value\": $util.escapeJavaScript($input.json('$.value'))}",
                 "stateMachineArn": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-PostAnswer"
               }
         responses:
@@ -551,7 +551,7 @@ components:
 
     AnswerPost:
       required:
-        - "key"
+        - "questionKey"
         - "value"
       type: "object"
       properties:

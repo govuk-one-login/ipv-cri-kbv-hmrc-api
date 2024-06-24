@@ -5,7 +5,7 @@
     "Get NINO": {
       "Type": "Task",
       "Parameters": {
-        "TableName": "${PersonalIdentityTableName}",
+        "TableName": "${PersonIdentityTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "ExpressionAttributeValues": {
           ":value": {
@@ -28,90 +28,71 @@
           "Next": "Err: Missing nino"
         }
       ],
-      "Default": "Filter out DynamoDB jargon"
-    },
-    "Filter out DynamoDB jargon": {
-      "Type": "Pass",
-      "Next": "GET Questions from HMRC",
-      "Parameters": {
-        "sessionId.$": "$.sessionId",
-        "nino.$": "$.nino.Items[0].nino.S"
-      }
+      "Default": "Get Unanswered question set"
     },
     "Err: Missing nino": {
       "Type": "Fail",
       "Cause": "No NINO found for given session-id"
     },
-    "GET Questions from HMRC": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "Parameters": {
-        "FunctionName": "${ExecuteStateMachineFunctionName}",
-        "Payload": {
-          "stateMachineArn": "${FetchQuestionsStateMachineArn}",
-          "input": {
-            "sessionId.$": "$.sessionId",
-            "nino.$": "$.nino"
-          }
-        }
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 6,
-          "BackoffRate": 2
-        }
-      ],
-      "Next": "Get unanswered questions",
-      "ResultPath": null,
-      "Catch": [
-        {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "Err: Lambda threw exception"
-        }
-      ]
-    },
-    "Err: Lambda threw exception": {
-      "Type": "Fail"
-    },
-    "Get unanswered questions": {
+    "Get Unanswered question set": {
       "Type": "Task",
       "Next": "Check if we have any unanswered questions",
       "Parameters": {
         "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
-        "FilterExpression": "answered = :answeredValue",
         "ExpressionAttributeValues": {
           ":value": {
             "S.$": "$.sessionId"
-          },
-          ":answeredValue": {
-            "S": "false"
           }
         }
       },
-      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query"
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "OutputPath": "$.Items[0].questions.L[?(@.M.answered.Bool==false)].M"
     },
     "Check if we have any unanswered questions": {
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.Count",
-          "NumericGreaterThan": 0,
-          "Next": "Return Next Question"
+          "Variable": "$[0]",
+          "IsPresent": true,
+          "Next": "Iterate over questions"
         }
       ],
       "Default": "204: No More Questions"
     },
+    "Iterate over questions": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Filter out dynamo artifacts",
+        "States": {
+          "Filter out dynamo artifacts": {
+            "Type": "Pass",
+            "Parameters": {
+              "questionKey.$": "$.questionKey.S",
+              "info.$": "$[?(@.info)].info.M",
+              "order.$": "$.order.N",
+              "answered.$": "$.answered.Bool"
+            },
+            "End": true
+          }
+        }
+      },
+      "Next": "Get next question",
+      "MaxConcurrency": 1
+    },
+    "Get next question": {
+      "Type": "Pass",
+      "Next": "Return Next Question",
+      "Parameters": {
+        "questionKey.$": "$[0].questionKey",
+        "info.$": "$[0].info"
+      }
+    },
     "Return Next Question": {
       "Type": "Pass",
-      "OutputPath": "$.Items[0]",
       "End": true
     },
     "204: No More Questions": {
