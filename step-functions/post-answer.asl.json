@@ -242,10 +242,44 @@
         {
           "Variable": "$.arrayLengths.answeredQuestionsLength ",
           "NumericEqualsPath": "$.arrayLengths.totalQuestionsLength ",
-          "Next": "Fetch Auth Code Expiry"
+          "Next": "Get Bearer Token"
         }
       ],
       "Default": "Response Filter"
+    },
+    "Get Bearer Token": {
+      "Type": "Task",
+      "Parameters": {
+        "SecretId": "HMRCBearerToken"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
+      "Next": "Get Answers URL and User Agent",
+      "ResultSelector": {
+        "value.$": "$.SecretString"
+      },
+      "ResultPath": "$.bearerToken"
+    },
+    "Get Answers URL and User Agent": {
+      "Type": "Task",
+      "Next": "Invoke Submit Answers Lambda",
+      "Parameters": {
+        "Names": ["${AnswersUrl}", "${UserAgent}"]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
+      "ResultPath": "$.parameters",
+      "ResultSelector": {
+        "url.$": "$.Parameters[0].Value",
+        "userAgent.$": "$.Parameters[1].Value"
+      }
+    },
+    "Invoke Submit Answers Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${SubmitAnswersArn}"
+      },
+      "Next": "Fetch Auth Code Expiry"
     },
     "Fetch Auth Code Expiry": {
       "Type": "Task",
