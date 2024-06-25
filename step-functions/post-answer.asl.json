@@ -1,12 +1,21 @@
 {
-  "Comment": "A description of my state machine",
-  "StartAt": "GET NINO",
+  "Comment": "State machine for saving answers submitted in the HMRC KBV journey",
+  "StartAt": "Parse input",
   "States": {
-    "GET NINO": {
-      "Type": "Task",
-      "Next": "Check NINO field is present",
+    "Parse input": {
+      "Type": "Pass",
+      "Next": "Query database for the users questions",
       "Parameters": {
-        "TableName": "${PersonalIdentityTableName}",
+        "sessionId.$": "$.sessionId",
+        "inputAnswer.$": "$.value",
+        "answeredQuestionKey.$": "$.key"
+      }
+    },
+    "Query database for the users questions": {
+      "Type": "Task",
+      "Next": "Find answered question",
+      "Parameters": {
+        "TableName": "${QuestionsTableName}",
         "KeyConditionExpression": "sessionId = :value",
         "ExpressionAttributeValues": {
           ":value": {
@@ -15,71 +24,190 @@
         }
       },
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-      "ResultPath": "$.nino"
+      "ResultPath": "$.usersQuestions"
     },
-    "Check NINO field is present": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Not": {
-            "Variable": "$.nino.Count",
-            "NumericGreaterThan": 0
+    "Find answered question": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Is the current question the answered question",
+        "States": {
+          "Is the current question the answered question": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.item.M.questionKey.S",
+                "StringEqualsPath": "$.context.answeredQuestionKey",
+                "Next": "Update answered question",
+                "Comment": "current question"
+              }
+            ],
+            "Default": "Do Nothing"
           },
-          "Next": "Err: NINO missing"
-        }
-      ],
-      "Default": "Parse input"
-    },
-    "Err: NINO missing": {
-      "Type": "Fail",
-      "Cause": "No NINO found for session-id"
-    },
-    "Parse input": {
-      "Type": "Pass",
-      "Next": "Query database for the current question",
-      "Parameters": {
-        "sessionId.$": "$.sessionId",
-        "nino.$": "$.nino.Items[0].nino.S",
-        "answer.$": "$.value",
-        "questionKey.$": "$.key"
-      }
-    },
-    "Query database for the current question": {
-      "Type": "Task",
-      "Next": "Check the provided question is not answered",
-      "Parameters": {
-        "TableName": "${QuestionsTableName}",
-        "KeyConditionExpression": "sessionId = :value AND questionKey = :questionKeyValue",
-        "FilterExpression": "answered = :answeredValue",
-        "ExpressionAttributeValues": {
-          ":value": {
-            "S.$": "$.sessionId"
+          "Do Nothing": {
+            "Type": "Pass",
+            "End": true,
+            "Result": {}
           },
-          ":answeredValue": {
-            "S": "false"
-          },
-          ":questionKeyValue": {
-            "S.$": "$.questionKey"
+          "Update answered question": {
+            "Type": "Pass",
+            "Parameters": {
+              "M": {
+                "questionKey.$": "$.item.M.questionKey.S",
+                "answer.$": "$.context.inputAnswer"
+              }
+            },
+            "End": true
           }
         }
       },
-      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-      "ResultPath": "$.question"
+      "Next": "Get previous answers",
+      "ItemsPath": "$.usersQuestions.Items[0].questions.L",
+      "MaxConcurrency": 1,
+      "ItemSelector": {
+        "context.$": "$",
+        "item.$": "$$.Map.Item.Value"
+      },
+      "ResultPath": "$.answers"
     },
-    "Check the provided question is not answered": {
+    "Get previous answers": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${AnswersTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Answers for session exists",
+      "ResultPath": "$.dynamoResult"
+    },
+    "Answers for session exists": {
       "Type": "Choice",
       "Choices": [
         {
-          "Not": {
-            "Variable": "$.question.Count",
-            "NumericGreaterThan": 0
-          },
-          "Next": "Err: The question has already been answered"
+          "And": [
+            {
+              "Variable": "$.dynamoResult.Item",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.dynamoResult.Item.sessionId.S",
+              "StringEqualsPath": "$.sessionId"
+            }
+          ],
+          "Comment": "Answers Exists",
+          "Next": "Update answer in the database"
         }
       ],
-      "Default": "Update database to store the answer"
+      "Default": "Put the answer in the database"
     },
-    "Update database to store the answer": {
+    "Put the answer in the database": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${AnswersTableName}",
+        "Item": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          },
+          "correlationId": {
+            "S.$": "$.usersQuestions.Items[0].correlationId.S"
+          },
+          "ttl": {
+            "S": "$.time"
+          },
+          "answers": {
+            "L.$": "$.answers[?(@.M)]"
+          }
+        }
+      },
+      "ResultPath": "$.updateDynamoResults",
+      "Next": "Iterate over questions"
+    },
+    "Update answer in the database": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${AnswersTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        },
+        "UpdateExpression": "SET answers = list_append(answers, :newList)",
+        "ExpressionAttributeValues": {
+          ":newList": {
+            "L.$": "$.answers[?(@.M)]"
+          }
+        }
+      },
+      "Next": "Iterate over questions",
+      "ResultPath": "$.updateDynamoResults"
+    },
+    "Iterate over questions": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Is answered question the current question",
+        "States": {
+          "Is answered question the current question": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.item.M.questionKey.S",
+                "StringEqualsPath": "$.context.answeredQuestionKey",
+                "Next": "Map questions answered",
+                "Comment": "Yes"
+              }
+            ],
+            "Default": "Maintain exisiting question state"
+          },
+          "Maintain exisiting question state": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "M": {
+                "questionKey.$": "$.item.M.questionKey",
+                "answered": {
+                  "BOOL.$": "$.item.M.answered.Bool"
+                },
+                "info.$": "$.item.M.info",
+                "order.$": "$.item.M.order"
+              }
+            }
+          },
+          "Map questions answered": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "M": {
+                "questionKey.$": "$.item.M.questionKey",
+                "answered": {
+                  "BOOL": true
+                },
+                "info.$": "$.item.M.info",
+                "order.$": "$.item.M.order"
+              }
+            }
+          }
+        }
+      },
+      "Next": "Update questions answered in the database",
+      "ItemsPath": "$.usersQuestions.Items[0].questions.L",
+      "ResultPath": "$.answeredQuestionsMap",
+      "ItemSelector": {
+        "context.$": "$",
+        "item.$": "$$.Map.Item.Value"
+      }
+    },
+    "Update questions answered in the database": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:updateItem",
       "Parameters": {
@@ -87,91 +215,37 @@
         "Key": {
           "sessionId": {
             "S.$": "$.sessionId"
-          },
-          "questionKey": {
-            "S.$": "$.questionKey"
           }
         },
-        "UpdateExpression": "SET answer = :answer, answered = :answered",
+        "UpdateExpression": "SET questions = :updatedQuestions",
         "ExpressionAttributeValues": {
-          ":answer": {
-            "S.$": "$.answer"
-          },
-          ":answered": {
-            "S": "true"
+          ":updatedQuestions": {
+            "L.$": "$.answeredQuestionsMap"
           }
         }
       },
-      "Next": "Query database for all unanswered questions",
-      "ResultPath": null
+      "Next": "Calculate array lengths",
+      "ResultPath": "$.updateDynamoResults"
     },
-    "Query database for all unanswered questions": {
-      "Type": "Task",
+    "Calculate array lengths": {
+      "Type": "Pass",
       "Next": "Check to see if there are any more unanswered questions",
       "Parameters": {
-        "TableName": "${QuestionsTableName}",
-        "KeyConditionExpression": "sessionId = :value",
-        "FilterExpression": "answered = :answeredValue",
-        "ExpressionAttributeValues": {
-          ":value": {
-            "S.$": "$.sessionId"
-          },
-          ":answeredValue": {
-            "S": "false"
-          }
-        }
+        "answeredQuestionsLength.$": "States.ArrayLength($.answeredQuestionsMap[?(@.M.answered.BOOL==true)])",
+        "totalQuestionsLength.$": "States.ArrayLength($.usersQuestions.Items[0].questions.L)"
       },
-      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-      "ResultPath": "$.questions"
+      "ResultPath": "$.arrayLengths"
     },
     "Check to see if there are any more unanswered questions": {
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.questions.Count",
-          "NumericGreaterThan": 0,
-          "Next": "Response Filter"
+          "Variable": "$.arrayLengths.answeredQuestionsLength ",
+          "NumericEqualsPath": "$.arrayLengths.totalQuestionsLength ",
+          "Next": "Fetch Auth Code Expiry"
         }
       ],
-      "Default": "Post answers to HMRC"
-    },
-    "Post answers to HMRC": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "Parameters": {
-        "Payload": {
-          "stateMachineArn": "${AnswersIvqStateMachine}",
-          "input": {
-            "sessionId.$": "$.sessionId",
-            "nino.$": "$.nino"
-          }
-        },
-        "FunctionName": "${ExecuteStateMachineFunctionName}"
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 6,
-          "BackoffRate": 2
-        }
-      ],
-      "Next": "Fetch Auth Code Expiry",
-      "ResultPath": null,
-      "Catch": [
-        {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "Err: Post IVQ Answers threw Exception"
-        }
-      ]
-    },
-    "Err: Post IVQ Answers threw Exception": {
-      "Type": "Fail"
+      "Default": "Response Filter"
     },
     "Fetch Auth Code Expiry": {
       "Type": "Task",
@@ -200,7 +274,7 @@
       "Type": "Task",
       "Next": "Set Auth Code for Session",
       "Parameters": {
-        "Name": "/${CommonStackName}/SessionTableName"
+        "Name": "${SessionTableName}"
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
       "ResultPath": "$.sessionTable"
@@ -231,13 +305,6 @@
       "Type": "Pass",
       "Next": "Success",
       "Result": {}
-    },
-    "Err: The question has already been answered": {
-      "Type": "Pass",
-      "End": true,
-      "Result": {
-        "error": "Question has already been answered"
-      }
     },
     "Success": {
       "Type": "Succeed"

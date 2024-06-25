@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Digital Identity IPV CRI KBV HMRC API
 Transform: [AWS::LanguageExtensions, AWS::Serverless-2016-10-31]
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W2031
+        - W1020
 
 Parameters:
   VpcStackName:
@@ -326,7 +332,6 @@ Resources:
               - states:StartExecution
             Resource:
               - !Ref FetchQuestionsStateMachine
-              - !Ref PostIvqAnswersStateMachine
 
   ####################################################################
   #                                                                  #
@@ -472,12 +477,10 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
-        # - DynamoDBReadPolicy:
-        #     TableName: !Ref PersonalIdentityTable
-        - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt FetchQuestionsStateMachine.Name
-        - LambdaInvokePolicy:
-            FunctionName: !Ref ExecuteStateMachineFunction
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -487,10 +490,8 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
       DefinitionSubstitutions:
-        # PersonalIdentityTableName: !Ref PersonalIdentityTable
-        ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
+        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         QuestionsTableName: !Ref QuestionsTable
-        FetchQuestionsStateMachineArn: !Ref FetchQuestionsStateMachine
 
   GetQuestionStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -530,17 +531,15 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
+            TableName: !Ref AnswersTable
+        - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        # - DynamoDBReadPolicy:
-        #     TableName: !Ref PersonalIdentityTable
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
-        - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt PostIvqAnswersStateMachine.Name
-        - LambdaInvokePolicy:
-            FunctionName: !Ref ExecuteStateMachineFunction
+        - DynamoDBWritePolicy:
+            TableName: !Ref AnswersTable
         - Statement:
             Effect: Allow
             Action:
@@ -559,10 +558,9 @@ Resources:
       DefinitionSubstitutions:
         CommonStackName: !Ref CommonStackName
         CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
-        AnswersIvqStateMachine: !Ref PostIvqAnswersStateMachine
+        AnswersTableName: !Ref AnswersTable
         QuestionsTableName: !Ref QuestionsTable
-        ExecuteStateMachineFunctionName: !Ref ExecuteStateMachineFunction
-        # PersonalIdentityTableName: !Ref PersonalIdentityTable
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -577,66 +575,6 @@ Resources:
   #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
   #     FilterPattern: ""
   #     LogGroupName: !Ref PostAnswerStateMachineLogGroup
-
-  ####################################################################
-  #                                                                  #
-  # PostIvqAnswersStateMachine                                       #
-  #                                                                  #
-  ####################################################################
-
-  PostIvqAnswersStateMachine:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      Type: EXPRESS
-      Name: !Sub ${AWS::StackName}-PostIvqAnswers
-      DefinitionUri: ../step-functions/post-ivq-answers.asl.json
-      Logging:
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt PostIvqAnswersStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
-      Policies:
-        - DynamoDBWritePolicy:
-            TableName: !Ref QuestionsTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref QuestionsTable
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
-        - SSMParameterWithSlashPrefixReadPolicy:
-            ParameterName: !Ref AnswersUrl
-        - SSMParameterWithSlashPrefixReadPolicy:
-            ParameterName: !Ref UserAgent
-        - LambdaInvokePolicy:
-            FunctionName: !Ref SubmitAnswerFunction
-        - Statement:
-            Effect: Allow
-            Action: logs:*
-            Resource: "*"
-      PermissionsBoundary: !If
-        - UsePermissionsBoundary
-        - !Ref PermissionsBoundary
-        - !Ref AWS::NoValue
-      DefinitionSubstitutions:
-        BearerTokenName: !Ref BearerTokenName
-        AnswersUrlName: !Ref AnswersUrl
-        UserAgentName: !Ref UserAgent
-        PostIvqAnswersLambdaArn: !GetAtt SubmitAnswerFunction.Arn
-        QuestionsTableName: !Ref QuestionsTable
-
-  PostIvqAnswersStateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostIvqAnswers-state-machine-logs
-      RetentionInDays: 30
-
-  # PostIvqAnswersStateMachineSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref PostIvqAnswersStateMachine
 
   ####################################################################
   #                                                                  #
@@ -984,6 +922,23 @@ Resources:
         AttributeName: expiryDate
         Enabled: true
 
+  AnswersTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "answers-table-${AWS::StackName}"
+      BillingMode: "PAY_PER_REQUEST"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: "sessionId"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "sessionId"
+          KeyType: "HASH"
+      TimeToLiveSpecification:
+        AttributeName: expiryDate
+        Enabled: true
+
   ####################################################################
   #                                                                  #
   # API config                                                       #
@@ -1143,9 +1098,6 @@ Outputs:
   PostAnswerStateMachineArn:
     Description: Exported for integration test
     Value: !Ref PostAnswerStateMachine
-  PostIvqAnswersStateMachineArn:
-    Description: Exported for integration test
-    Value: !Ref PostIvqAnswersStateMachine
   CommonAPISessionTableName:
     Description: Exported for integration test (Common API session table name)
     Value: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
