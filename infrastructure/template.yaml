@@ -528,6 +528,8 @@ Resources:
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref CreateAuthCodeFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SubmitAnswerFunction
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
@@ -547,6 +549,11 @@ Resources:
               - ssm:GetParameter
             Resource:
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AnswersUrl}
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -561,6 +568,10 @@ Resources:
         AnswersTableName: !Ref AnswersTable
         QuestionsTableName: !Ref QuestionsTable
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        AnswersUrl: !Ref AnswersUrl
+        UserAgent: !Ref UserAgent
+        BearerTokenName: !Ref BearerTokenName
+        SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -788,9 +799,20 @@ Resources:
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-submit-answer"
+          PERSON_IDENTITY_TABLE_NAME: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+          RESULTS_TABLE_NAME: !Ref ResultsTable
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+        - DynamoDBWritePolicy:
+            TableName: !Ref ResultsTable
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
 
   SubmitAnswerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -926,6 +948,23 @@ Resources:
     Type: "AWS::DynamoDB::Table"
     Properties:
       TableName: !Sub "answers-table-${AWS::StackName}"
+      BillingMode: "PAY_PER_REQUEST"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: "sessionId"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "sessionId"
+          KeyType: "HASH"
+      TimeToLiveSpecification:
+        AttributeName: expiryDate
+        Enabled: true
+
+  ResultsTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "results-table-${AWS::StackName}"
       BillingMode: "PAY_PER_REQUEST"
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
@@ -1107,3 +1146,6 @@ Outputs:
   QuestionsTableName:
     Description: Exported for integration test
     Value: !Ref QuestionsTable
+  ResultsTableName:
+    Description: Exported for integration test
+    Value: !Ref ResultsTable
