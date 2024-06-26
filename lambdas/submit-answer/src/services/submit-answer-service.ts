@@ -150,7 +150,9 @@ export class SubmitAnswerService {
   private mapAnswersForThirdParty(event: any): Answer[] {
     const requestBody = this.mapItemsToAnswers(
       event.dynamoResult.Item.answers.L
-    ); //Give Type of Answer?
+    );
+
+    requestBody.push(new Answer(event.answeredQuestionKey, event.inputAnswer));
     return requestBody;
   }
 
@@ -175,15 +177,15 @@ export class SubmitAnswerService {
   private mapToAnswerResults(json: any): SubmitAnswerResult[] {
     logger.info(`Mapping AnswersResult`);
 
-    const responseAnswers = json.answers;
+    const responseAnswers = json;
     const mappedAnswers: SubmitAnswerResult[] = [];
 
     responseAnswers.forEach(
-      (answer: { questionKey: string; answer: string }) => {
+      (answer: { questionKey: string; score: string }) => {
         const questionKey: string = answer.questionKey;
         logger.debug(`questionKey : ${questionKey}`);
 
-        const answerStatus: string = answer.answer;
+        const answerStatus: string = answer.score;
         logger.debug(`answer status: ${answerStatus}`);
 
         mappedAnswers.push(new SubmitAnswerResult(questionKey, answerStatus));
