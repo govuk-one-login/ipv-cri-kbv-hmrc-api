@@ -52,7 +52,7 @@ export class SubmitAnswerService {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "lost-credentials",
+        "User-Agent": event.parameters.userAgent,
         Authorization: "Bearer " + event.bearerToken.value, //don't think we'll have this in the event
       },
       body: JSON.stringify({
