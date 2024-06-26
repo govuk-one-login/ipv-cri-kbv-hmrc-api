@@ -56,8 +56,10 @@ export class SubmitAnswerService {
         Authorization: "Bearer " + event.bearerToken.value, //don't think we'll have this in the event
       },
       body: JSON.stringify({
-        correlationId: event.dynamoResult.Item.correlationId,
-        nino: nino,
+        correlationId: event.dynamoResult.Item.correlationId.S,
+        selection: {
+          nino: nino,
+        },
         answers: answers,
       }),
     })
