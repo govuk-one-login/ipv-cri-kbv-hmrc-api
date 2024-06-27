@@ -16,8 +16,9 @@ defineFeature(feature, (test) => {
 
 
 
-// beforeEach(async () => {
-//   });
+beforeEach(async () => {
+  await timeDelayForTestEnvironment(3500);
+  });
 
 // async function userIdentityAsJwtStringForUpdatedUser(
 //   criId: string,
