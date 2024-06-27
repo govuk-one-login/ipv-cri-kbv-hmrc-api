@@ -1,32 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="3" failures="1" errors="0" time="4.778">
-  <testsuite name="HMRC-KBV-POST-Session-HappyPath.feture" errors="0" failures="1" skipped="0" timestamp="2024-06-13T14:11:56" time="4.607" tests="1">
-    <testcase classname="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" name="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" time="3.186">
-      <failure>Error: Failing step: &quot;I should receive a response with the 202&quot;
-
-Step arguments: [&quot;202&quot;]
-
-Error: expect(received).toEqual(expected) // deep equality
-
-Expected: 202
-Received: 400
-    at Object.stepFunction (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/tests/resources/step-definitions/hmrc-post-session-happy-path.step.ts:59:55)
-    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/src/feature-definition-creation.ts:220:45
-    at step (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:33:23)
-    at Object.next (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:14:53)
-    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:8:71
-    at new Promise (&lt;anonymous&gt;)
-    at Object.&lt;anonymous&gt;.__awaiter (/Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/dist/src/feature-definition-creation.js:4:12)
-    at /Users/chrisbates/GitHub/ipv-cri-kbv-hmrc-api/feature-tests/node_modules/jest-cucumber/src/feature-definition-creation.ts:207:21
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+<testsuites name="jest tests" tests="2" failures="0" errors="0" time="5.315">
+  <testsuite name="HMRC-KBV-POST-Session-HappyPath.feture" errors="0" failures="0" skipped="1" timestamp="2024-06-27T16:32:39" time="1.003" tests="1">
+    <testcase classname="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" name="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" time="0">
+      <skipped/>
     </testcase>
   </testsuite>
-  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="0" skipped="2" timestamp="2024-06-13T14:12:00" time="0.098" tests="2">
-    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" time="0">
-      <skipped/>
-    </testcase>
-    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" time="0">
-      <skipped/>
+  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-27T16:32:40" time="4.266" tests="1">
+    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" time="3.829">
     </testcase>
   </testsuite>
 </testsuites>
