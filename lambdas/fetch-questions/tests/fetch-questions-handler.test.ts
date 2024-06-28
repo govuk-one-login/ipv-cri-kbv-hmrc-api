@@ -3,6 +3,7 @@ import { FetchQuestionsHandler } from "../src/fetch-questions-handler";
 import { Question, QuestionsResult } from "../src/types/questions-result-types";
 import { QuestionsRetrievalService } from "../src/services/questions-retrieval-service";
 import { SaveQuestionsService } from "../src/services/save-questions-service";
+import { FilterQuestionsService } from "../src/services/filter-questions-service";
 import { MetricsProbe } from "../src/../../../lib/src/Service/metrics-probe";
 
 import {
@@ -14,6 +15,7 @@ jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/services/questions-retrieval-service");
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
 jest.mock("../src/services/save-questions-service");
+jest.mock("../src/services/filter-questions-service");
 
 describe("FetchQuestionsHandler", () => {
   let fetchQuestionsHandler: FetchQuestionsHandler;
@@ -27,10 +29,15 @@ describe("FetchQuestionsHandler", () => {
     typeof SaveQuestionsService
   >;
 
+  let mockFilterQuestionsService: jest.MockedObjectDeep<
+    typeof FilterQuestionsService
+  >;
+
   let questionsRetrievalServiceSpy: jest.SpyInstance;
   let mockMetricsProbeSpy: jest.SpyInstance;
   let saveQuestionsServicegetExistingSavedItemSpy: jest.SpyInstance;
   let saveQuestionsServiceSaveQuestionsSpy: jest.SpyInstance;
+  let filterQuestionsServiceSpy: jest.SpyInstance;
 
   const mockInputEvent = {
     sessionId: "sessionId",
@@ -53,6 +60,7 @@ describe("FetchQuestionsHandler", () => {
     mockMetricsProbe = jest.mocked(MetricsProbe);
     mockQuestionsRetrievalService = jest.mocked(QuestionsRetrievalService);
     mockSaveQuestionsService = jest.mocked(SaveQuestionsService);
+    mockFilterQuestionsService = jest.mocked(FilterQuestionsService);
 
     questionsRetrievalServiceSpy = jest.spyOn(
       mockQuestionsRetrievalService.prototype,
@@ -62,6 +70,11 @@ describe("FetchQuestionsHandler", () => {
     saveQuestionsServicegetExistingSavedItemSpy = jest.spyOn(
       mockSaveQuestionsService.prototype,
       "getExistingSavedItem"
+    );
+
+    filterQuestionsServiceSpy = jest.spyOn(
+      mockFilterQuestionsService.prototype,
+      "filterQuestions"
     );
 
     saveQuestionsServiceSaveQuestionsSpy = jest.spyOn(
@@ -77,7 +90,8 @@ describe("FetchQuestionsHandler", () => {
     fetchQuestionsHandler = new FetchQuestionsHandler(
       mockMetricsProbe.prototype,
       mockQuestionsRetrievalService.prototype,
-      mockSaveQuestionsService.prototype
+      mockSaveQuestionsService.prototype,
+      mockFilterQuestionsService.prototype
     );
   });
 
@@ -86,19 +100,19 @@ describe("FetchQuestionsHandler", () => {
       [[]], // Zero questions
       [
         [
-          new Question("TestKey1", undefined, undefined),
-          new Question("TestKey2", "2021/2022", "2020/2021"),
+          new Question("rti-p60-payment-for-year", undefined, undefined),
+          new Question("sa-payment-details", "2021/2022", "2020/2021"),
         ],
       ],
       [
         [
-          new Question("TestKey1", undefined, undefined),
-          new Question("TestKey2", "2021/2022", "2020/2021"),
-          new Question("TestKey3", undefined, undefined),
+          new Question("rti-p60-payment-for-year", undefined, undefined),
+          new Question("sa-payment-details", "2021/2022", "2020/2021"),
+          new Question("rti-p60-statutory-adoption-pay", undefined, undefined),
         ],
       ],
     ])(
-      "should return fetchQuestionsState for a valid nino when a question request is successfull",
+      "should return fetchQuestionsState for a valid nino when a question request is successful",
       async (questions: Question[]) => {
         const correlationId: string = "test-correlsation-id";
         const questionCount: number = questions.length;
@@ -111,6 +125,8 @@ describe("FetchQuestionsHandler", () => {
         questionsRetrievalServiceSpy.mockResolvedValue(
           mockQuestionsRetrievalServiceResponse
         );
+
+        filterQuestionsServiceSpy.mockResolvedValue(questions);
 
         // No previously saved questions
         saveQuestionsServicegetExistingSavedItemSpy.mockResolvedValue(
@@ -140,7 +156,7 @@ describe("FetchQuestionsHandler", () => {
 
         // Response
         let expectedState: string;
-        if (questionCount == 0) {
+        if (questionCount < 2) {
           expectedState = "InsufficientQuestions";
         } else {
           expectedState = "SufficientQuestions";
@@ -163,15 +179,15 @@ describe("FetchQuestionsHandler", () => {
           correlationId: "test-correlationId",
           questions: [
             {
-              questionKey: "TEST-KEY-1",
+              questionKey: "rti-p60-payment-for-year",
               order: 1,
             },
             {
-              questionKey: "TEST-KEY-2",
+              questionKey: "sa-payment-details",
               order: 2,
             },
             {
-              questionKey: "TEST-KEY-3",
+              questionKey: "rti-p60-statutory-adoption-pay",
               order: 3,
             },
           ],
@@ -253,9 +269,9 @@ describe("FetchQuestionsHandler", () => {
       const mockQuestionsRetrievalServiceResponse = new QuestionsResult(
         correlationId,
         [
-          new Question("TestKey1", undefined, undefined),
-          new Question("TestKey2", "2021/2022", "2020/2021"),
-          new Question("TestKey3", undefined, undefined),
+          new Question("rti-p60-payment-for-year", undefined, undefined),
+          new Question("sa-payment-details", "2021/2022", "2020/2021"),
+          new Question("rti-p60-statutory-adoption-pay", undefined, undefined),
         ]
       );
 

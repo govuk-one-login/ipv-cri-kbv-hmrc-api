@@ -99,7 +99,7 @@ describe("fetch-questions-happy", () => {
       ).Item;
 
       // Will be the count of questions after question filtering
-      expect(questionItemResult?.questions?.length).toEqual(6);
+      expect(questionItemResult?.questions?.length).toEqual(3);
 
       const questions = questionItemResult?.questions;
 
