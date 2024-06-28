@@ -1,7 +1,7 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 import request from 'supertest';
 import { timeDelayForTestEnvironment } from '../../../utils/utility';
-import { generateClaimsUrl, postUpdatedClaimsUrl, postRequestToSessionEndpoint } from '../../../utils/create-session';
+import { generateClaimsUrl, postUpdatedClaimsUrl, postRequestToSessionEndpoint, getSessionId } from '../../../utils/create-session';
 import EndPoints from '../../../apiEndpoints/endpoints';
 
 
@@ -14,6 +14,8 @@ defineFeature(feature, (test) => {
   let postSessionRequest: any;
   let generateValidClaimUrl: any;
   let postValidClaimUrl: any;
+  let postRequestToHmrcKbvEndpoint: any;
+  let getValidSessionId: string;
   // let claims = generateClaimsUrl;
 
 beforeEach(async () => {
@@ -34,19 +36,18 @@ test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
       },
     );
     
-
-    // when(/^I send a Get request to the Authorization endpoint with headers (.*) and (.*)$/, async (contentType: string, accept: string) => {
-    //   async (contentType: string, accept: string) => {
-    //     getAuthorizationToken = await request(claims)
-    //       .get(getAuthorizationToken)
-    //       .set('Authorization', EndPoints.CORE_STUB_USERNAME + ':' + EndPoints.CORE_STUB_PASSWORD)
-    //       .set('Content-Type', contentType)
-    //       .set('Accept', accept);
-    //     console.log('GET Request Body URL = ' + generateClaimsUrl);
-    //     console.log('GET Response Body = ' + JSON.stringify(getAuthorizationToken, undefined, 2));
-    //     // console.log('GET Response Body = ' + JSON.stringify(getClaimsUrlforUser, undefined, 2));
-    //   };
-    // });
+    when(/^I send a POST request to the fetchQuestions endpoint$/, async () => {
+        getValidSessionId = getSessionId();
+        postRequestToHmrcKbvEndpoint = await request(EndPoints.PRIVATE_API_GATEWAY_URL)
+        .post(EndPoints.FETCH_QUESTIONS)
+        .send("")
+        .set('Content-Type', 'application/json')
+        .set('Accept', 'application/json')
+        .set('session_id', getValidSessionId);
+    console.log('POST Request to HMRC KBV Status Code= ' , postRequestToHmrcKbvEndpoint.statusCode)
+    console.log('POST Request to HMRC KBV = ' + JSON.stringify(postRequestToHmrcKbvEndpoint, undefined, 2));
+    // expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(Number(201));
+    });
 
     // then(
     //   /^I should receive a response with (.*) and valid sessionId$/,

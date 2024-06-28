@@ -29,8 +29,8 @@ export async function postUpdatedClaimsUrl() {
         .set('Authorization', EndPoints.CORE_STUB_USERNAME + ':' + EndPoints.CORE_STUB_PASSWORD)
         .set('Content-Type', 'application/json')
         .set('Accept', 'application/json');
-    console.log('CoreStub1 Response Status Code = ' , postClaimsUrl.statusCode)
-    console.log('CoreStub1 Response ClaimsSet = ' + JSON.stringify(postClaimsUrl, undefined, 2));
+    console.log('CoreStub POST Response Status Code = ' , postClaimsUrl.statusCode)
+    console.log('CoreStub POST Response ClaimsSet = ' + JSON.stringify(postClaimsUrl, undefined, 2));
     console.log('CLIENT_ID = ' , JSON.stringify(postClaimsUrl.text.client_id))
     expect(postClaimsUrl.statusCode).toEqual(Number(200));
 }
@@ -45,6 +45,13 @@ export async function postRequestToSessionEndpoint() {
         .set('X-Forwarded-For', '123456789');
     console.log('Session Response Status Code = ' , postSessionEndpoint.statusCode)
     console.log('Session Response ClaimsSet = ' + JSON.stringify(postSessionEndpoint, undefined, 2));
-    console.log('Session Response SESSION_ID = ' , postSessionEndpoint.body.session_id)
+    console.log('SESSION_ID = ' , postSessionEndpoint.body.session_id)
+    const sessionIdForUser = postSessionEndpoint.body.session_id
     expect(postSessionEndpoint.statusCode).toEqual(Number(201));
+}
+
+export function getSessionId() {
+    return postSessionEndpoint.body.session_id
+    
+
 }

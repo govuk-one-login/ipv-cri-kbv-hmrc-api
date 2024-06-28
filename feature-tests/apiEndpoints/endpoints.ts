@@ -8,6 +8,7 @@ export default class EndPoints {
   public static BASE_URL = "http://localhost:8085";
   public static QUESTION_HMRC = "identity-verification-questions/questions";
   public static ANSWER_HMRC = "/answer";
+  public static FETCH_QUESTIONS = "/fetchquestions";
   public static CORE_STUB_URL = "http://cri-3rdparty.core.stubs.account.gov.uk";
   public static PRIVATE_GATEWAY_ID =
     "http://cri-3rdparty.core.stubs.account.gov.uk";
