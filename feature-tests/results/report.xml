@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="2" failures="0" errors="0" time="7.834">
-  <testsuite name="HMRC-KBV-POST-Session-HappyPath.feture" errors="0" failures="0" skipped="1" timestamp="2024-06-28T14:42:18" time="1.217" tests="1">
+<testsuites name="jest tests" tests="2" failures="0" errors="0" time="5.315">
+  <testsuite name="HMRC-KBV-POST-Session-HappyPath.feture" errors="0" failures="0" skipped="1" timestamp="2024-06-27T16:32:39" time="1.003" tests="1">
     <testcase classname="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" name="HMRC-KBV-POST-Session-HappyPath.feture Happy Path - Post Request to Session Endpoint" time="0">
       <skipped/>
     </testcase>
   </testsuite>
-  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-28T14:42:19" time="6.543" tests="1">
-    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" time="6.048">
+  <testsuite name="HMRC-KBV-GET-Authorization-HappyPath.feture" errors="0" failures="0" skipped="0" timestamp="2024-06-27T16:32:40" time="4.266" tests="1">
+    <testcase classname="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" name="HMRC-KBV-GET-Authorization-HappyPath.feture Happy Path - Get Request to Authorization Endpoint for redirect_uri" time="3.829">
     </testcase>
   </testsuite>
 </testsuites>
