@@ -29,7 +29,7 @@ test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
     when,
     then,
   }) => {
-    given(/^I have obtained a valid user claim from the CoreStub$/, async () => {
+    given(/^I have obtained a valid SessionId for a valid user claimSet from the CoreStub$/, async () => {
         generateValidClaimUrl = await generateClaimsUrl();
         postValidClaimUrl = await postUpdatedClaimsUrl();
         postSessionRequest = await postRequestToSessionEndpoint();

@@ -19,6 +19,7 @@ export const SESSION_REQUEST_BODY = {
                 value: "DECERQUEIRA",
               },
             ],
+            Nino: "AA000003D"
           },
         ],
         birthDate: [

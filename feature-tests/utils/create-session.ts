@@ -6,6 +6,7 @@ import { App } from 'supertest/types';
 let getClaimsUrl: any;
 let postClaimsUrl: any;
 let postSessionEndpoint: any;
+let nino: any;
 
 export async function generateClaimsUrl() {
     console.log("setting up session with claimsUrl")
@@ -16,35 +17,40 @@ export async function generateClaimsUrl() {
         .set('Authorization', EndPoints.CORE_STUB_USERNAME + ':' + EndPoints.CORE_STUB_PASSWORD)
         .set('Content-Type', 'application/json')
         .set('Accept', 'application/json');
-    console.log('CoreStub Response Status Code = ' , getClaimsUrl.statusCode)
-    console.log('CoreStub Response ClaimsSet = ' + JSON.stringify(getClaimsUrl, undefined, 2));
+    console.log('Request to generate ClaimSet Status Code  = ' , getClaimsUrl.statusCode)
+    console.log('Request to generate ClaimSet Request Body = ' + JSON.stringify(getClaimsUrl, undefined, 2));
     expect(getClaimsUrl.statusCode).toEqual(Number(200));
 }
 
 export async function postUpdatedClaimsUrl() {
     console.log("sending payload to CoreStub")
+    const claimSetBody = getClaimsUrl.text
+    const ninoClaimSet = claimSetBody["nino"] = 'AA000003D'
+    console.log('Create Session Request for ClaimSet Status Code 1 1 1 = ' , JSON.stringify(getClaimsUrl.text));
+    console.log('Create Session Request for ClaimSet Status Code 1 1 1 = ' , JSON.stringify(ninoClaimSet));
     postClaimsUrl = await request(EndPoints.BASE_URL)
         .post(EndPoints.BASE_URL_POST_CLAIMS + EndPoints.CRI_ID)
-        .send(getClaimsUrl.text)
+        .send(ninoClaimSet)
         .set('Authorization', EndPoints.CORE_STUB_USERNAME + ':' + EndPoints.CORE_STUB_PASSWORD)
         .set('Content-Type', 'application/json')
         .set('Accept', 'application/json');
-    console.log('CoreStub POST Response Status Code = ' , postClaimsUrl.statusCode)
-    console.log('CoreStub POST Response ClaimsSet = ' + JSON.stringify(postClaimsUrl, undefined, 2));
-    console.log('CLIENT_ID = ' , JSON.stringify(postClaimsUrl.text.client_id))
+    console.log('Create Session Request for ClaimSet Status Code = ' , postClaimsUrl.statusCode)
+   
+    console.log('Create Session Request for Encoded ClaimSet Response Body = ' + JSON.stringify(postClaimsUrl, undefined, 2));
+    console.log('SESSION CLIENT_ID = ' , JSON.stringify(postClaimsUrl.text.client_id))
     expect(postClaimsUrl.statusCode).toEqual(Number(200));
 }
 
 export async function postRequestToSessionEndpoint() {
     console.log("sending payload to CoreStub")
     postSessionEndpoint = await request(EndPoints.PRIVATE_API_GATEWAY_URL)
-        .post('/session')
+        .post(EndPoints.SESSION_URL)
         .send(postClaimsUrl.text)
         .set('Content-Type', 'application/json')
         .set('Accept', 'application/json')
         .set('X-Forwarded-For', '123456789');
-    console.log('Session Response Status Code = ' , postSessionEndpoint.statusCode)
-    console.log('Session Response ClaimsSet = ' + JSON.stringify(postSessionEndpoint, undefined, 2));
+    console.log('Request to Session endpoint Status Code = ' , postSessionEndpoint.statusCode)
+    console.log('Request to Session endpoint Response Body = ' + JSON.stringify(postSessionEndpoint, undefined, 2));
     console.log('SESSION_ID = ' , postSessionEndpoint.body.session_id)
     const sessionIdForUser = postSessionEndpoint.body.session_id
     expect(postSessionEndpoint.statusCode).toEqual(Number(201));

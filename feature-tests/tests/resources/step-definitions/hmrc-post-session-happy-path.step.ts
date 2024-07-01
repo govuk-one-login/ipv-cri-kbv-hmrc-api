@@ -39,7 +39,7 @@ function getformJWT() {
 async function createRequest(user: keyof typeof SESSION_REQUEST_BODY) {
   console.log(`Initiating set up: creating request containing ${user}`);
   await timeDelayForTestEnvironment(3500);
-  const response = await request(EndPoints.PRIVATE_API_ENDPOINT + '/backend/createSessionRequest?cri=') 
+  const response = await request(EndPoints.PRIVATE_API_GATEWAY_URL + '/backend/createSessionRequest?cri=') 
     .post(EndPoints.CRI_ID)
     .send(JSON.stringify(user))
     .set('Content-Type', 'application/json')
@@ -58,7 +58,7 @@ test('Happy Path - Post Request to Session Endpoint', ({
     // console.log('sending happy path post request for simple test, with user id ' + testUserId);
     await timeDelayForTestEnvironment(3000);
   
-    postRequestToSessionEndpoint = await request(EndPoints.PRIVATE_API_ENDPOINT)
+    postRequestToSessionEndpoint = await request(EndPoints.PRIVATE_API_GATEWAY_URL)
       .post(EndPoints.SESSION_URL)
       //JWT encoded JSON Blob
       .send(JSON.stringify(createRequest))
