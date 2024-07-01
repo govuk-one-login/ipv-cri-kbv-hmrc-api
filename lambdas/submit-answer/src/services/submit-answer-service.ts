@@ -56,7 +56,7 @@ export class SubmitAnswerService {
         Authorization: "Bearer " + event.bearerToken.value, //don't think we'll have this in the event
       },
       body: JSON.stringify({
-        correlationId: event.dynamoResult.Item.correlationId.S,
+        correlationId: event?.usersQuestions?.Items[0]?.correlationId?.S,
         selection: {
           nino: nino,
         },
@@ -149,7 +149,7 @@ export class SubmitAnswerService {
 
   private mapAnswersForThirdParty(event: any): Answer[] {
     const requestBody = this.mapItemsToAnswers(
-      event.dynamoResult.Item.answers.L
+      event?.dynamoResult?.Item?.answers?.L
     );
 
     requestBody.push(new Answer(event.answeredQuestionKey, event.inputAnswer));
@@ -214,11 +214,13 @@ export class SubmitAnswerService {
 
   private mapItemsToAnswers(items: any) {
     const answersArray: Answer[] = [];
-    items.forEach((element: { M: { [x: string]: { S: string } } }) => {
-      answersArray.push(
-        new Answer(element.M["questionKey"].S, element.M["answer"].S)
-      );
-    });
+    if (items != undefined && items.length > 0) {
+      items.forEach((element: { M: { [x: string]: { S: string } } }) => {
+        answersArray.push(
+          new Answer(element.M["questionKey"].S, element.M["answer"].S)
+        );
+      });
+    }
 
     return answersArray;
   }
