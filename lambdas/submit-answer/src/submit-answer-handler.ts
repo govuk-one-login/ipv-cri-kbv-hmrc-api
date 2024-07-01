@@ -37,7 +37,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
       await this.resultService.saveResults(
         event.sessionId,
         event.correlationId,
-        event.dynamoResult.Item.ttl,
+        event.usersQuestions.Items[0].expiryDate,
         answerResult
       );
 
