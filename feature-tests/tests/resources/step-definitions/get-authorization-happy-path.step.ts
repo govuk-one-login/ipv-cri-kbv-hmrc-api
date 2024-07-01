@@ -43,7 +43,7 @@ test('Happy Path - Get Request to Authorization Endpoint for redirect_uri', ({
         .send("")
         .set('Content-Type', 'application/json')
         .set('Accept', 'application/json')
-        .set('session_id', getValidSessionId);
+        .set('session-id', getValidSessionId);
     console.log('POST Request to HMRC KBV Status Code= ' , postRequestToHmrcKbvEndpoint.statusCode)
     console.log('POST Request to HMRC KBV = ' + JSON.stringify(postRequestToHmrcKbvEndpoint, undefined, 2));
     // expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(Number(201));
