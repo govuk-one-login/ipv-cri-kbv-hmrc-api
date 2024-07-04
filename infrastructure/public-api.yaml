@@ -158,7 +158,7 @@ paths:
             statusCode: 200
             responseTemplates:
               application/json:
-                Fn::Sub: $input.path('$').output
+                Fn::Sub: $input.path('$').output.replace('"',"")
 
 components:
   schemas:
