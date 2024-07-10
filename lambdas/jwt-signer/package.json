@@ -1,0 +1,21 @@
+{
+  "name": "jwt-signer",
+  "description": "",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "unit": "jest --silent",
+    "test": "npm run unit --",
+    "test:coverage": "npm run unit -- --coverage",
+    "deploy": "../../deploy.sh",
+    "compile": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/credential-providers": "3.451.0",
+    "@aws-sdk/client-kms": "3.451.0",
+    "ecdsa-sig-formatter": "1.0.11"
+  },
+  "devDependencies": {
+    "jose": "5.1.0"
+  }
+}
