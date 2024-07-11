@@ -1,8 +1,8 @@
 import { CurrentTimeDescriptor } from "./utility";
 
-const currentTime = getCurrentTimestamp();
+// const currentTime = getCurrentTimestamp();
 const futureTime = getFutureTimestamp();
-const pastTime = getPastTimestamp();
+// const pastTime = getPastTimestamp();
 
 export const SESSION_REQUEST_BODY = {
   sub: "urn:fdc:gov.uk:2022:dbf5896f-69b4-4f04-b5e9-8241430c6b20",

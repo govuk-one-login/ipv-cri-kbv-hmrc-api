@@ -1,6 +1,7 @@
-const setJestCucumberConfiguration = require('jest-cucumber').setJestCucumberConfiguration;
+const setJestCucumberConfiguration =
+  require("jest-cucumber").setJestCucumberConfiguration;
 
 setJestCucumberConfiguration({
-    tagFilter: process.env.tagFilter,
-    errorOnMissingScenariosAndSteps: false
-  });
+  tagFilter: process.env.tagFilter,
+  errorOnMissingScenariosAndSteps: false,
+});

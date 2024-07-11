@@ -18,7 +18,7 @@ Set up the following env vars.
 cd feature-tests
 npm install && npm build
 export TEST_ENVIRONMENT=dev
-export SAM_STACK_NAME=id-reuse-storage-main
+export SAM_STACK_NAME=stackName
 export tagFilter=@regression
 ```
 

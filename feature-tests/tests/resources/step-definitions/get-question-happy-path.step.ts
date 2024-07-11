@@ -7,7 +7,7 @@ import {
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
 } from "../../../utils/create-session";
-import { App } from 'supertest/types';
+import { App } from "supertest/types";
 
 const feature = loadFeature(
   "./tests/resources/features/hmrcGet/hmrcQuestion-HappyPath.feature"
@@ -35,9 +35,7 @@ defineFeature(feature, (test) => {
     given(
       /^I send a POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
       async (contentType: string, accept: string) => {
-        await request(
-          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
-        )
+        await request(EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App)
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
           .set("Content-Type", contentType)
@@ -53,7 +51,7 @@ defineFeature(feature, (test) => {
               cb(null, data.toString());
             });
           });
-        }
+      }
     ),
       when(/^I send a GET request to the question endpoint$/, async () => {
         getRequestToQuestionEndpoint = await request(

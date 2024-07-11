@@ -1,13 +1,15 @@
-const delay = (ms: number | undefined) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number | undefined) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function timeDelayForTestEnvironment(ms = 2000) {
-  console.log('Wait for endpoint operations to process');
+  console.log("Wait for endpoint operations to process");
   await delay(ms);
 }
 
 export function randomString(length: number) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = "";
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const charactersLength = characters.length;
   let counter = 0;
   while (counter < length) {

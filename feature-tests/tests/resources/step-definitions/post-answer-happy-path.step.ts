@@ -7,8 +7,12 @@ import {
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
 } from "../../../utils/create-session";
-import { ANSWER_POST_PAYLOAD, ANSWER_POST_PAYLOAD_1, ANSWER_POST_PAYLOAD_2 } from "../../../utils/answer_body";
-import { App } from 'supertest/types';
+import {
+  ANSWER_POST_PAYLOAD,
+  ANSWER_POST_PAYLOAD_1,
+  ANSWER_POST_PAYLOAD_2,
+} from "../../../utils/answer_body";
+import { App } from "supertest/types";
 
 const feature = loadFeature(
   "./tests/resources/features/hmrcPost/hmrcAnswer-HappyPath.feature"
@@ -201,7 +205,5 @@ defineFeature(feature, (test) => {
         );
       }
     );
-
-
-  });  
+  });
 });

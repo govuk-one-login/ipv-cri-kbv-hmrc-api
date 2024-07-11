@@ -7,8 +7,7 @@ import {
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
 } from "../../../utils/create-session";
-import { App } from 'supertest/types';
-
+import { App } from "supertest/types";
 
 const feature = loadFeature(
   "./tests/resources/features/hmrcPost/hmrcFetchQuestions-HappyPath.feature"
