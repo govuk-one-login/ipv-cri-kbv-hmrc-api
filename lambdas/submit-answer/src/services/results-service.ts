@@ -23,14 +23,17 @@ export class ResultsService {
     sessionId: string,
     correlationId: string,
     ttl: number,
-    answerResults: SubmitAnswerResult[]
+    answerResults: SubmitAnswerResult[],
+    verificationScore: number
   ): Promise<boolean> {
     logger.info("Saving kbv results...");
+
     const answerResultItem: AnswerResultItem = new AnswerResultItem(
       sessionId,
       correlationId,
       ttl,
-      answerResults
+      answerResults,
+      verificationScore
     );
     logger.info("Mapped to answers to result item");
     try {
