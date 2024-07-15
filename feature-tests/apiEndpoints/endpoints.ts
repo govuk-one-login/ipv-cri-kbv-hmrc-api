@@ -1,8 +1,6 @@
 export default class EndPoints {
-  static readonly PRIVATE_API_GATEWAY_URL =
-    process.env.TEST_ENVIRONMENT === "dev"
-      ? `https://${process.env.SAM_STACK_NAME}.execute-api.eu-west-2.amazonaws.com/${process.env.TEST_ENVIRONMENT}`
-      : process.env.CFN_PrivateApiGatewayId;
+  static readonly PRIVATE_API_GATEWAY_URL = `https://${process.env.SAM_STACK_NAME}.execute-api.eu-west-2.amazonaws.com/${process.env.TEST_ENVIRONMENT}`
+  static readonly PRIVATE_API_GATEWAY_URL1 = `https://${process.env.CFN_PrivateApiGatewayId}.execute-api.eu-west-2.amazonaws.com/${process.env.TEST_ENVIRONMENT}`
   static readonly AUTHORIZATION_URL = "/oauth2/authorize";
   static readonly BASE_URL = "http://localhost:8085";
   static readonly FETCH_QUESTIONS_ENDPOINT = "/fetchquestions";
