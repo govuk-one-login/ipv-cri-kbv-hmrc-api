@@ -20,7 +20,6 @@ defineFeature(feature, (test) => {
   let postValidClaimUrl: any;
   let getValidSessionId: any;
 
-
   beforeEach(async () => {
     generateValidClaimUrl = await generateClaimsUrl();
     postValidClaimUrl = await postUpdatedClaimsUrl();

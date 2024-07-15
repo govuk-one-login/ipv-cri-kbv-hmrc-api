@@ -10,12 +10,7 @@ const feature = loadFeature(
 );
 
 defineFeature(feature, (test) => {
-  let postSessionRequest: any;
-  let generateValidClaimUrl: any;
-  let postValidClaimUrl: any;
-
-  beforeEach(async () => {
-  });
+  beforeEach(async () => {});
 
   test("Happy Path - Request for user claimSet from CoreStub for Valid User", ({
     given,
@@ -24,16 +19,15 @@ defineFeature(feature, (test) => {
     given(
       /^I send a GET request to the CoreStub for a Valid UserId$/,
       async () => {
-        generateValidClaimUrl = await generateClaimsUrl();
-        postValidClaimUrl = await postUpdatedClaimsUrl();
-        postSessionRequest = await postRequestToSessionEndpoint();
+        await generateClaimsUrl();
+        await postUpdatedClaimsUrl();
+        await postRequestToSessionEndpoint();
       }
     );
 
     then(
       /^I should receive a response with statusCode and user claimSet$/,
-      async () => {
-      }
+      async () => {}
     );
   });
 });
