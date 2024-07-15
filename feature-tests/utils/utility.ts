@@ -24,12 +24,3 @@ export interface CurrentTimeDescriptor {
   milliseconds: number;
   seconds: number;
 }
-// export type InformationFromTable = {
-//   iss: string;
-//   state: string;
-//   vc: string;
-//   kid: string;
-//   ttl?: number;
-//   pk?: string;
-//   metaData?: { [key: string]: unknown };
-// };

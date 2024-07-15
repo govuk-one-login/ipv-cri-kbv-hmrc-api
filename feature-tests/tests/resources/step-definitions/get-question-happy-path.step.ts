@@ -1,8 +1,8 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 import request from "supertest";
-import { getSessionId } from "../../../utils/create-session";
 import EndPoints from "../../../apiEndpoints/endpoints";
 import {
+  getSessionId,
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
@@ -15,6 +15,7 @@ const feature = loadFeature(
 
 defineFeature(feature, (test) => {
   let getRequestToQuestionEndpoint: any;
+  let postRequestToHmrcKbvEndpoint: any;
   let getValidSessionId: string;
   let postSessionRequest: any;
   let generateValidClaimUrl: any;
@@ -35,7 +36,9 @@ defineFeature(feature, (test) => {
     given(
       /^I send a POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
       async (contentType: string, accept: string) => {
-        await request(EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App)
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
           .set("Content-Type", contentType)

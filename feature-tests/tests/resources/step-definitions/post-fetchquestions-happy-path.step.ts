@@ -1,8 +1,8 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 import request from "supertest";
-import { getSessionId } from "../../../utils/create-session";
 import EndPoints from "../../../apiEndpoints/endpoints";
 import {
+  getSessionId,
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
@@ -20,7 +20,6 @@ defineFeature(feature, (test) => {
   let postValidClaimUrl: any;
   let getValidSessionId: any;
 
-  // let claims = generateClaimsUrl;
 
   beforeEach(async () => {
     generateValidClaimUrl = await generateClaimsUrl();

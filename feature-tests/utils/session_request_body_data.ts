@@ -1,8 +1,6 @@
 import { CurrentTimeDescriptor } from "./utility";
 
-// const currentTime = getCurrentTimestamp();
 const futureTime = getFutureTimestamp();
-// const pastTime = getPastTimestamp();
 
 export const SESSION_REQUEST_BODY = {
   sub: "urn:fdc:gov.uk:2022:dbf5896f-69b4-4f04-b5e9-8241430c6b20",
@@ -58,26 +56,8 @@ export const SESSION_REQUEST_BODY = {
   iat: futureTime.milliseconds,
 };
 
-function getCurrentTimestamp(date = new Date()): CurrentTimeDescriptor {
-  return {
-    milliseconds: date.valueOf(),
-    isoString: date.toISOString(),
-    seconds: Math.floor(date.valueOf() / 1000),
-  };
-}
-
 export function getFutureTimestamp(date = new Date()): CurrentTimeDescriptor {
   date.setMinutes(date.getMinutes() + 60);
-  return {
-    milliseconds: date.valueOf(),
-    isoString: date.toISOString(),
-    seconds: Math.floor(date.valueOf() / 1000),
-  };
-}
-
-export function getPastTimestamp(date = new Date()): CurrentTimeDescriptor {
-  const min = 5;
-  date.setMinutes(date.getMinutes() - min);
   return {
     milliseconds: date.valueOf(),
     isoString: date.toISOString(),

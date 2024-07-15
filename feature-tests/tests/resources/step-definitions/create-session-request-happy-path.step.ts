@@ -15,7 +15,6 @@ defineFeature(feature, (test) => {
   let postValidClaimUrl: any;
 
   beforeEach(async () => {
-    // await timeDelayForTestEnvironment(3500);
   });
 
   test("Happy Path - Request for user claimSet from CoreStub for Valid User", ({

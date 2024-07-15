@@ -11,7 +11,7 @@ export async function generateClaimsUrl() {
   const rowNumber = "&rowNumber=197";
   const ninoValue = "&nino=KE000000C";
   const claimsForUserUrl =
-    EndPoints.BASE_URL_GET_CLAIMS + EndPoints.CRI_ID + rowNumber + ninoValue;
+    EndPoints.PATH_GET_CLAIMS + EndPoints.CRI_ID + rowNumber + ninoValue;
   getClaimsUrl = await request(EndPoints.BASE_URL)
     .get(claimsForUserUrl)
     .set(
@@ -35,7 +35,7 @@ export async function postUpdatedClaimsUrl() {
   console.log("Sending Claimset payload to CoreStub");
   const claimSetBody = getClaimsUrl.text;
   postClaimsUrl = await request(EndPoints.BASE_URL)
-    .post(EndPoints.BASE_URL_POST_CLAIMS + EndPoints.CRI_ID)
+    .post(EndPoints.PATH_POST_CLAIMS + EndPoints.CRI_ID)
     .send(claimSetBody)
     .set(
       "Authorization",

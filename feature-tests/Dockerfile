@@ -1,5 +1,5 @@
 # Set the base image.
-FROM amazonlinux:latest
+FROM amazonlinux:2023.5.20240708.0
 RUN yum install -y gcc-c++ make
 RUN curl -sL https://rpm.nodesource.com/setup_lts.x | bash -
 RUN yum install -y nodejs
