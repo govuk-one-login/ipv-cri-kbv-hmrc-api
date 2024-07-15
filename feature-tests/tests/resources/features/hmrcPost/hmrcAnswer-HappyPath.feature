@@ -11,5 +11,3 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
         Examples:
             | contentType      | accept           | statusCode | finalStatusCode |
             | application/json | application/json | 200        | 200             |
-
-
