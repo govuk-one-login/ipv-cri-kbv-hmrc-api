@@ -6,4 +6,3 @@ Feature: CORE-STUB-CreateSessionRequest-HappyPath.feature
         Examples:
             | statusCode |
             | 201        |
-            

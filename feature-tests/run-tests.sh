@@ -14,8 +14,7 @@ cp -R /utils ./utils 2>/dev/null || :
 # run tests and save the exit code
 declare test_run_result
 export tagFilter =$(aws ssm get-parameter --name "/tests/${STACK_NAME}/TestTag" | jq -r ".Parameter.Value")
-npm test 
-# 1>/dev/null
+npm run test 1>/dev/null
 test_run_result=$?
 
 # store report to dir where pipeline will export from

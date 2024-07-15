@@ -1,4 +1,4 @@
-Feature: HMRC-KBV-POST-Answer-HappyPath.feature 
+Feature: HMRC-KBV-POST-Answer-HappyPath.feature
 
     @regression @test
     Scenario Outline: Happy Path - Post request to /answer Endpoint for userId
