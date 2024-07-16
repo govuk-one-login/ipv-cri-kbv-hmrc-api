@@ -41,7 +41,7 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
+      /^I send a valid POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
       async (contentType: string, accept: string) => {
         postRequestToHmrcKbvEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App

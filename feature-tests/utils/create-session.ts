@@ -9,7 +9,7 @@ let postSessionEndpoint: any;
 export async function generateClaimsUrl() {
   console.log("Generating Initial Claimset");
   const rowNumber = "&rowNumber=197";
-  const ninoValue = "&nino=AA000002A";
+  const ninoValue = "&nino=AA0000002I";
   const claimsForUserUrl =
     EndPoints.PATH_GET_CLAIMS + EndPoints.CRI_ID + rowNumber + ninoValue;
   getClaimsUrl = await request(EndPoints.BASE_URL)

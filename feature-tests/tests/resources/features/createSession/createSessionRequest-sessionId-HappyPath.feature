@@ -1,8 +1,8 @@
 Feature: CORE-STUB-CreateSessionRequest-HappyPath.feature
 
     Scenario Outline: Happy Path - Request for user claimSet from CoreStub for Valid User
-        Given I send a GET request to the CoreStub for a Valid UserId
-        Then I should receive a response with statusCode and user claimSet
+        Given I send a new POST request with <contentType> and <accept> to the fetchQuestions endpoint
+        Then I wait for the Lambda to warm up
         Examples:
-            | statusCode |
-            | 201        |
+            | contentType      | accept           |
+            | application/json | application/json |

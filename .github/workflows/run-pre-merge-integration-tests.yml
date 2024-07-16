@@ -1,0 +1,65 @@
+name: Pre-merge integration test
+on:
+  workflow_call:
+    secrets:
+      AWS_PRE_MERGE_ROLE_ARN: { required: true }
+      PREMERGE_PARAMETER_PREFIX_STACK_NAME: { required: true }
+      API_KEY_DEV: { required: true }
+      CORE_STUB_URL: { required: true }
+      CORE_STUB_USERNAME: { required: true }
+      CORE_STUB_PASSWORD: { required: true }
+      ORCHESTRATOR_STUB_URL: { required: true }
+      AWS_PRE_MERGE_S3_BUCKET_NAME: { required: true }
+
+permissions: {}
+
+jobs:
+  run-tests:
+    name: Integration
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    environment: hmrc-kbv-cri-dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Pull repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.aws_role_arn }}
+          aws-region: ${{ inputs.aws-region }}
+      
+      - name: Run pre-merge API tests against pre-merge test stack
+        env:
+          ENVIRONMENT: dev
+          APIGW_API_KEY: ${{ secrets.API_KEY_DEV }}
+          coreStubUrl: ${{ secrets.CORE_STUB_URL }}
+          coreStubUsername: ${{ secrets.CORE_STUB_USERNAME }}
+          coreStubPassword: ${{ secrets.CORE_STUB_PASSWORD }}
+          orchestratorStubUrl: ${{ secrets.ORCHESTRATOR_STUB_URL }}
+          CUCUMBER_PUBLISH_ENABLED: true
+          BROWSER: chrome-headless
+        run: |
+          echo "🤞 now run integration tests..."
+          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
+          API_GATEWAY_ID_PRIVATE=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "PrivateHmrcKbvApiGatewayId").OutputValue')
+          API_GATEWAY_ID_PUBLIC=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "HmrcKbvApiGatewayId").OutputValue')
+          export API_GATEWAY_ID_PRIVATE=$API_GATEWAY_ID_PRIVATE
+          export API_GATEWAY_ID_PUBLIC=$API_GATEWAY_ID_PUBLIC
+          export API_GATEWAY_KEY=${{ secrets.API_KEY_DEV }}
+          cd feature-tests && npm test cucumber -P tags=@pre-merge
+
+      - name: Delete pre-merge test stack
+        if: always()
+        run: |
+          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
+          aws cloudformation delete-stack --region eu-west-2 --stack-name $STACK_NAME

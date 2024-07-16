@@ -34,7 +34,7 @@ defineFeature(feature, (test) => {
     when,
   }) => {
     given(
-      /^I send a POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
+      /^I send a questions POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
       async (contentType: string, accept: string) => {
         postRequestToHmrcKbvEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
@@ -55,24 +55,24 @@ defineFeature(feature, (test) => {
             });
           });
       }
-    ),
-      when(/^I send a GET request to the question endpoint$/, async () => {
-        getRequestToQuestionEndpoint = await request(
-          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
-        )
-          .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          getRequestToQuestionEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
-        );
-      });
+    );
+    when(/^I send a GET request to the question endpoint$/, async () => {
+      getRequestToQuestionEndpoint = await request(
+        EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+      )
+        .get(EndPoints.QUESTION_ENDPOINT)
+        .set("Content-Type", "application/json")
+        .set("Accept", "application/json")
+        .set("session-id", getValidSessionId);
+      console.log(
+        "POST Request to HMRC KBV Status Code= ",
+        getRequestToQuestionEndpoint.statusCode
+      );
+      console.log(
+        "POST Request to HMRC KBV = " +
+          JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
+      );
+    });
 
     then(
       /^I should receive a valid response with statusCode (.*) from the questions endpoint$/,
