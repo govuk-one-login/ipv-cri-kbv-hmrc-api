@@ -6,3 +6,4 @@ Feature: CORE-STUB-CreateSessionRequest-HappyPath.feature
         Examples:
             | contentType      | accept           |
             | application/json | application/json |
+            

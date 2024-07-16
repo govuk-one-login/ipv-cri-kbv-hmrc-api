@@ -37,7 +37,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.aws_role_arn }}
           aws-region: ${{ inputs.aws-region }}
-      
+
       - name: Run pre-merge API tests against pre-merge test stack
         env:
           ENVIRONMENT: dev
