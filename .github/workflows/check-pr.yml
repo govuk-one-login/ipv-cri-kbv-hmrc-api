@@ -24,6 +24,22 @@ jobs:
     name: Run tests
     uses: ./.github/workflows/run-mocked-tests.yml
 
+  pre-merge-integration-tests:
+    name: Run pre-merge integration tests
+    uses: ./.github/workflows/run-pre-merge-integration-tests.yml
+    secrets:
+      AWS_PRE_MERGE_ROLE_ARN: ${{ secrets.AWS_PRE_MERGE_ROLE_ARN }}
+      PREMERGE_PARAMETER_PREFIX_STACK_NAME: ${{ secrets.PREMERGE_PARAMETER_PREFIX_STACK_NAME }}
+      API_KEY_DEV: ${{ secrets.API_KEY_HMRC_KBV_DEV }}
+      CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
+      CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
+      CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
+      ORCHESTRATOR_STUB_URL: ${{ secrets.ORCHESTRATOR_STUB_URL }}
+      AWS_PRE_MERGE_S3_BUCKET_NAME: ${{ secrets.AWS_PRE_MERGE_S3_BUCKET_NAME }}
+    permissions:
+      id-token: write
+      contents: read
+
   deploy:
     name: Preview
     uses: ./.github/workflows/deploy-branch.yml

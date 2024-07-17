@@ -14,8 +14,8 @@ on:
 permissions: {}
 
 jobs:
-  run-tests:
-    name: Integration
+  build:
+    name: Build Integration Tests
     timeout-minutes: 15
     runs-on: ubuntu-latest
     environment: hmrc-kbv-cri-dev
@@ -30,8 +30,57 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm test
 
+  deploy:
+    name: Deploy Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    concurrency:
+      group: deploy-development-${{ github.head_ref || github.ref_name }}
+    environment:
+      name: development
+      url: ${{ steps.deploy.outputs.stack-url }}
+    outputs:
+      aws-region: ${{ steps.deploy.outputs.aws-region }}
+      stack-name: ${{ steps.deploy.outputs.stack-name }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Deploy stack
+        uses: govuk-one-login/github-actions/sam/deploy-stack@main
+        id: deploy
+        with:
+          sam-deployment-bucket: ${{ secrets.AWS_PRE_MERGE_S3_BUCKET_NAME }}
+          aws-role-arn: ${{ secrets.AWS_PRE_MERGE_ROLE_ARN }}
+          stack-name: pre-merge-${{ needs.build.outputs.sha_short}}
+          cache-name: hmrc-kbv-cri-api-${{ needs.build.outputs.sha_short}}
+          s3-prefix: pre-merge
+          pull-repository: true
+          delete-failed-stack: true
+          tags: |
+            cri:component=hmrc-kbv-cri-api
+            cri:stack-type=pre-merge
+            cri:application=Lime
+            cri:deployment-source=github-actions
+          parameters: |
+            DeploymentType=pre-merge-integration
+            UseApiKey=" "
+            ParameterPrefix=${{ secrets.PREMERGE_PARAMETER_PREFIX_STACK_NAME }}
+            Environment=dev
+
+  test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy
+    concurrency:
+      group: test-development-${{ github.head_ref || github.ref_name }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
       - name: Assume AWS Role
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -47,7 +96,6 @@ jobs:
           coreStubPassword: ${{ secrets.CORE_STUB_PASSWORD }}
           orchestratorStubUrl: ${{ secrets.ORCHESTRATOR_STUB_URL }}
           CUCUMBER_PUBLISH_ENABLED: true
-          BROWSER: chrome-headless
         run: |
           echo "🤞 now run integration tests..."
           STACK_NAME=${{ needs.deploy.outputs.stack-name }}
