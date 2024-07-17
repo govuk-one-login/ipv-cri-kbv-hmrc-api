@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import EndPoints from "../apiEndpoints/endpoints";
 import request from "supertest";
 import { App } from "supertest/types";
@@ -12,11 +13,14 @@ export async function generateClaimsUrl() {
   const ninoValue = "&nino=AA0000002I";
   const claimsForUserUrl =
     EndPoints.PATH_GET_CLAIMS + EndPoints.CRI_ID + rowNumber + ninoValue;
-  getClaimsUrl = await request(EndPoints.BASE_URL)
+  getClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .get(claimsForUserUrl)
     .set(
       "Authorization",
-      process.env.CORE_STUB_USER_NAME + ":" + process.env.CORE_STUB_PASSWORD
+      getBasicAuthenticationHeader(
+        process.env.CORE_STUB_USERNAME,
+        process.env.CORE_STUB_PASSWORD
+      )
     )
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");
@@ -31,15 +35,25 @@ export async function generateClaimsUrl() {
   expect(getClaimsUrl.statusCode).toEqual(Number(200));
 }
 
+export function getBasicAuthenticationHeader(
+  username: string | undefined,
+  password: string | undefined
+) {
+  return "Basic " + btoa(username + ":" + password);
+}
+
 export async function postUpdatedClaimsUrl() {
   console.log("Sending Claimset payload to CoreStub");
   const claimSetBody = getClaimsUrl.text;
-  postClaimsUrl = await request(EndPoints.BASE_URL)
+  postClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .post(EndPoints.PATH_POST_CLAIMS + EndPoints.CRI_ID)
     .send(claimSetBody)
     .set(
       "Authorization",
-      process.env.CORE_STUB_USER_NAME + ":" + process.env.CORE_STUB_PASSWORD
+      getBasicAuthenticationHeader(
+        process.env.CORE_STUB_USERNAME,
+        process.env.CORE_STUB_PASSWORD
+      )
     )
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");

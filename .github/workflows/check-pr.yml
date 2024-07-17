@@ -28,20 +28,20 @@ jobs:
     name: Run pre-merge integration tests
     uses: ./.github/workflows/run-pre-merge-integration-tests.yml
     secrets:
-      AWS_PRE_MERGE_ROLE_ARN: ${{ secrets.AWS_PRE_MERGE_ROLE_ARN }}
-      PREMERGE_PARAMETER_PREFIX_STACK_NAME: ${{ secrets.PREMERGE_PARAMETER_PREFIX_STACK_NAME }}
-      API_KEY_DEV: ${{ secrets.API_KEY_HMRC_KBV_DEV }}
+      PREMERGE_PARAMETER_PREFIX_STACK_NAME: "kbv-hmrc-cri-api"
+      API_KEY_DEV: "NOT_USED_CURRENTLY"
       CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
       CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
       CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
       ORCHESTRATOR_STUB_URL: ${{ secrets.ORCHESTRATOR_STUB_URL }}
-      AWS_PRE_MERGE_S3_BUCKET_NAME: ${{ secrets.AWS_PRE_MERGE_S3_BUCKET_NAME }}
+
     permissions:
       id-token: write
       contents: read
 
-  deploy:
-    name: Preview
+  deploy-preview-stack:
+    name: Preview Stack Deployment
+    needs: pre-merge-integration-tests
     uses: ./.github/workflows/deploy-branch.yml
     permissions:
       id-token: write
@@ -49,11 +49,11 @@ jobs:
 
   aws-tests:
     name: Run tests
-    needs: deploy
+    needs: deploy-preview-stack
     uses: ./.github/workflows/run-aws-tests.yml
     permissions:
       id-token: write
       contents: read
     with:
-      stack-name: ${{ needs.deploy.outputs.stack-name }}
-      aws-region: ${{ needs.deploy.outputs.aws-region }}
+      stack-name: ${{ needs.deploy-preview-stack.outputs.stack-name }}
+      aws-region: ${{ needs.deploy-preview-stack.outputs.aws-region }}

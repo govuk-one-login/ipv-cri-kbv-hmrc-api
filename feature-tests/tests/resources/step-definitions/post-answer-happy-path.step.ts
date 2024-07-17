@@ -61,6 +61,11 @@ defineFeature(feature, (test) => {
               cb(null, data.toString());
             });
           });
+        expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(Number(200));
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code= ",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
       }
     );
     when(
