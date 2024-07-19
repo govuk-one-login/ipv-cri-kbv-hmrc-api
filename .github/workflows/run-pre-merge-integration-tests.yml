@@ -1,0 +1,135 @@
+name: Pre-merge integration test
+on:
+  workflow_call:
+    secrets:
+      PREMERGE_PARAMETER_PREFIX_STACK_NAME: { required: true }
+      API_KEY_DEV: { required: true }
+      CORE_STUB_URL: { required: true }
+      CORE_STUB_USERNAME: { required: true }
+      CORE_STUB_PASSWORD: { required: true }
+      ORCHESTRATOR_STUB_URL: { required: true }
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 15
+    concurrency:
+      group: build-development-${{ github.head_ref || github.ref_name }}
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get stack name vars
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Build SAM application
+        uses: govuk-one-login/github-actions/sam/build-application@main
+        id: build
+        with:
+          template: infrastructure/template.yaml
+          cache-name: ipv-cri-hmrc-kbv-api-${{ steps.vars.outputs.sha_short }}
+          pull-repository: true
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    concurrency:
+      group: deploy-development-${{ github.head_ref || github.ref_name }}
+    environment:
+      name: development
+      url: ${{ steps.deploy.outputs.stack-url }}
+    outputs:
+      aws-region: ${{ steps.deploy.outputs.aws-region }}
+      stack-name: ${{ steps.deploy.outputs.stack-name }}
+    steps:
+      - name: Deploy stack
+        uses: govuk-one-login/github-actions/sam/deploy-stack@main
+        id: deploy
+        with:
+          sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
+          aws-role-arn: ${{ vars.DEPLOYMENT_ROLE_ARN }}
+          stack-name: pre-merge-${{ needs.build.outputs.sha_short}}
+          cache-name: ipv-cri-hmrc-kbv-api-${{ needs.build.outputs.sha_short}}
+          s3-prefix: pre-merge
+          pull-repository: true
+          delete-failed-stack: true
+          tags: |
+            cri:component=ipv-cri-kbv-hmrc-api
+            cri:stack-type=pre-merge
+            cri:application=Lime
+            cri:deployment-source=github-actions
+          parameters: |
+            DeploymentType=pre-merge-integration
+            UseApiKey=" "
+            ParameterPrefix=${{ secrets.PREMERGE_PARAMETER_PREFIX_STACK_NAME }}
+            Environment=dev
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy
+    concurrency:
+      group: test-development-${{ github.head_ref || github.ref_name }}
+    environment:
+      name: development
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+          submodules: true
+
+      - name: Setup SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: 20
+
+      - name: Run pre-merge API tests against pre-merge test stack
+        env:
+          ENVIRONMENT: dev
+          APIGW_API_KEY: ${{ secrets.API_KEY_DEV }}
+          CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
+          CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
+          CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
+          ORCHESTRATOR_STUB_URL: ${{ secrets.ORCHESTRATOR_STUB_URL }}
+          CUCUMBER_PUBLISH_ENABLED: true
+        run: |
+          echo "🤞 now run integration tests..."
+          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
+          API_GATEWAY_ID_PRIVATE=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "PrivateApiGatewayId").OutputValue')
+          API_GATEWAY_ID_PUBLIC=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "PublicApiGatewayId").OutputValue')
+          export API_GATEWAY_ID_PRIVATE=$API_GATEWAY_ID_PRIVATE
+          export API_GATEWAY_ID_PUBLIC=$API_GATEWAY_ID_PUBLIC
+          export API_GATEWAY_KEY=${{ secrets.API_KEY_DEV }}
+          cd feature-tests && npm install && tagFilter=@pre-merge npm test
+
+      - name: Delete pre-merge test stack
+        if: always()
+        run: |
+          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
+          aws cloudformation delete-stack --region eu-west-2 --stack-name $STACK_NAME

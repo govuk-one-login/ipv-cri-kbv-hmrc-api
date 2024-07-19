@@ -37,6 +37,10 @@ Parameters:
     Type: String
     Default: common-cri-api
     Description: The name of the stack containing the common CRI lambdas/infra
+  ParameterPrefix:
+    Type: String
+    Default: "none"
+    Description: If set the this value will be used for ParameterStore prefix instead of AWS::StackName
   DeploymentType:
     Type: String
     Default: "pipeline"
@@ -63,6 +67,11 @@ Conditions:
   #   - !Condition IsDeployedFromPipeline
   EnforceCodeSigning: !Not [!Equals [!Ref CodeSigningConfigArn, ""]]
   UsePermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundary, ""]]
+  UseParameterPrefix:
+    Fn::Not:
+      - Fn::Equals:
+          - !Ref ParameterPrefix
+          - "none"
   IsProdEnvironment:
     Fn::Equals:
       - !Ref Environment
@@ -88,6 +97,8 @@ Globals:
         SQS_AUDIT_EVENT_QUEUE_URL: !ImportValue AuditEventQueueUrl
         SQS_AUDIT_EVENT_PREFIX: !Ref AuditEventNamePrefix
         POWERTOOLS_METRICS_NAMESPACE: !Ref CriIdentifier
+        PARAMETER_PREFIX:
+          !If [UseParameterPrefix, !Ref ParameterPrefix, !Ref AWS::StackName]
         AWS_LAMBDA_EXEC_WRAPPER: /opt/dynatrace
         DT_OPEN_TELEMETRY_ENABLE_INTEGRATION: true
         DT_CONNECTION_AUTH_TOKEN: !Sub
@@ -347,7 +358,10 @@ Resources:
       DefinitionUri: ../step-functions/fetch-questions.asl.json
       DefinitionSubstitutions:
         QuestionsTableName: !Ref QuestionsTable
-        QuestionsUrl: !Ref QuestionsUrl
+        QuestionsUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/QuestionsUrl"
+          - !Sub "/${AWS::StackName}/QuestionsUrl"
         UserAgent: !Ref UserAgent
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
@@ -382,7 +396,14 @@ Resources:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTtl"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${QuestionsUrl}
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/QuestionsUrl"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
         - Statement:
             Effect: Allow
@@ -550,7 +571,14 @@ Resources:
             Resource:
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AnswersUrl}
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/AnswersUrl"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
@@ -568,7 +596,10 @@ Resources:
         AnswersTableName: !Ref AnswersTable
         QuestionsTableName: !Ref QuestionsTable
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        AnswersUrl: !Ref AnswersUrl
+        AnswersUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/AnswersUrl"
+          - !Sub "/${AWS::StackName}/AnswersUrl"
         UserAgent: !Ref UserAgent
         BearerTokenName: !Ref BearerTokenName
         SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn

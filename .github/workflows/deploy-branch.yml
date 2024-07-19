@@ -17,16 +17,28 @@ permissions:
 
 jobs:
   build:
-    name: Build SAM app
     runs-on: ubuntu-latest
     permissions: {}
+    timeout-minutes: 15
+    concurrency:
+      group: build-development-${{ github.head_ref || github.ref_name }}
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get stack name vars
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build SAM application
-        uses: govuk-one-login/github-actions/sam/build-application@cd7d35dde348251237efbbaee5345e95adef0321
+        uses: govuk-one-login/github-actions/sam/build-application@main
         id: build
         with:
           template: infrastructure/template.yaml
-          cache-key: kbv-hmrc-api
+          cache-name: ipv-cri-hmrc-kbv-api-${{ steps.vars.outputs.sha_short }}
           pull-repository: true
 
   deploy:
@@ -44,13 +56,13 @@ jobs:
       stack-name: ${{ steps.deploy.outputs.stack-name }}
     steps:
       - name: Deploy stack
-        uses: govuk-one-login/github-actions/sam/deploy-stack@cd7d35dde348251237efbbaee5345e95adef0321
+        uses: govuk-one-login/github-actions/sam/deploy-stack@main
         id: deploy
         with:
           sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
           aws-role-arn: ${{ vars.DEPLOYMENT_ROLE_ARN }}
           stack-name-prefix: preview-kbv-hmrc-api
-          cache-key: kbv-hmrc-api
+          cache-name: ipv-cri-hmrc-kbv-api-${{ needs.build.outputs.sha_short}}
           s3-prefix: preview
           pull-repository: true
           delete-failed-stack: true
@@ -62,5 +74,6 @@ jobs:
           parameters: |
             DeploymentType=pre-merge-integration
             UseApiKey=" "
-            ParameterPrefix=ipv-cri-kbv-hmrc-api
+            ParameterPrefix=kbv-hmrc-cri-api
             Environment=dev
+            CommonStackName=hmrc-kbv-common-cri-api-local
