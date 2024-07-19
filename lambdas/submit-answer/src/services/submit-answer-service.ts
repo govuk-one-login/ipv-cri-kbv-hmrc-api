@@ -48,12 +48,11 @@ export class SubmitAnswerService {
     const start: number = Date.now();
 
     return await fetch(event.parameters.url, {
-      //How to get URL from template? Can JB pass url in event?
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "User-Agent": event.parameters.userAgent,
-        Authorization: "Bearer " + event.bearerToken.value, //don't think we'll have this in the event
+        Authorization: "Bearer " + event.bearerToken.value,
       },
       body: JSON.stringify({
         correlationId: event?.usersQuestions?.Items[0]?.correlationId?.S,
@@ -158,7 +157,7 @@ export class SubmitAnswerService {
 
   private async getNino(event: any): Promise<string> {
     const personIdentity = await this.getPersonIdentityItem(event.sessionId);
-    const nino: string = personIdentity?.socialSecurityRecord?.personalNumber;
+    const nino: string = personIdentity.socialSecurityRecord[0].personalNumber;
     return nino;
   }
 

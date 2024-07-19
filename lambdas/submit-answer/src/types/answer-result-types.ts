@@ -23,16 +23,19 @@ export class AnswerResultItem {
   correlationId: string;
   ttl: number;
   answers: SubmitAnswerResult[];
+  verificationScore: number;
 
   constructor(
     sessionId: string,
     correlationId: string,
     ttl: number,
-    answers: SubmitAnswerResult[]
+    answers: SubmitAnswerResult[],
+    verificationScore: number
   ) {
     this.sessionId = sessionId;
     this.correlationId = correlationId;
     this.ttl = ttl;
     this.answers = answers;
+    this.verificationScore = verificationScore;
   }
 }

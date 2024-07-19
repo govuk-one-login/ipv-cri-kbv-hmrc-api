@@ -655,10 +655,10 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ResultsTable
         - LambdaInvokePolicy:
             FunctionName: !Ref TimeFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref CredentialSubjectFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref IssueCredentialFunction
         - LambdaInvokePolicy:
@@ -682,7 +682,6 @@ Resources:
         MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
         JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
         TimeFunctionArn: !GetAtt TimeFunction.Arn
-        CredentialSubjectFunctionArn: !GetAtt CredentialSubjectFunction.Arn
         IssueCredentialArn: !GetAtt IssueCredentialFunction.Arn
         JwtSignerFunction: !GetAtt JwtSignerFunction.Arn
         CommonStackName: !Ref CommonStackName
@@ -901,37 +900,6 @@ Resources:
 
   ####################################################################
   #                                                                  #
-  # CredentialSubjectFunction                                        #
-  #                                                                  #
-  ####################################################################
-
-  CredentialSubjectFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/credential-subject/src/credential-subject-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  CredentialSubjectFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CredentialSubjectFunction}"
-      RetentionInDays: 30
-
-  # CredentialSubjectFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref CredentialSubjectFunctionLogGroup
-
-  ####################################################################
-  #                                                                  #
   # EvidenceCheckDetailsFunction                                     #
   #                                                                  #
   ####################################################################
@@ -980,11 +948,14 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-issuecredential"
           ENVIRONMENT: !Ref Environment
+          RESULTS_TABLE_NAME: !Ref ResultsTable
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ResultsTable
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]

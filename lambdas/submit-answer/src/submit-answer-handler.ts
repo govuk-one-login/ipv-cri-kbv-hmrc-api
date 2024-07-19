@@ -6,6 +6,7 @@ import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 import { MetricsProbe } from "../../../lib/src/Service/metrics-probe";
 import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { VerificationScoreCalculator } from "./utils/verification-score-calculator";
 
 import {
   HandlerMetric,
@@ -15,6 +16,7 @@ import {
 import { SubmitAnswerResult } from "./types/answer-result-types";
 
 const logger = new Logger();
+const verificationScoreCalculator = new VerificationScoreCalculator();
 
 export class SubmitAnswerHandler implements LambdaInterface {
   submitAnswerService: SubmitAnswerService;
@@ -36,12 +38,13 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
       await this.resultService.saveResults(
         event.sessionId,
-        event.correlationId,
+        event.dynamoResult.Item.correlationId.S,
         event.usersQuestions.Items[0].expiryDate,
-        answerResult
+        answerResult,
+        verificationScoreCalculator.calculateVerificationScore(answerResult)
       );
 
-      return { messsage: "AnswerResults Saved" }; //what do we return here?
+      return { messsage: "AnswerResults Saved" };
     } catch (error: any) {
       const lambdaName = SubmitAnswerHandler.name;
       const errorText: string = error.message;

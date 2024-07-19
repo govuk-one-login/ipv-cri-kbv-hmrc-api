@@ -1,6 +1,7 @@
 import { ResultsService } from "../../src/services/results-service";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { mock } from "jest-mock-extended";
+import { VerificationScoreCalculator } from "../../src/utils/verification-score-calculator";
 import {
   AnswerResultItem,
   SubmitAnswerResult,
@@ -11,6 +12,7 @@ describe(ResultsService, () => {
   let service: ResultsService;
 
   const mockDynamoDocument = mock<DynamoDBDocument>();
+  const verificationScoreCalculator = new VerificationScoreCalculator();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -28,14 +30,20 @@ describe(ResultsService, () => {
       "sessionId",
       "correlationId",
       1234,
-      submitAnswerResultArray
+      submitAnswerResultArray,
+      verificationScoreCalculator.calculateVerificationScore(
+        submitAnswerResultArray
+      )
     );
 
     const result = await service.saveResults(
       "sessionId",
       "correlationId",
       1234,
-      submitAnswerResultArray
+      submitAnswerResultArray,
+      verificationScoreCalculator.calculateVerificationScore(
+        submitAnswerResultArray
+      )
     );
 
     expect(mockDynamoDocument.send).toHaveBeenCalledTimes(1);

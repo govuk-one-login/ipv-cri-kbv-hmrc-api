@@ -79,6 +79,7 @@ export class SaveQuestionsService {
     return questionResultItemInfo;
   }
 
+  //record string changed to be just string
   public async getExistingSavedItem(
     sessionId: Record<string, unknown>
   ): Promise<any> {
