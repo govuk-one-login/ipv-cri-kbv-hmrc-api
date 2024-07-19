@@ -31,11 +31,11 @@ describe("fetch-questions-happy", () => {
 
   // Both the same until happy path test user has questions
   const happyPathSocialSecurityRecord = {
-    socialSecurityRecord: [{ personalNumber: "AA000003D" }],
+    socialSecurityRecord: [{ personalNumber: "KE000000C" }],
   };
 
   const unhappyPathSocialSecurityRecord = {
-    socialSecurityRecord: [{ personalNumber: "AA300005D" }],
+    socialSecurityRecord: [{ personalNumber: "NA000000Q" }],
   };
 
   const personIdentity = {
@@ -99,7 +99,7 @@ describe("fetch-questions-happy", () => {
       ).Item;
 
       // Will be the count of questions after question filtering
-      expect(questionItemResult?.questions?.length).toEqual(6);
+      expect(questionItemResult?.questions?.length).toEqual(3);
 
       const questions = questionItemResult?.questions;
 

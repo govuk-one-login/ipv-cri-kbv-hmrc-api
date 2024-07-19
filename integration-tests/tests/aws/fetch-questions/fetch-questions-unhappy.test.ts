@@ -36,7 +36,7 @@ describe("fetch-questions-unhappy", () => {
   const personIdentityWithBadNINOFormat = {
     sessionId: sessionId,
     expiryDate: ttl,
-    socialSecurityRecord: [{ personalNumber: "1234" }],
+    socialSecurityRecord: [{ personalNumber: "ER000500Q" }],
   };
 
   let stackOutputValues: Partial<{
