@@ -27,8 +27,8 @@ describe("QuestionsRetrievalService", () => {
 
   const mockInputEvent = {
     parameters: {
-      url: "dummyUrl",
-      userAgent: "dummyUserAgent",
+      url: { value: "dummyUrl" },
+      userAgent: { value: "dummyUserAgent" },
     },
     bearerToken: {
       value: "dummyOAuthToken",

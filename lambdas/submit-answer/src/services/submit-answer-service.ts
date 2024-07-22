@@ -47,11 +47,11 @@ export class SubmitAnswerService {
     // Response Latency (Start)
     const start: number = Date.now();
 
-    return await fetch(event.parameters.url, {
+    return await fetch(event.parameters.url.value, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.parameters.userAgent,
+        "User-Agent": event.parameters.userAgent.value,
         Authorization: "Bearer " + event.bearerToken.value,
       },
       body: JSON.stringify({

@@ -149,23 +149,43 @@
         "SecretId": "HMRCBearerToken"
       },
       "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
-      "Next": "Get Questions URL and User Agent",
+      "Next": "Create Parameters State Location",
       "ResultSelector": {
         "value.$": "$.SecretString"
       },
       "ResultPath": "$.bearerToken"
     },
-    "Get Questions URL and User Agent": {
-      "Type": "Task",
-      "Next": "Invoke FetchQuestions Lambda",
-      "Parameters": {
-        "Names": ["${QuestionsUrl}", "${UserAgent}"]
+    "Create Parameters State Location": {
+      "Type": "Pass",
+      "Next": "GetParameter QuestionsUrl",
+      "Result": {
+        "url": "NOT_SET",
+        "userAgent": "NOT_SET"
       },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-      "ResultPath": "$.parameters",
+      "ResultPath": "$.parameters"
+    },
+    "GetParameter QuestionsUrl": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${QuestionsUrl}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "GetParameter User Agent",
       "ResultSelector": {
-        "url.$": "$.Parameters[0].Value",
-        "userAgent.$": "$.Parameters[1].Value"
+        "value.$": "$.Parameter.Value"
+      },
+      "ResultPath": "$.parameters.url"
+    },
+    "GetParameter User Agent": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${UserAgent}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "Invoke FetchQuestions Lambda",
+      "ResultPath": "$.parameters.userAgent",
+      "ResultSelector": {
+        "value.$": "$.Parameter.Value"
       }
     },
     "Invoke FetchQuestions Lambda": {

@@ -253,23 +253,43 @@
         "SecretId": "HMRCBearerToken"
       },
       "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
-      "Next": "Get Answers URL and User Agent",
+      "Next": "Create Parameters State Location",
       "ResultSelector": {
         "value.$": "$.SecretString"
       },
       "ResultPath": "$.bearerToken"
     },
-    "Get Answers URL and User Agent": {
-      "Type": "Task",
-      "Next": "Invoke Submit Answers Lambda",
-      "Parameters": {
-        "Names": ["${AnswersUrl}", "${UserAgent}"]
+    "Create Parameters State Location": {
+      "Type": "Pass",
+      "Next": "GetParameter AnswersUrl",
+      "Result": {
+        "url": "NOT_SET",
+        "userAgent": "NOT_SET"
       },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameters",
-      "ResultPath": "$.parameters",
+      "ResultPath": "$.parameters"
+    },
+    "GetParameter AnswersUrl": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${AnswersUrl}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "GetParameter User Agent",
       "ResultSelector": {
-        "url.$": "$.Parameters[0].Value",
-        "userAgent.$": "$.Parameters[1].Value"
+        "value.$": "$.Parameter.Value"
+      },
+      "ResultPath": "$.parameters.url"
+    },
+    "GetParameter User Agent": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${UserAgent}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "Invoke Submit Answers Lambda",
+      "ResultPath": "$.parameters.userAgent",
+      "ResultSelector": {
+        "value.$": "$.Parameter.Value"
       }
     },
     "Invoke Submit Answers Lambda": {
