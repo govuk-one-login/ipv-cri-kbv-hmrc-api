@@ -83,6 +83,8 @@ Globals:
     CodeUri: ..
     Runtime: nodejs18.x
     Architectures: [arm64]
+    MemorySize: 256
+
     PermissionsBoundary:
       !If [UsePermissionsBoundary, !Ref PermissionsBoundary, !Ref AWS::NoValue]
     Layers:

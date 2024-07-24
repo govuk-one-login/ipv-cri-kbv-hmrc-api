@@ -17,7 +17,7 @@ describe("fetch-questions-unhappy", () => {
   const sessionItem = {
     sessionId: sessionId,
     attemptCount: 0,
-    clientId: "ipv-core-stub-aws-build",
+    clientId: "ipv-core-stub-aws-prod",
     clientIpAddress: "192.0.2.1",
     clientSessionId: uuidv4(),
     createdDate: Date.now(),

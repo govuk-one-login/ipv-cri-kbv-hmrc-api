@@ -123,13 +123,7 @@ jobs:
           STACK_NAME=${{ needs.deploy.outputs.stack-name }}
           API_GATEWAY_ID_PRIVATE=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "PrivateApiGatewayId").OutputValue')
           API_GATEWAY_ID_PUBLIC=$(aws cloudformation describe-stacks --stack-name $STACK_NAME | jq -r '.Stacks[].Outputs[] | select(.OutputKey == "PublicApiGatewayId").OutputValue')
-          export API_GATEWAY_ID_PRIVATE=$API_GATEWAY_ID_PRIVATE
-          export API_GATEWAY_ID_PUBLIC=$API_GATEWAY_ID_PUBLIC
+          export PRIVATE_API_GATEWAY="https://$API_GATEWAY_ID_PRIVATE.execute-api.eu-west-2.amazonaws.com/$ENVIRONMENT/"
+          export PUBLIC_API_GATEWAY="https://$API_GATEWAY_ID_PUBLIC.execute-api.eu-west-2.amazonaws.com/$ENVIRONMENT/"
           export API_GATEWAY_KEY=${{ secrets.API_KEY_DEV }}
           cd feature-tests && npm install && tagFilter=@pre-merge npm test
-
-      - name: Delete pre-merge test stack
-        if: always()
-        run: |
-          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
-          aws cloudformation delete-stack --region eu-west-2 --stack-name $STACK_NAME

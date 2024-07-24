@@ -108,6 +108,14 @@ export class FilterQuestionsService {
         return false;
       }
     });
+    logger.info(
+      "questions returned paye " +
+        payeCategory.length +
+        " sa " +
+        selfAssessmentCategory.length +
+        " tax " +
+        taxCreditCategory.length
+    );
     logger.info("The question keys have been sorted into categories");
 
     //3. Check to ensure at least two categories contain question keys
@@ -131,10 +139,22 @@ export class FilterQuestionsService {
       if (mediumConfidenceQuestions.length === 2) {
         //a. Returning two question keys if only two present
         const shuffledArray = this.shuffleArray(mediumConfidenceQuestions);
+        logger.info(
+          "2 questions selected " +
+            JSON.stringify([shuffledArray[0], shuffledArray[1]])
+        );
         return [shuffledArray[0], shuffledArray[1]];
       } else if (mediumConfidenceQuestions.length > 2) {
         //b. If more than two quesion keys are present, array is shuffled and first three question keys returned
         const shuffledArray = this.shuffleArray(mediumConfidenceQuestions);
+        logger.info(
+          "3 questions selected " +
+            JSON.stringify([
+              shuffledArray[0],
+              shuffledArray[1],
+              shuffledArray[2],
+            ])
+        );
         return [shuffledArray[0], shuffledArray[1], shuffledArray[2]];
       }
     }
