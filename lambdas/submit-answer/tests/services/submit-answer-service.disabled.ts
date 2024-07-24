@@ -1,5 +1,5 @@
 /*
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 
 import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
 
@@ -136,7 +136,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -145,7 +145,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -154,7 +154,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Valid
       );
 
@@ -163,7 +163,7 @@ describe("SubmitAnswerService", () => {
         AnswerServiceMetrics.ResponseQuestionKeyCount,
         Classification.SERVICE_SPECIFIC,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         apiResponse["answers"].length
       );
 
@@ -172,7 +172,7 @@ describe("SubmitAnswerService", () => {
         AnswerServiceMetrics.MappedAnswerKeyCount,
         Classification.SERVICE_SPECIFIC,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         apiResponse["answers"].length
       );
     });
@@ -204,7 +204,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -213,7 +213,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -222,7 +222,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Invalid
       );
     });
@@ -255,7 +255,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -264,7 +264,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -273,7 +273,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Invalid
       );
     });
@@ -306,7 +306,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -315,7 +315,7 @@ describe("SubmitAnswerService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "SubmitAnswersService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         401
       );
     });
@@ -350,7 +350,7 @@ describe("SubmitAnswerService", () => {
           HTTPMetric.ResponseLatency,
           Classification.HTTP,
           "SubmitAnswersService",
-          MetricUnits.Count,
+          MetricUnit.Count,
           expect.any(Number)
         );
 
@@ -359,7 +359,7 @@ describe("SubmitAnswerService", () => {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           "SubmitAnswersService",
-          MetricUnits.Count,
+          MetricUnit.Count,
           httpStatus
         );
       }

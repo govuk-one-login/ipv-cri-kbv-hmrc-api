@@ -1,6 +1,6 @@
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Logger } from "@aws-lambda-powertools/logger";
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 
 import {
   HandlerMetricExport,
@@ -20,6 +20,7 @@ import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
+// NOTE: these strings are also used in the metric for the outcome
 enum FetchQuestionsState {
   SufficientQuestions = "SufficientQuestions",
   ContinueSufficientQuestionAlreadyRetrieved = "ContinueSufficientQuestionAlreadyRetrieved",
@@ -27,18 +28,18 @@ enum FetchQuestionsState {
 }
 
 export class FetchQuestionsHandler implements LambdaInterface {
-  metricProbe: MetricsProbe;
+  metricsProbe: MetricsProbe;
   questionsRetrievalService: QuestionsRetrievalService;
   saveQuestionsService: SaveQuestionsService;
   filterQuestionsService: FilterQuestionsService;
 
   constructor(
-    metricProbe: MetricsProbe,
+    metricsProbe: MetricsProbe,
     questionsRetrievalService: QuestionsRetrievalService,
     saveQuestionsService: SaveQuestionsService,
     filterQuestionsService: FilterQuestionsService
   ) {
-    this.metricProbe = metricProbe;
+    this.metricsProbe = metricsProbe;
     this.questionsRetrievalService = questionsRetrievalService;
     this.saveQuestionsService = saveQuestionsService;
     this.filterQuestionsService = filterQuestionsService;
@@ -125,9 +126,15 @@ export class FetchQuestionsHandler implements LambdaInterface {
         }
       }
 
-      metricProbe.captureMetric(
+      this.metricsProbe.captureMetric(
+        `${fetchQuestionsState}`,
+        MetricUnit.Count,
+        1
+      );
+
+      this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
-        MetricUnits.Count,
+        MetricUnit.Count,
         CompletionStatus.OK
       );
 
@@ -140,9 +147,9 @@ export class FetchQuestionsHandler implements LambdaInterface {
       const errorMessage = `${lambdaName} : ${errorText}`;
       logger.error(errorMessage);
 
-      metricProbe.captureMetric(
+      this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
-        MetricUnits.Count,
+        MetricUnit.Count,
         CompletionStatus.ERROR
       );
 

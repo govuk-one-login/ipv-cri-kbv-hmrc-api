@@ -1,5 +1,5 @@
 import { Logger } from "@aws-lambda-powertools/logger";
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { QuestionsResult, Question } from "../types/questions-result-types";
 import {
   HTTPMetric,
@@ -8,10 +8,10 @@ import {
 
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
+import { StopWatch } from "../../../../lib/src/Service/stop-watch";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedQuestionKeyCount = "MappedQuestionKeyCount",
 }
 
 const ServiceName: string = "QuestionsRetrievalService";
@@ -19,9 +19,11 @@ const logger = new Logger({ serviceName: `${ServiceName}` });
 
 export class QuestionsRetrievalService {
   metricsProbe: MetricsProbe;
+  stopWatch: StopWatch;
 
   constructor(metricProbe: MetricsProbe) {
     this.metricsProbe = metricProbe;
+    this.stopWatch = new StopWatch();
   }
 
   public async retrieveQuestions(event: any): Promise<QuestionsResult> {
@@ -32,7 +34,7 @@ export class QuestionsRetrievalService {
     logger.info("Performing API Request");
 
     // Response Latency (Start)
-    const start: number = Date.now();
+    this.stopWatch.start();
 
     return await fetch(event.parameters.url.value, {
       method: "POST",
@@ -47,7 +49,7 @@ export class QuestionsRetrievalService {
     })
       .then(async (response) => {
         // Happy Path Response Latency
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
         logger.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
@@ -58,7 +60,7 @@ export class QuestionsRetrievalService {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           response.status
         );
 
@@ -81,7 +83,7 @@ export class QuestionsRetrievalService {
                   HTTPMetric.ResponseValidity,
                   Classification.HTTP,
                   ServiceName,
-                  MetricUnits.Count,
+                  MetricUnit.Count,
                   ResponseValidity.Valid
                 );
                 return questionsResult;
@@ -118,12 +120,12 @@ export class QuestionsRetrievalService {
           HTTPMetric.ResponseValidity,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           ResponseValidity.Invalid
         );
 
         // Error Path Response Latency
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
@@ -171,15 +173,7 @@ export class QuestionsRetrievalService {
       QuestionServiceMetrics.ResponseQuestionKeyCount,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
-      responseQuestions.length
-    );
-
-    this.metricsProbe.captureServiceMetric(
-      QuestionServiceMetrics.MappedQuestionKeyCount,
-      Classification.SERVICE_SPECIFIC,
-      ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       responseQuestions.length
     );
 
@@ -199,14 +193,14 @@ export class QuestionsRetrievalService {
     }
   }
 
-  private captureResponseLatency(start: number): number {
+  private captureResponseLatencyMetric(): number {
     // Response Latency (End)
-    const latency: number = Date.now() - start;
+    const latency: number = this.stopWatch.stop();
     this.metricsProbe.captureServiceMetric(
       HTTPMetric.ResponseLatency,
       Classification.HTTP,
       ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       latency
     );
 

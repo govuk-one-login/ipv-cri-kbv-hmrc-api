@@ -1,4 +1,4 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 
 export class CurrentTimeHandler implements LambdaInterface {
   public async handler(_event: unknown, _context: unknown): Promise<string> {

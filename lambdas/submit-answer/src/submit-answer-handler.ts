@@ -1,22 +1,29 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { Logger } from "@aws-lambda-powertools/logger";
-import { ResultsService } from "./services/results-service";
-import { SubmitAnswerService } from "./services/submit-answer-service";
-import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 
-import { MetricsProbe } from "../../../lib/src/Service/metrics-probe";
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
-import { VerificationScoreCalculator } from "./utils/verification-score-calculator";
+import {
+  HandlerMetricExport,
+  MetricsProbe,
+} from "../../../lib/src/Service/metrics-probe";
 
 import {
   HandlerMetric,
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
+import { ResultsService } from "./services/results-service";
+import { SubmitAnswerService } from "./services/submit-answer-service";
+import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 import { SubmitAnswerResult } from "./types/answer-result-types";
+import { VerificationScoreCalculator } from "./utils/verification-score-calculator";
 
-const logger = new Logger();
+const logger = new Logger({ serviceName: "SubmitAnswerHandler" });
 const verificationScoreCalculator = new VerificationScoreCalculator();
+
+enum SubmitAnswerHandlerMetrics {
+  VerificationScore = "VerificationScore",
+}
 
 export class SubmitAnswerHandler implements LambdaInterface {
   submitAnswerService: SubmitAnswerService;
@@ -31,17 +38,36 @@ export class SubmitAnswerHandler implements LambdaInterface {
     this.resultService = saveAnswerResultService;
   }
 
+  @logger.injectLambdaContext({ clearState: true })
+  @HandlerMetricExport.logMetrics({
+    throwOnEmptyMetrics: false,
+    captureColdStartMetric: true,
+  })
   public async handler(event: any, _context: unknown): Promise<object> {
     try {
       const answerResult: SubmitAnswerResult[] =
         await this.submitAnswerService.checkAnswers(event);
 
+      const verificationScore: number =
+        verificationScoreCalculator.calculateVerificationScore(answerResult);
       await this.resultService.saveResults(
         event.sessionId,
         event.dynamoResult.Item.correlationId.S,
         event.usersQuestions.Items[0].expiryDate,
         answerResult,
-        verificationScoreCalculator.calculateVerificationScore(answerResult)
+        verificationScore
+      );
+
+      metricProbe.captureMetric(
+        SubmitAnswerHandlerMetrics.VerificationScore,
+        MetricUnit.Count,
+        verificationScore
+      );
+
+      metricProbe.captureMetric(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.OK
       );
 
       return { messsage: "AnswerResults Saved" };
@@ -54,7 +80,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
       metricProbe.captureMetric(
         HandlerMetric.CompletionStatus,
-        MetricUnits.Count,
+        MetricUnit.Count,
         CompletionStatus.ERROR
       );
 
