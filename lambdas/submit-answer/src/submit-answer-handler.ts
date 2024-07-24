@@ -17,9 +17,11 @@ import { SubmitAnswerService } from "./services/submit-answer-service";
 import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 import { SubmitAnswerResult } from "./types/answer-result-types";
 import { VerificationScoreCalculator } from "./utils/verification-score-calculator";
+import { CheckDetailsCountCalculator } from "./utils/check-details-count-calculator";
 
 const logger = new Logger({ serviceName: "SubmitAnswerHandler" });
 const verificationScoreCalculator = new VerificationScoreCalculator();
+const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
 
 enum SubmitAnswerHandlerMetrics {
   VerificationScore = "VerificationScore",
@@ -50,12 +52,25 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
       const verificationScore: number =
         verificationScoreCalculator.calculateVerificationScore(answerResult);
+
+      const sessionId = event.sessionId;
+      const correlationId = event.dynamoResult.Item.correlationId.S;
+      const ttl = event.usersQuestions.Items[0].expiryDate as number;
+
       await this.resultService.saveResults(
-        event.sessionId,
-        event.dynamoResult.Item.correlationId.S,
-        event.usersQuestions.Items[0].expiryDate,
+        sessionId,
+        correlationId,
+        ttl,
         answerResult,
-        verificationScore
+        verificationScore,
+        checkDetailsCountCalculator.calculateAnswerCount(
+          answerResult,
+          "correct"
+        ),
+        checkDetailsCountCalculator.calculateAnswerCount(
+          answerResult,
+          "incorrect"
+        )
       );
 
       metricProbe.captureMetric(

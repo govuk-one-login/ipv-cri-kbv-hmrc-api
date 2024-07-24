@@ -33,7 +33,9 @@ describe(ResultsService, () => {
       submitAnswerResultArray,
       verificationScoreCalculator.calculateVerificationScore(
         submitAnswerResultArray
-      )
+      ),
+      2,
+      1
     );
 
     const result = await service.saveResults(
@@ -43,7 +45,9 @@ describe(ResultsService, () => {
       submitAnswerResultArray,
       verificationScoreCalculator.calculateVerificationScore(
         submitAnswerResultArray
-      )
+      ),
+      2,
+      1
     );
 
     expect(mockDynamoDocument.send).toHaveBeenCalledTimes(1);

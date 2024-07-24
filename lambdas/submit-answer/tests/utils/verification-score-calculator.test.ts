@@ -3,7 +3,7 @@ import { VerificationScoreCalculator } from "../../../submit-answer/src/utils/ve
 const testAnswerResult3CorrectAnswers = [
   {
     questionKey: "rti-p60-payment-for-year",
-    status: "incorrect",
+    status: "correct",
   },
   {
     questionKey: "rti-payslip-income-tax",

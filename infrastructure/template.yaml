@@ -834,6 +834,7 @@ Resources:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-submit-answer"
           PERSON_IDENTITY_TABLE_NAME: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
           RESULTS_TABLE_NAME: !Ref ResultsTable
+          CI_VALUE_PARAM_NAME: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/contraIndicator"
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
@@ -842,6 +843,13 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Ref ResultsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - ssm:GetParameters
+              - ssm:GetParameter
+            Resource:
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/contraIndicator
       VpcConfig:
         SecurityGroupIds:
           - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"

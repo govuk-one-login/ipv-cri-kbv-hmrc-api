@@ -24,10 +24,12 @@ import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 
 import { v4 as uuidv4 } from "uuid";
 import { ResultsRetrievalService } from "./services/results-retrieval-service";
+import { CheckDetailsBuilder } from "./utils/check-details-builder";
 
 const logger = new Logger({ serviceName: "IssueCredentialHandler" });
 const credentialSubjectBuilder = new CredentialSubjectBuilder();
 const evidenceBuilder = new EvidenceBuilder();
+const checkDetailsBuilder = new CheckDetailsBuilder();
 
 export class IssueCredentialHandler implements LambdaInterface {
   metricsProbe: MetricsProbe;
@@ -71,7 +73,18 @@ export class IssueCredentialHandler implements LambdaInterface {
         .build();
 
       const evidence: Array<Evidence> = evidenceBuilder
+        .addCheckDetails(
+          checkDetailsBuilder.buildCheckDetails(
+            answerResults.Item.checkDetailsCount
+          )
+        )
+        .addFailedCheckDetails(
+          checkDetailsBuilder.buildCheckDetails(
+            answerResults.Item.failedCheckDetailsCount
+          )
+        )
         .addVerificationScore(answerResults.Item.verificationScore)
+        .addCi(answerResults.Item.ci)
         .addTxn(correlationId)
         .build();
 
@@ -88,6 +101,8 @@ export class IssueCredentialHandler implements LambdaInterface {
         vc,
         jti
       );
+
+      logger.info("Verifiable Credential Successfully Created");
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
