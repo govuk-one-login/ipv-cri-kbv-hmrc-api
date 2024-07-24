@@ -7,12 +7,8 @@ import {
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
 } from "../../../utils/create-session";
-import {
-  ANSWER_POST_PAYLOAD,
-  ANSWER_POST_PAYLOAD_1,
-  ANSWER_POST_PAYLOAD_2,
-} from "../../../utils/answer_body";
 import { App } from "supertest/types";
+import { questionKeyResponse } from "../../../utils/answer_body";
 
 const feature = loadFeature(
   "./tests/resources/features/hmrcPost/hmrcAnswer-HappyPath.feature"
@@ -42,8 +38,8 @@ defineFeature(feature, (test) => {
       }
     );
     given(
-      /^I send a valid POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
-      async (contentType: string, accept: string) => {
+      /^I send a valid POST request with (.*) and (.*) to the fetchQuestions endpoint with status code (.*)$/,
+      async (contentType: string, accept: string, statusCode: string) => {
         postRequestToHmrcKbvEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -62,42 +58,46 @@ defineFeature(feature, (test) => {
               cb(null, data.toString());
             });
           });
-        expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(Number(200));
+        expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
         console.log(
-          "HMRC KBV fetchquestions endpoint Status Code= ",
+          "HMRC KBV fetchquestions endpoint Status Code =",
           postRequestToHmrcKbvEndpoint.statusCode
         );
       }
     );
-    when(
-      /^I send a GET request to the question endpoint followed by a POST request to the answer endpoint$/,
+    when(/^I send a GET request to the question endpoint$/, async () => {
+      getRequestToQuestionEndpoint = await request(
+        EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+      )
+        .get(EndPoints.QUESTION_ENDPOINT)
+        .set("Content-Type", "application/json")
+        .set("Accept", "application/json")
+        .set("session-id", getValidSessionId);
+      console.log(
+        "GET Request Question Endpoint - QuestionKey Response = " +
+          JSON.stringify(
+            getRequestToQuestionEndpoint.body.questionKey,
+            undefined,
+            2
+          )
+      );
+    });
+    and(
+      /^I send a POST request to the answer endpoint with the correct answerKey$/,
       async () => {
-        getRequestToQuestionEndpoint = await request(
-          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
-        )
-          .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          getRequestToQuestionEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
-        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(ANSWER_POST_PAYLOAD)
+          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_2_SA_I_F_P)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          postRequestToAnswerEndpoint.statusCode
+          "POST Request Answer Endpoint - QuestionKey sent = " +
+            JSON.stringify(postRequestToAnswerEndpoint.request)
         );
         console.log(
           "POST Request to HMRC KBV = " +
@@ -117,29 +117,21 @@ defineFeature(feature, (test) => {
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          getRequestToQuestionEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
         );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(ANSWER_POST_PAYLOAD_1)
+          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_RTI_PAYSLIP_IT)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          postRequestToAnswerEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(postRequestToAnswerEndpoint, undefined, 2)
-        );
       }
     );
 
@@ -154,29 +146,21 @@ defineFeature(feature, (test) => {
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          getRequestToQuestionEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
         );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(ANSWER_POST_PAYLOAD_2)
+          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_P_F_Y)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          postRequestToAnswerEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(postRequestToAnswerEndpoint, undefined, 2)
-        );
       }
     );
 
@@ -200,14 +184,6 @@ defineFeature(feature, (test) => {
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request to HMRC KBV Status Code= ",
-          getRequestToQuestionEndpoint.statusCode
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
-        );
         expect(getRequestToQuestionEndpoint.statusCode).toEqual(
           Number(finalStatusCode)
         );

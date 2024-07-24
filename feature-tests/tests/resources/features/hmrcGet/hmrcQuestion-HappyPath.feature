@@ -1,5 +1,6 @@
 Feature: HMRC-KBV-GET-Question-HappyPath.feature
 
+    @test
     Scenario Outline: Happy Path - Get request to /question Endpoint for userId
         Given I send a new questions request to the core stub with nino value <selectedNino>
         When I send a questions POST request with <contentType> and <accept> to the fetchQuestions endpoint

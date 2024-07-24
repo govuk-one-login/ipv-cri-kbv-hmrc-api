@@ -67,12 +67,12 @@ defineFeature(feature, (test) => {
         .set("Accept", "application/json")
         .set("session-id", getValidSessionId);
       console.log(
-        "POST Request to HMRC KBV Status Code= ",
+        "GET Request Questions Endpoint - Status Code= ",
         getRequestToQuestionEndpoint.statusCode
       );
       console.log(
-        "POST Request to HMRC KBV = " +
-          JSON.stringify(getRequestToQuestionEndpoint, undefined, 2)
+        "GET Request Questions Endpoint - QuestionKey Response = " +
+          JSON.stringify(getRequestToQuestionEndpoint.body.questionKey, undefined, 2)
       );
     });
 
