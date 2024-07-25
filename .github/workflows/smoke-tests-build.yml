@@ -1,0 +1,81 @@
+name: Smoke Test against Build
+
+on:
+  # schedule:
+  #   # Every weekday at 5am
+  #   - cron: "0 5 * * 1-5"
+  push:
+
+concurrency:
+  group: smoke-test-build
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ secrets.TEST_ENVIRONMENT }}
+  CUCUMBER_PUBLISH_ENABLED: true
+  coreStubUrl: ${{ secrets.CORE_STUB_URL }}
+  coreStubUsername: ${{ secrets.CORE_STUB_USERNAME }}
+  coreStubPassword: ${{ secrets.CORE_STUB_PASSWORD }}
+  orchestratorStubUrl: ${{ secrets.ORCHESTRATOR_STUB_URL }}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+          submodules: true
+
+      - name: Setup SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: 20
+
+      - name: Build Docker Image
+        run: docker build -t hmrc-kbv-api-feature-tests-image .
+      - name: Run Docker Container and Tests
+        run: docker run hmrc-kbv-api-feature-tests-image:latest
+
+      - name: Get test results history
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: LIME-Cucumber-gh-pages
+          path: LIME-Cucumber-gh-pages
+
+      - name: Cucumber HTML Report action
+        uses: PavanMudigonda/html-reporter-github-pages@v1.1
+        id: test-report
+        if: always()
+        with:
+          test_results: feature-tests/target/cucumber-report
+          gh_pages: LIME-Cucumber-gh-pages
+          results_history: feature-tests/results-history
+
+      - name: Publish Github Pages
+        if: always() && ${{ github.actor != 'dependabot[bot]' }}
+        uses: peaceiris/actions-gh-pages@v4.0.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: LIME-Cucumber-gh-pages
+          publish_dir: feature-tests/results-history
+          keep_files: true

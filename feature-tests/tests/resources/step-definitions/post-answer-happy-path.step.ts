@@ -9,6 +9,8 @@ import {
 } from "../../../utils/create-session";
 import { App } from "supertest/types";
 import { questionKeyResponse } from "../../../utils/answer_body";
+import { findObjectContainingValue } from "../../../utils/utility";
+
 
 const feature = loadFeature(
   "./tests/resources/features/hmrcPost/hmrcAnswer-HappyPath.feature"
@@ -19,6 +21,7 @@ defineFeature(feature, (test) => {
   let postRequestToAnswerEndpoint: any;
   let postRequestToHmrcKbvEndpoint: any;
   let getValidSessionId: string;
+  let questionKeyFromGetResponse: string;
 
   beforeEach(async () => {});
 
@@ -83,10 +86,14 @@ defineFeature(feature, (test) => {
             2
           )
       );
+      questionKeyFromGetResponse = JSON.stringify(await getRequestToQuestionEndpoint.body.questionKey, undefined,2);
     });
     and(
       /^I send a POST request to the answer endpoint with the correct answerKey$/,
       async () => {
+        let postPayload = await findObjectContainingValue(questionKeyResponse, questionKeyFromGetResponse);
+        console.log("Post Payload stringify = " + JSON.stringify(postPayload))
+        console.log("Post Payload normal = " + postPayload)
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )

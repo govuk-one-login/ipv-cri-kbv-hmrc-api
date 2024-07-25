@@ -24,3 +24,17 @@ export interface CurrentTimeDescriptor {
   milliseconds: number;
   seconds: number;
 }
+
+export async function findObjectContainingValue(obj: any, searchValue: string){
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const nestedObject = obj[key];
+      for (const nestedKey in nestedObject) {
+        if (nestedObject[nestedKey] === searchValue) {
+          return { [key]: nestedObject };
+        }
+      }
+    }
+  }
+  return null;
+}
