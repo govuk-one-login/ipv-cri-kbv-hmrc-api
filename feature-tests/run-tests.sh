@@ -7,8 +7,8 @@ cp /tsconfig.json . 2>/dev/null || :
 cp /jest.config.ts . 2>/dev/null || :
 cp /jest-cucumber-config.js . 2>/dev/null || :
 cp -R /tests ./tests 2>/dev/null || :
-cp -R /apiEndpoints ./apiEndpoints 2>/dev/null || :
-cp -R /node_modules ./node_modules 2>/dev/null || :
+cp -R /apiEndpoints 2>/dev/null || :
+cp -R /node_modules 2>/dev/null || :
 cp -R /utils ./utils 2>/dev/null || :
 
 # run tests and save the exit code

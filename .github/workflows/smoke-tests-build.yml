@@ -18,13 +18,19 @@ env:
   coreStubPassword: ${{ secrets.CORE_STUB_PASSWORD }}
   orchestratorStubUrl: ${{ secrets.ORCHESTRATOR_STUB_URL }}
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      id-token: write
+      contents: read
       packages: write
-
+    environment:
+      name: development
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
