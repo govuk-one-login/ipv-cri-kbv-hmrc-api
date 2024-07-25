@@ -56,7 +56,7 @@ jobs:
           node-version: 20
 
       - name: Build Docker Image
-        run: docker build -t hmrc-kbv-api-feature-tests-image .
+        run: cd feature-tests/ && docker build -t hmrc-kbv-api-feature-tests-image .
       - name: Run Docker Container and Tests
         run: docker run hmrc-kbv-api-feature-tests-image:latest
 

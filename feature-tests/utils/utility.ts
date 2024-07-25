@@ -25,7 +25,7 @@ export interface CurrentTimeDescriptor {
   seconds: number;
 }
 
-export async function findObjectContainingValue(obj: any, searchValue: string){
+export async function findObjectContainingValue(obj: any, searchValue: string) {
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const nestedObject = obj[key];

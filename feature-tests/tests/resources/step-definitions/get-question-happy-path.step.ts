@@ -72,7 +72,11 @@ defineFeature(feature, (test) => {
       );
       console.log(
         "GET Request Questions Endpoint - QuestionKey Response = " +
-          JSON.stringify(getRequestToQuestionEndpoint.body.questionKey, undefined, 2)
+          JSON.stringify(
+            getRequestToQuestionEndpoint.body.questionKey,
+            undefined,
+            2
+          )
       );
     });
 
