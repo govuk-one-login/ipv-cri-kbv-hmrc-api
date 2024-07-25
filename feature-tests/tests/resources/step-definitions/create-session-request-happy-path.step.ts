@@ -1,7 +1,6 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 import EndPoints from "../../../apiEndpoints/endpoints";
 import request from "supertest";
-import { timeDelayForTestEnvironment } from "../../../utils/utility";
 import {
   getSessionId,
   generateClaimsUrl,
@@ -34,33 +33,5 @@ defineFeature(feature, (test) => {
         getValidSessionId = getSessionId();
       }
     );
-
-    when(
-      /^I send a new POST request with (.*) and (.*) to the fetchQuestions endpoint$/,
-      async (contentType: string, accept: string) => {
-        postRequestToHmrcKbvEndpoint = await request(
-          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
-        )
-          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
-          .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
-          .buffer(true)
-          .parse((res, cb) => {
-            let data = Buffer.from("");
-            res.on("data", function (chunk) {
-              data = Buffer.concat([data, chunk]);
-            });
-            res.on("end", function () {
-              cb(null, data.toString());
-            });
-          });
-      }
-    );
-
-    then(/^I wait for the Lambda to warm up$/, async () => {
-      await timeDelayForTestEnvironment(300);
-    });
   });
 });

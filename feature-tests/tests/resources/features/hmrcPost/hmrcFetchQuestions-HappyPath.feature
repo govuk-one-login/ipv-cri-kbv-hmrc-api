@@ -1,5 +1,6 @@
 Feature: HMRC-KBV-GET-FetchQuestions-HappyPath.feature
 
+    @pre-merge
     Scenario Outline: Happy Path - Post Request to /fetchquestions Endpoint for userId
         Given I send a new fetchquestions request to the core stub with nino value <selectedNino>
         When I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint

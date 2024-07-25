@@ -85,32 +85,27 @@ defineFeature(feature, (test) => {
             2
           )
       );
-      questionKeyFromGetResponse = 
+      questionKeyFromGetResponse =
         await getRequestToQuestionEndpoint.body.questionKey;
     });
     and(
       /^I send a POST request to the answer endpoint with the correct answerKey$/,
       async () => {
-        const postPayload = await findObjectContainingValue(questionKeyResponse,questionKeyFromGetResponse);
-        console.log("",questionKeyFromGetResponse )
-        console.log("Post Payload normal = ",postPayload);
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_2_SA_I_F_P)
-          // .send(postPayload)
+          .send(postQuestionKey)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log(
-          "POST Request Answer Endpoint - QuestionKey sent = " +
-            JSON.stringify(postRequestToAnswerEndpoint.request)
-        );
-        console.log(
-          "POST Request to HMRC KBV = " +
-            JSON.stringify(postRequestToAnswerEndpoint, undefined, 2)
-        );
+        console.log("ReturnedAnswer = ", postPayload);
       }
     );
 
@@ -132,14 +127,23 @@ defineFeature(feature, (test) => {
               2
             )
         );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_RTI_PAYSLIP_IT)
+          .send(postQuestionKey)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
+        console.log("ReturnedAnswer = ", postPayload);
       }
     );
 
@@ -161,14 +165,23 @@ defineFeature(feature, (test) => {
               2
             )
         );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_P_F_Y)
+          .send(postQuestionKey)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
+        console.log("ReturnedAnswer = ", postPayload);
       }
     );
 
@@ -194,6 +207,10 @@ defineFeature(feature, (test) => {
           .set("session-id", getValidSessionId);
         expect(getRequestToQuestionEndpoint.statusCode).toEqual(
           Number(finalStatusCode)
+        );
+        console.log(
+          "Final statusCode from Questions Endpoint = " +
+            getRequestToQuestionEndpoint.statusCode
         );
       }
     );
