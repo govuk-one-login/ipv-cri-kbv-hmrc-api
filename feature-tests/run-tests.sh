@@ -1,5 +1,29 @@
-#! /bin/bash
+#! /bin/sh
 set -u
+
+if [[ -z "${CFN_StackName}" ]]; then
+  if [[ -z "${SAM_STACK_NAME}" ]]; then
+    export STACK_NAME="local"
+  else
+    export STACK_NAME="${SAM_STACK_NAME}"
+  fi
+else
+  export STACK_NAME="${CFN_StackName}"
+fi
+
+# Added to accommodate ssm stack
+if [[ -z "${ENVIRONMENT}" ]]; then
+  if [[ -z "${TEST_ENVIRONMENT}" ]]; then
+    export ENVIRONMENT="build"
+  else
+    export ENVIRONMENT="${TEST_ENVIRONMENT}"
+  fi
+else
+  export ENVIRONMENT="${ENVIRONMENT}"
+fi
+
+echo "ENVIRONMENT ${ENVIRONMENT}"
+echo "STACK_NAME ${STACK_NAME}"
 
 # in pipeline copy files to CODEBUILD_SRC_DIR where next to the .env file is created
 cp /package.json . 2>/dev/null || :
