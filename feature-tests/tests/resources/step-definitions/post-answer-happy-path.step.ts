@@ -85,26 +85,21 @@ defineFeature(feature, (test) => {
             2
           )
       );
-      questionKeyFromGetResponse = JSON.stringify(
-        await getRequestToQuestionEndpoint.body.questionKey,
-        undefined,
-        2
-      );
+      questionKeyFromGetResponse = 
+        await getRequestToQuestionEndpoint.body.questionKey;
     });
     and(
       /^I send a POST request to the answer endpoint with the correct answerKey$/,
       async () => {
-        const postPayload = await findObjectContainingValue(
-          questionKeyResponse,
-          questionKeyFromGetResponse
-        );
-        console.log("Post Payload stringify = " + JSON.stringify(postPayload));
-        console.log("Post Payload normal = " + postPayload);
+        const postPayload = await findObjectContainingValue(questionKeyResponse,questionKeyFromGetResponse);
+        console.log("",questionKeyFromGetResponse )
+        console.log("Post Payload normal = ",postPayload);
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(questionKeyResponse.ANSWER_POST_PAYLOAD_2_SA_I_F_P)
+          // .send(postPayload)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
