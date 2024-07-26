@@ -1,4 +1,4 @@
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { FetchQuestionsHandler } from "../src/fetch-questions-handler";
 import { Question, QuestionsResult } from "../src/types/questions-result-types";
 import { QuestionsRetrievalService } from "../src/services/questions-retrieval-service";
@@ -150,7 +150,7 @@ describe("FetchQuestionsHandler", () => {
 
         expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
           HandlerMetric.CompletionStatus,
-          MetricUnits.Count,
+          MetricUnit.Count,
           CompletionStatus.OK
         );
 
@@ -211,7 +211,7 @@ describe("FetchQuestionsHandler", () => {
 
         expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
           HandlerMetric.CompletionStatus,
-          MetricUnits.Count,
+          MetricUnit.Count,
           CompletionStatus.OK
         );
 
@@ -251,7 +251,7 @@ describe("FetchQuestionsHandler", () => {
 
       expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
         HandlerMetric.CompletionStatus,
-        MetricUnits.Count,
+        MetricUnit.Count,
         CompletionStatus.ERROR
       );
 
@@ -302,7 +302,7 @@ describe("FetchQuestionsHandler", () => {
 
       expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
         HandlerMetric.CompletionStatus,
-        MetricUnits.Count,
+        MetricUnit.Count,
         CompletionStatus.ERROR
       );
 

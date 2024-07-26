@@ -1,4 +1,4 @@
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { QuestionsResult } from "../../src/types/questions-result-types";
 
 import {
@@ -12,7 +12,6 @@ import { Classification } from "../../../../lib/src/MetricTypes/metric-classific
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedQuestionKeyCount = "MappedQuestionKeyCount",
 }
 
 jest.mock("@aws-lambda-powertools/metrics");
@@ -101,7 +100,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -110,7 +109,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -119,25 +118,15 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Valid
       );
 
-      // Processed Questions to match response
       expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
         QuestionServiceMetrics.ResponseQuestionKeyCount,
         Classification.SERVICE_SPECIFIC,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
-        apiResponse["questions"].length
-      );
-
-      // Mapped Questions to the same as Processed (until fitering is added)
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
-        QuestionServiceMetrics.MappedQuestionKeyCount,
-        Classification.SERVICE_SPECIFIC,
-        "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         apiResponse["questions"].length
       );
     });
@@ -156,9 +145,6 @@ describe("QuestionsRetrievalService", () => {
         })
       ) as jest.Mock;
 
-      // const questionsResult: QuestionsResult =
-      //   await questionsRetrievalService.retrieveQuestions(mockInputEvent);
-
       await expect(
         questionsRetrievalService.retrieveQuestions(mockInputEvent)
       ).rejects.toEqual(
@@ -172,7 +158,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -181,7 +167,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -190,7 +176,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Invalid
       );
     });
@@ -223,7 +209,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -232,7 +218,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         200
       );
 
@@ -241,7 +227,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         ResponseValidity.Invalid
       );
     });
@@ -274,7 +260,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         expect.any(Number)
       );
 
@@ -283,7 +269,7 @@ describe("QuestionsRetrievalService", () => {
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "QuestionsRetrievalService",
-        MetricUnits.Count,
+        MetricUnit.Count,
         401
       );
     });
@@ -318,7 +304,7 @@ describe("QuestionsRetrievalService", () => {
           HTTPMetric.ResponseLatency,
           Classification.HTTP,
           "QuestionsRetrievalService",
-          MetricUnits.Count,
+          MetricUnit.Count,
           expect.any(Number)
         );
 
@@ -327,7 +313,7 @@ describe("QuestionsRetrievalService", () => {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           "QuestionsRetrievalService",
-          MetricUnits.Count,
+          MetricUnit.Count,
           httpStatus
         );
       }

@@ -1,6 +1,17 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
-
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Logger } from "@aws-lambda-powertools/logger";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
+
+import {
+  HandlerMetricExport,
+  MetricsProbe,
+} from "../../../lib/src/Service/metrics-probe";
+
+import {
+  HandlerMetric,
+  CompletionStatus,
+} from "../../../lib/src/MetricTypes/handler-metric-types";
+
 import { Evidence, NamePart, EvidenceBuilder } from "./utils/evidence-builder";
 import {
   BirthDate,
@@ -19,60 +30,88 @@ const credentialSubjectBuilder = new CredentialSubjectBuilder();
 const evidenceBuilder = new EvidenceBuilder();
 
 export class IssueCredentialHandler implements LambdaInterface {
+  metricsProbe: MetricsProbe;
   resultsRetrievalService: ResultsRetrievalService;
 
-  constructor(resultsRetrievalService: ResultsRetrievalService) {
+  constructor(
+    metricsProbe: MetricsProbe,
+    resultsRetrievalService: ResultsRetrievalService
+  ) {
+    this.metricsProbe = metricsProbe;
     this.resultsRetrievalService = resultsRetrievalService;
   }
 
+  @logger.injectLambdaContext({ clearState: true })
+  @HandlerMetricExport.logMetrics({
+    throwOnEmptyMetrics: false,
+    captureColdStartMetric: true,
+  })
   public async handler(event: any, _context: unknown): Promise<object> {
     logger.info("Issue Credential Handler called successfully");
-
-    logger.info(JSON.stringify(event));
 
     const sessionId = event.userInfoEvent.Items[0].sessionId.S;
     let answerResults;
 
     try {
       answerResults = await this.resultsRetrievalService.getResults(sessionId);
+
+      const correlationId = answerResults.Item.correlationId;
+
+      const sub = "urn:uuid:" + uuidv4().toString();
+      const nbf = Date.now();
+      const iss = event.vcIssuer;
+      const jti = "urn:uuid:" + uuidv4().toString();
+
+      const credentialSubject: CredentialSubject = credentialSubjectBuilder
+        .setSocialSecurityRecord(
+          this.extractSocialSecurityRecordFromEvent(event)
+        )
+        .addNames(this.extractNamePartFromEvent(event))
+        .setBirthDate(this.extractBirthDateFromEvent(event))
+        .build();
+
+      const evidence: Array<Evidence> = evidenceBuilder
+        .addVerificationScore(answerResults.Item.verificationScore)
+        .addTxn(correlationId)
+        .build();
+
+      const type: Array<string> = [
+        "VerifiableCredential",
+        "IdentityCheckCredential",
+      ];
+
+      const vc = new Vc(evidence, credentialSubject, type);
+      const verifiableCredential = new VerifiableCredential(
+        sub,
+        nbf,
+        iss,
+        vc,
+        jti
+      );
+
+      this.metricsProbe.captureMetric(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.OK
+      );
+
+      return verifiableCredential;
     } catch (error: any) {
-      //future test debt, check these errors aren't logging PII
+      const lambdaName = IssueCredentialHandler.name;
       const errorText: string = error.message;
-      throw new Error(`Error saving questions to dynamoDb ${errorText}`);
+
+      const errorMessage = `${lambdaName} : ${errorText}`;
+      logger.error(errorMessage);
+
+      this.metricsProbe.captureMetric(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.ERROR
+      );
+
+      // Indicate to the statemachine a lambda error has occured
+      return { error: errorMessage };
     }
-    const correlationId = answerResults.Item.correlationId;
-
-    const sub = "urn:uuid:" + uuidv4().toString();
-    const nbf = Date.now();
-    const iss = event.vcIssuer;
-    const jti = "urn:uuid:" + uuidv4().toString();
-
-    const credentialSubject: CredentialSubject = credentialSubjectBuilder
-      .setSocialSecurityRecord(this.extractSocialSecurityRecordFromEvent(event))
-      .addNames(this.extractNamePartFromEvent(event))
-      .setBirthDate(this.extractBirthDateFromEvent(event))
-      .build();
-
-    const evidence: Array<Evidence> = evidenceBuilder
-      .addVerificationScore(answerResults.Item.verificationScore)
-      .addTxn(correlationId)
-      .build();
-
-    const type: Array<string> = [
-      "VerifiableCredential",
-      "IdentityCheckCredential",
-    ];
-
-    const vc = new Vc(evidence, credentialSubject, type);
-    const verifiableCredential = new VerifiableCredential(
-      sub,
-      nbf,
-      iss,
-      vc,
-      jti
-    );
-
-    return verifiableCredential;
   }
 
   private extractNamePartFromEvent = (event: any): Array<NamePart> => {
@@ -97,7 +136,9 @@ export class IssueCredentialHandler implements LambdaInterface {
   };
 }
 // Handler Export
+const metricProbe = new MetricsProbe();
 const handlerClass = new IssueCredentialHandler(
+  metricProbe,
   new ResultsRetrievalService(createDynamoDbClient())
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);

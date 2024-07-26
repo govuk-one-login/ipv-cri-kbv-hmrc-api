@@ -1,6 +1,6 @@
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { Logger } from "@aws-lambda-powertools/logger";
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Answer, SubmitAnswerResult } from "../types/answer-result-types";
 import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
 
@@ -10,9 +10,12 @@ import {
 } from "../../../../lib/src/MetricTypes/http-service-metrics";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 
+import { StopWatch } from "../../../../lib/src/Service/stop-watch";
+
 enum AnswerServiceMetrics {
-  ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedAnswerKeyCount = "MappedAnswerKeyCount",
+  AnswersSubmitted = "AnswersSubmitted",
+  AnswersCorrect = "AnswersCorrect",
+  AnswersIncorrect = "AnswersIncorrect",
 }
 
 const ServiceName: string = "SubmitAnswersService";
@@ -21,10 +24,12 @@ const logger = new Logger({ serviceName: `${ServiceName}` });
 export class SubmitAnswerService {
   private metricsProbe: MetricsProbe;
   private dynamo: DynamoDBDocument;
+  private stopWatch: StopWatch;
 
   constructor(metricProbe: MetricsProbe, dyanamoDbClient: DynamoDBDocument) {
     this.metricsProbe = metricProbe;
     this.dynamo = dyanamoDbClient;
+    this.stopWatch = new StopWatch();
   }
 
   public async checkAnswers(event: any): Promise<SubmitAnswerResult[]> {
@@ -45,7 +50,7 @@ export class SubmitAnswerService {
     logger.info("Performing Submit Answers API Request...");
 
     // Response Latency (Start)
-    const start: number = Date.now();
+    this.stopWatch.start();
 
     return await fetch(event.parameters.url.value, {
       method: "POST",
@@ -63,10 +68,18 @@ export class SubmitAnswerService {
       }),
     })
       .then(async (response) => {
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
         logger.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
+        );
+
+        this.metricsProbe.captureServiceMetric(
+          AnswerServiceMetrics.AnswersSubmitted,
+          Classification.SERVICE_SPECIFIC,
+          ServiceName,
+          MetricUnit.Count,
+          answers.length
         );
 
         // Response Status code
@@ -74,7 +87,7 @@ export class SubmitAnswerService {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           response.status
         );
 
@@ -97,7 +110,7 @@ export class SubmitAnswerService {
                   HTTPMetric.ResponseValidity,
                   Classification.HTTP,
                   ServiceName,
-                  MetricUnits.Count,
+                  MetricUnit.Count,
                   ResponseValidity.Valid
                 );
                 return answerResults;
@@ -138,9 +151,22 @@ export class SubmitAnswerService {
       })
 
       .catch((error: Error) => {
-        const subError: string = error.message;
+        // All errors caught in this top level catch
+        this.metricsProbe.captureServiceMetric(
+          HTTPMetric.ResponseValidity,
+          Classification.HTTP,
+          ServiceName,
+          MetricUnit.Count,
+          ResponseValidity.Invalid
+        );
 
-        const errorText: string = `Unable to parse json from response ${subError}`;
+        // Error Path Response Latency
+        const latency: number = this.captureResponseLatencyMetric();
+
+        // any other status code
+        const errorText: string = `API Request Failed : ${error.message}`;
+
+        logger.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });
@@ -179,6 +205,9 @@ export class SubmitAnswerService {
     const responseAnswers = json;
     const mappedAnswers: SubmitAnswerResult[] = [];
 
+    let correctAnswers: number = 0;
+    let incorrectAnswers: number = 0;
+
     responseAnswers.forEach(
       (answer: { questionKey: string; score: string }) => {
         const questionKey: string = answer.questionKey;
@@ -187,24 +216,30 @@ export class SubmitAnswerService {
         const answerStatus: string = answer.score;
         logger.debug(`answer status: ${answerStatus}`);
 
+        if (answerStatus === "correct") {
+          correctAnswers++;
+        } else {
+          incorrectAnswers++;
+        }
+
         mappedAnswers.push(new SubmitAnswerResult(questionKey, answerStatus));
       }
     );
 
     this.metricsProbe.captureServiceMetric(
-      AnswerServiceMetrics.ResponseQuestionKeyCount,
+      AnswerServiceMetrics.AnswersCorrect,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
-      responseAnswers.length
+      MetricUnit.Count,
+      correctAnswers
     );
 
     this.metricsProbe.captureServiceMetric(
-      AnswerServiceMetrics.MappedAnswerKeyCount,
+      AnswerServiceMetrics.AnswersIncorrect,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
-      responseAnswers.length
+      MetricUnit.Count,
+      incorrectAnswers
     );
 
     logger.info(`Mapped QuestionsResult`);
@@ -224,14 +259,14 @@ export class SubmitAnswerService {
     return answersArray;
   }
 
-  private captureResponseLatency(start: number): number {
+  private captureResponseLatencyMetric(): number {
     // Response Latency (End)
-    const latency: number = Date.now() - start;
+    const latency: number = this.stopWatch.stop();
     this.metricsProbe.captureServiceMetric(
       HTTPMetric.ResponseLatency,
       Classification.HTTP,
       ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       latency
     );
 

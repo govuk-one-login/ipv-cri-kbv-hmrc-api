@@ -13,6 +13,14 @@ import {
 import { Vc, VerifiableCredential } from "../src/types/vc-types";
 import { v4 as uuidv4 } from "uuid";
 
+import { MetricsProbe } from "../src/../../../lib/src/Service/metrics-probe";
+import {
+  CompletionStatus,
+  HandlerMetric,
+} from "../../../lib/src/MetricTypes/handler-metric-types";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
+jest.mock("../src/../../../lib/src/Service/metrics-probe");
+
 const mockInputEvent = {
   vcIssuer: "testIssuer",
   userInfoEvent: {
@@ -83,13 +91,23 @@ describe("IssueCredentialHandler", () => {
   let resultsRetrievalService: ResultsRetrievalService;
   let credentialSubjectBuilder: CredentialSubjectBuilder;
   let evidenceBuilder: EvidenceBuilder;
+  let mockMetricsProbe: jest.MockedObjectDeep<typeof MetricsProbe>;
 
   process.env.RESULTS_TABLE_NAME = "RESULTS_TABLE_NAME";
 
   let dynamoDbDocument: DynamoDBDocument;
 
+  let mockMetricsProbeSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockMetricsProbe = jest.mocked(MetricsProbe);
+
+    mockMetricsProbeSpy = jest.spyOn(
+      mockMetricsProbe.prototype,
+      "captureMetric"
+    );
 
     dynamoDbDocument = {
       send: jest.fn().mockReturnValue(Promise.resolve(testAnswerResultHappy)),
@@ -97,6 +115,7 @@ describe("IssueCredentialHandler", () => {
 
     resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
     issueCredentialHandler = new IssueCredentialHandler(
+      mockMetricsProbe.prototype,
       resultsRetrievalService
     );
     evidenceBuilder = new EvidenceBuilder();
@@ -151,6 +170,12 @@ describe("IssueCredentialHandler", () => {
     lambdaResponse.sub = sub;
     lambdaResponse.nbf = nbf;
     lambdaResponse.jti = jti;
+
+    expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+      HandlerMetric.CompletionStatus,
+      MetricUnit.Count,
+      CompletionStatus.OK
+    );
 
     expect(lambdaResponse).toEqual(expectedResponse);
   });

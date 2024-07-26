@@ -1,4 +1,4 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { createHash } from "crypto";
 import sigFormatter from "ecdsa-sig-formatter";
 import { fromEnv } from "@aws-sdk/credential-providers";

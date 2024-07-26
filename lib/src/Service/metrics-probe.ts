@@ -1,4 +1,6 @@
-import { Metrics, MetricUnits } from "@aws-lambda-powertools/metrics";
+import { Metrics } from "@aws-lambda-powertools/metrics";
+import { type MetricUnit } from "@aws-lambda-powertools/metrics";
+
 import { Classification } from "../MetricTypes/metric-classifications";
 
 // exported for attaching to cold start anotation
@@ -16,7 +18,7 @@ export class MetricsProbe {
 
   public captureMetric(
     metricName: string,
-    unit: MetricUnits,
+    unit: (typeof MetricUnit)[keyof typeof MetricUnit],
     metricValue: number
   ) {
     this.baseMetrics.addMetric(metricName, unit, metricValue);
@@ -26,7 +28,7 @@ export class MetricsProbe {
     metricName: string,
     classification: Classification,
     dimensionValue: string,
-    unit: MetricUnits,
+    unit: (typeof MetricUnit)[keyof typeof MetricUnit],
     metricValue: number
   ) {
     const singleMetric: Metrics = this.baseMetrics.singleMetric();

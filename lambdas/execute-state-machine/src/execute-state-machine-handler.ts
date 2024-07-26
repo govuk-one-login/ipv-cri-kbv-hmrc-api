@@ -1,4 +1,4 @@
-import { LambdaInterface } from "@aws-lambda-powertools/commons";
+import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { SFNClient, StartSyncExecutionCommand } from "@aws-sdk/client-sfn";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { Logger } from "@aws-lambda-powertools/logger";
