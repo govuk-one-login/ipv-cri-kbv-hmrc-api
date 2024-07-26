@@ -13,10 +13,10 @@ concurrency:
 env:
   ENVIRONMENT: ${{ secrets.TEST_ENVIRONMENT }}
   CUCUMBER_PUBLISH_ENABLED: true
-  coreStubUrl: ${{ secrets.CORE_STUB_URL }}
-  coreStubUsername: ${{ secrets.CORE_STUB_USERNAME }}
-  coreStubPassword: ${{ secrets.CORE_STUB_PASSWORD }}
-  orchestratorStubUrl: ${{ secrets.ORCHESTRATOR_STUB_URL }}
+  CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
+  PRIVATE_API_GATEWAY: ${{ secrets.DEV_PRIVATE_API_GATEWAY }}
+  CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
+  CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
 
 permissions:
   id-token: write
@@ -54,11 +54,12 @@ jobs:
         with:
           cache: npm
           node-version: 20
+  
+      - name: Install dependencies
+        run: cd feature-tests && npm install
 
-      - name: Build Docker Image
-        run: cd feature-tests/ && docker build -t hmrc-kbv-api-feature-tests-image .
-      - name: Run Docker Container and Tests
-        run: docker run hmrc-kbv-api-feature-tests-image:latest
+      - name: Run Feature Tests
+        run:  cd feature-tests && npm run test
 
       - name: Get test results history
         uses: actions/checkout@v4

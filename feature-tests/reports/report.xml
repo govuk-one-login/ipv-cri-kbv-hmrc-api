@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="6" failures="1" errors="0" time="6.386">
+  <testsuite name="HMRC-KBV-POST-Answer-HappyPath.feature" errors="0" failures="1" skipped="1" timestamp="2024-07-26T12:06:51" time="4.856" tests="2">
+    <testcase classname="HMRC-KBV-POST-Answer-HappyPath.feature Happy Path - Post request to /answer Endpoint for userId with 3 questions over 2 questionKeys" name="HMRC-KBV-POST-Answer-HappyPath.feature Happy Path - Post request to /answer Endpoint for userId with 3 questions over 2 questionKeys" time="0.052">
+      <failure>Error: getaddrinfo ENOTFOUND undefined
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:118:26)</failure>
+    </testcase>
+    <testcase classname="HMRC-KBV-POST-Answer-HappyPath.feature Happy Path - Post request to /answer Endpoint for userId with 2 questions over 2 questionKeys" name="HMRC-KBV-POST-Answer-HappyPath.feature Happy Path - Post request to /answer Endpoint for userId with 2 questions over 2 questionKeys" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="HMRC-KBV-GET-FetchQuestions-HappyPath.feature" errors="0" failures="0" skipped="2" timestamp="2024-07-26T12:06:55" time="0.601" tests="2">
+    <testcase classname="HMRC-KBV-GET-FetchQuestions-HappyPath.feature Happy Path - Post Request to /fetchquestions Endpoint for userId" name="HMRC-KBV-GET-FetchQuestions-HappyPath.feature Happy Path - Post Request to /fetchquestions Endpoint for userId" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="HMRC-KBV-GET-FetchQuestions-HappyPath.feature Happy Path - Post Request to /fetchquestions Endpoint for same userId" name="HMRC-KBV-GET-FetchQuestions-HappyPath.feature Happy Path - Post Request to /fetchquestions Endpoint for same userId" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="CORE-STUB-CreateSessionRequest-HappyPath.feature" errors="0" failures="0" skipped="1" timestamp="2024-07-26T12:06:56" time="0.41" tests="1">
+    <testcase classname="CORE-STUB-CreateSessionRequest-HappyPath.feature Happy Path - Request for user claimSet from CoreStub for Valid User" name="CORE-STUB-CreateSessionRequest-HappyPath.feature Happy Path - Request for user claimSet from CoreStub for Valid User" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="HMRC-KBV-GET-Question-HappyPath.feature" errors="0" failures="0" skipped="1" timestamp="2024-07-26T12:06:57" time="0.411" tests="1">
+    <testcase classname="HMRC-KBV-GET-Question-HappyPath.feature Happy Path - Get request to /question Endpoint for userId" name="HMRC-KBV-GET-Question-HappyPath.feature Happy Path - Get request to /question Endpoint for userId" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+</testsuites>
