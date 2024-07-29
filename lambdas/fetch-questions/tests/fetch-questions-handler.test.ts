@@ -10,6 +10,7 @@ import {
   HandlerMetric,
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
+import { FetchQuestionInputs } from "../src/types/fetch-question-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/services/questions-retrieval-service");
@@ -47,6 +48,17 @@ describe("FetchQuestionsHandler", () => {
           N: "1234",
         },
       },
+    },
+    parameters: {
+      url: { value: "TEST_URL" },
+      userAgent: { value: "TEST_USER_AGENT" },
+    },
+    bearerToken: {
+      expiry: Date.now() + 7200 * 1000,
+      value: "TEST_TOKEN_VALUE",
+    },
+    personIdentityItem: {
+      nino: "TEST_NINO",
     },
   };
 
@@ -140,8 +152,17 @@ describe("FetchQuestionsHandler", () => {
           mockInputContext
         );
 
+        const mockFetchQuestionInputs = {
+          sessionId: mockInputEvent.sessionId,
+          sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
+          questionsUrl: mockInputEvent.parameters.url.value,
+          userAgent: mockInputEvent.parameters.userAgent.value,
+          bearerToken: mockInputEvent.bearerToken.value,
+          nino: mockInputEvent.personIdentityItem.nino,
+        } as FetchQuestionInputs;
+
         expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
-          mockInputEvent
+          mockFetchQuestionInputs
         );
 
         expect(
@@ -233,6 +254,158 @@ describe("FetchQuestionsHandler", () => {
   });
 
   describe("Failure Scenarios", () => {
+    // The following tests test the lambda being called missing requried inputs
+    // and checks the assoicated error is thrown
+    it.each([
+      [undefined, "input event is empty"],
+      [
+        {
+          sessionId: undefined,
+        },
+        "sessionId was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: undefined,
+        },
+        "sessionItem was not provided - cannot use ttl",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: undefined,
+        },
+        "event parameters not found",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: {
+            url: undefined,
+          },
+        },
+        "questionsUrl was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: undefined,
+          },
+        },
+        "userAgent was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            value: undefined,
+          },
+        },
+        "bearerToken was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: undefined,
+        },
+        "personIdentityItem not found",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: undefined,
+          },
+        },
+        "nino was not provided",
+      ],
+    ])(
+      "should return an error event is null ",
+      async (testInputEvent: any, expectedError: string) => {
+        const lambdaResponse = await fetchQuestionsHandler.handler(
+          testInputEvent,
+          mockInputContext
+        );
+
+        expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+          HandlerMetric.CompletionStatus,
+          MetricUnit.Count,
+          CompletionStatus.ERROR
+        );
+
+        const lambdaName = FetchQuestionsHandler.name;
+        const errorMessage = `${lambdaName} : ${expectedError}`;
+        const expectedResponse = { error: errorMessage };
+
+        expect(lambdaResponse).toEqual(expectedResponse);
+      }
+    );
+
     it("should return an error if there is an issue during question retrieval ", async () => {
       // No previously saved questions
       saveQuestionsServicegetExistingSavedItemSpy.mockResolvedValue(undefined);
@@ -247,7 +420,18 @@ describe("FetchQuestionsHandler", () => {
         mockInputContext
       );
 
-      expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(mockInputEvent);
+      const mockFetchQuestionInputs = {
+        sessionId: mockInputEvent.sessionId,
+        sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
+        questionsUrl: mockInputEvent.parameters.url.value,
+        userAgent: mockInputEvent.parameters.userAgent.value,
+        bearerToken: mockInputEvent.bearerToken.value,
+        nino: mockInputEvent.personIdentityItem.nino,
+      } as FetchQuestionInputs;
+
+      expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
+        mockFetchQuestionInputs
+      );
 
       expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
         HandlerMetric.CompletionStatus,
@@ -292,7 +476,18 @@ describe("FetchQuestionsHandler", () => {
         mockInputContext
       );
 
-      expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(mockInputEvent);
+      const mockFetchQuestionInputs = {
+        sessionId: mockInputEvent.sessionId,
+        sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
+        questionsUrl: mockInputEvent.parameters.url.value,
+        userAgent: mockInputEvent.parameters.userAgent.value,
+        bearerToken: mockInputEvent.bearerToken.value,
+        nino: mockInputEvent.personIdentityItem.nino,
+      } as FetchQuestionInputs;
+
+      expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
+        mockFetchQuestionInputs
+      );
       expect(saveQuestionsServiceSaveQuestionsSpy).toHaveBeenCalledWith(
         mockInputEvent.sessionId,
         Number(mockInputEvent.sessionItem.Item.expiryDate.N),

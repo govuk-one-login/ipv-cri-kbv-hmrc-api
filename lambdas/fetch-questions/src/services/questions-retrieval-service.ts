@@ -9,6 +9,7 @@ import {
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { StopWatch } from "../../../../lib/src/Service/stop-watch";
+import { FetchQuestionInputs } from "../types/fetch-question-types";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
@@ -26,25 +27,29 @@ export class QuestionsRetrievalService {
     this.stopWatch = new StopWatch();
   }
 
-  public async retrieveQuestions(event: any): Promise<QuestionsResult> {
-    return await this.performAPIRequest(event);
+  public async retrieveQuestions(
+    inputs: FetchQuestionInputs
+  ): Promise<QuestionsResult> {
+    return await this.performAPIRequest(inputs);
   }
 
-  private async performAPIRequest(event: any): Promise<QuestionsResult> {
+  private async performAPIRequest(
+    inputs: FetchQuestionInputs
+  ): Promise<QuestionsResult> {
     logger.info("Performing API Request");
 
     // Response Latency (Start)
     this.stopWatch.start();
 
-    return await fetch(event.parameters.url.value, {
+    return await fetch(inputs.questionsUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.parameters.userAgent.value,
-        Authorization: "Bearer " + event.bearerToken.value,
+        "User-Agent": inputs.userAgent,
+        Authorization: "Bearer " + inputs.bearerToken,
       },
       body: JSON.stringify({
-        nino: event.personIdentityItem.nino,
+        nino: inputs.nino,
       }),
     })
       .then(async (response) => {

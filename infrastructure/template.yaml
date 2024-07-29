@@ -357,12 +357,17 @@ Resources:
       Name: !Sub ${AWS::StackName}-FetchQuestionsStateMachine
       DefinitionUri: ../step-functions/fetch-questions.asl.json
       DefinitionSubstitutions:
+        OtgApiUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/OtgApiUrl"
+          - !Sub "/${AWS::StackName}/OtgApiUrl"
         QuestionsTableName: !Ref QuestionsTable
         QuestionsUrl: !If
           - UseParameterPrefix
           - !Sub "/${ParameterPrefix}/QuestionsUrl"
           - !Sub "/${AWS::StackName}/QuestionsUrl"
         UserAgent: !Ref UserAgent
+        OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
         SessionTtl: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTtl}}"
@@ -386,6 +391,8 @@ Resources:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
         - LambdaInvokePolicy:
+            FunctionName: !Ref OTGTokenFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref FetchQuestionsFunction
         - Statement:
             Effect: Allow
@@ -398,6 +405,14 @@ Resources:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
               - !Sub
                 - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/QuestionsUrl"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/OtgApiUrl"
                 - PREFIX:
                     !If [
                       UseParameterPrefix,
@@ -548,6 +563,8 @@ Resources:
         Level: ALL
       Policies:
         - LambdaInvokePolicy:
+            FunctionName: !Ref OTGTokenFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref CreateAuthCodeFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
@@ -581,6 +598,14 @@ Resources:
                       !Ref ParameterPrefix,
                       !Ref AWS::StackName,
                     ]
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/OtgApiUrl"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
@@ -593,6 +618,11 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
       DefinitionSubstitutions:
+        OtgApiUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/OtgApiUrl"
+          - !Sub "/${AWS::StackName}/OtgApiUrl"
+        OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
         CommonStackName: !Ref CommonStackName
         CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
         AnswersTableName: !Ref AnswersTable
@@ -705,6 +735,52 @@ Resources:
 
   ####################################################################
   #                                                                  #
+  # OTGTokenFunction                                           #
+  #                                                                  #
+  ####################################################################
+
+  OTGTokenFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/otg-token/src/otg-token-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-otgtoken"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-otgtoken"
+      Timeout: 15
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
+        SubnetIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdA"
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdB"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
+  OTGTokenFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${OTGTokenFunction}"
+      RetentionInDays: 30
+
+  # OTGTokenFunctionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
+  #   Type: AWS::Logs::SubscriptionFilter
+  #   Condition: LogSendingEnabled
+  #   Properties:
+  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
+  #     FilterPattern: ""
+  #     LogGroupName: !Ref OTGTokenFunctionFunctionLogGroup
+
+  ####################################################################
+  #                                                                  #
   # FetchQuestionsFunction                                           #
   #                                                                  #
   ####################################################################
@@ -744,7 +820,7 @@ Resources:
   FetchQuestionsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${FetchQuestionsFunction}"
+      LogGroupName: !Sub "/aws/lambda/${FetchQuestionsFunction}"
       RetentionInDays: 30
 
   # FetchQuestionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
@@ -867,7 +943,7 @@ Resources:
   SubmitAnswerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${SubmitAnswerFunction}"
+      LogGroupName: !Sub "/aws/lambda/${SubmitAnswerFunction}"
       RetentionInDays: 30
 
   # SubmitAnswerFunctionLogGroupSubscriptionFilterCsls:
@@ -984,7 +1060,7 @@ Resources:
   IssueCredentialFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${IssueCredentialFunction}"
+      LogGroupName: !Sub "/aws/lambda/${IssueCredentialFunction}"
       RetentionInDays: 30
 
   ####################################################################
@@ -1229,11 +1305,80 @@ Resources:
               ArnLike:
                 "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
 
-####################################################################
-#                                                                  #
-# Alerts                                                           #
-#                                                                  #
-####################################################################
+  ####################################################################
+  #                                                                  #
+  # Alerts                                                           #
+  #                                                                  #
+  ####################################################################
+
+  OTGTokenRequestFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - OTG Token Request Failed Alarm"
+      AlarmDescription: !Sub ${Environment} HMRC KBV Cri failed to retrieve a token from the OTG Service"
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: FailedToRetrieveOTGToken
+      Namespace: !Ref CriIdentifier
+      Statistic: Sum
+      Dimensions:
+        - Name: service
+          Value: !Sub "${CriIdentifier}-otgtoken"
+        - Name: ServiceSpecific
+          Value: OTGTokenRetrievalService
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  ####################################################################
+  #                                                                  #
+  # Alarm setup                                                      #
+  #                                                                  #
+  ####################################################################
+
+  AlarmTopicHmrcKbv:
+    Type: AWS::SNS::Topic
+    Metadata:
+      SamResourceId: AlarmTopicHmrcKbv
+
+  AlarmTopicSubscriptionPagerDutyHmrcKbv:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn:
+        Ref: AlarmTopicHmrcKbv
+      Endpoint:
+        Fn::Sub: "{{resolve:ssm:/alerting/pagerduty/url}}"
+      Protocol: https
+    Metadata:
+      SamResourceId: AlarmTopicSubscriptionPagerDutyHmrcKbv
+
+  AlarmPublishToTopicPolicyHmrcKbv:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - Ref: AlarmTopicHmrcKbv
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sns:Publish
+            Resource:
+              Ref: AlarmTopicHmrcKbv
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Condition:
+              ArnLike:
+                AWS:SourceArn:
+                  Fn::Sub: arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*
+    Metadata:
+      SamResourceId: AlarmPublishToTopicPolicyHmrcKbv
 
 ####################################################################
 #                                                                  #

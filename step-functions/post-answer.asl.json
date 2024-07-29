@@ -271,31 +271,70 @@
         {
           "Variable": "$.arrayLengths.answeredQuestionsLength ",
           "NumericEqualsPath": "$.arrayLengths.totalQuestionsLength ",
-          "Next": "Get Bearer Token"
+          "Next": "Create Parameters State Location"
         }
       ],
       "Default": "Response Filter"
     },
-    "Get Bearer Token": {
-      "Type": "Task",
-      "Parameters": {
-        "SecretId": "HMRCBearerToken"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:secretsmanager:getSecretValue",
-      "Next": "Create Parameters State Location",
-      "ResultSelector": {
-        "value.$": "$.SecretString"
-      },
-      "ResultPath": "$.bearerToken"
-    },
     "Create Parameters State Location": {
       "Type": "Pass",
-      "Next": "GetParameter AnswersUrl",
+      "Next": "GetParameter OtgApiUrl",
       "Result": {
+        "otgApiUrl": "NOT_SET",
         "url": "NOT_SET",
         "userAgent": "NOT_SET"
       },
       "ResultPath": "$.parameters"
+    },
+    "GetParameter OtgApiUrl": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${OtgApiUrl}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "Invoke OTG Token Lambda",
+      "ResultSelector": {
+        "value.$": "$.Parameter.Value"
+      },
+      "ResultPath": "$.parameters.otgApiUrl"
+    },
+    "Invoke OTG Token Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${OTGTokenFunctionArn}"
+      },
+      "Next": "Is otgLambdaResult Present",
+      "ResultPath": "$.otgLambdaResult"
+    },
+    "Is otgLambdaResult Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.otgLambdaResult.Payload.token",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.otgLambdaResult.Payload.expiry",
+              "IsPresent": true
+            }
+          ],
+          "Next": "Relocate bearerToken"
+        }
+      ],
+      "Default": "Err: Lambda responded unexpectedly"
+    },
+    "Relocate bearerToken": {
+      "Type": "Pass",
+      "Next": "GetParameter AnswersUrl",
+      "ResultPath": "$.bearerToken",
+      "Parameters": {
+        "value.$": "$.otgLambdaResult.Payload.token",
+        "expiry.$": "$.otgLambdaResult.Payload.expiry"
+      }
     },
     "GetParameter AnswersUrl": {
       "Type": "Task",
@@ -379,6 +418,10 @@
       "Type": "Pass",
       "Next": "Success",
       "Result": {}
+    },
+    "Err: Lambda responded unexpectedly": {
+      "Type": "Fail",
+      "Error": "Lambda responded unexpectedly"
     },
     "Success": {
       "Type": "Succeed"

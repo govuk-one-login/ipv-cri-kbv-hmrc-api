@@ -28,14 +28,16 @@ enum SubmitAnswerHandlerMetrics {
 }
 
 export class SubmitAnswerHandler implements LambdaInterface {
+  metricsProbe: MetricsProbe;
   submitAnswerService: SubmitAnswerService;
   resultService: ResultsService;
 
   constructor(
-    metricProbe: MetricsProbe,
+    metricsProbe: MetricsProbe,
     submitAnswerService: SubmitAnswerService,
     saveAnswerResultService: ResultsService
   ) {
+    this.metricsProbe = metricProbe;
     this.submitAnswerService = submitAnswerService;
     this.resultService = saveAnswerResultService;
   }
@@ -73,13 +75,13 @@ export class SubmitAnswerHandler implements LambdaInterface {
         )
       );
 
-      metricProbe.captureMetric(
+      this.metricsProbe.captureMetric(
         SubmitAnswerHandlerMetrics.VerificationScore,
         MetricUnit.Count,
         verificationScore
       );
 
-      metricProbe.captureMetric(
+      this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
         MetricUnit.Count,
         CompletionStatus.OK
@@ -93,7 +95,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
       const errorMessage = `${lambdaName} : ${errorText}`;
       logger.error(errorMessage);
 
-      metricProbe.captureMetric(
+      this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
         MetricUnit.Count,
         CompletionStatus.ERROR

@@ -5,7 +5,10 @@ export default {
   clearMocks: true,
   modulePaths: ["<rootDir>/src"],
   collectCoverageFrom: ["<rootDir>/src/**/*"],
-  coveragePathIgnorePatterns: ["<rootDir>/src/answer-validation-handler.ts"],
+  coveragePathIgnorePatterns: [
+    "<rootDir>/src/answer-validation-handler.ts",
+    "<rootDir>/tests/jest.custom.ts",
+  ],
   testPathIgnorePatterns: ["<rootDir>/tests/answer-validation-handler.test.ts"],
   testMatch: ["<rootDir>/tests/**/*.test.ts"],
   coverageThreshold: {
