@@ -1,15 +1,44 @@
 {
   "Comment": "State machine for saving answers submitted in the HMRC KBV journey",
-  "StartAt": "Parse input",
+  "StartAt": "Invoke Validating Answers Lambda",
   "States": {
+    "Invoke Validating Answers Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${AnswerValidationArn}"
+      },
+      "Next": "Parse input",
+      "ResultSelector": {
+        "validated.$": "$.Payload.validated"
+      },
+      "ResultPath": "$.result"
+    },
     "Parse input": {
       "Type": "Pass",
-      "Next": "Query database for the users questions",
+      "Next": "Validation Outcome",
       "Parameters": {
         "sessionId.$": "$.sessionId",
         "inputAnswer.$": "$.value",
-        "answeredQuestionKey.$": "$.key"
+        "answeredQuestionKey.$": "$.key",
+        "validated.$": "$.result.validated"
       }
+    },
+    "Validation Outcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.validated",
+          "BooleanEquals": true,
+          "Next": "Query database for the users questions"
+        }
+      ],
+      "Default": "Err: Invalid Answers State"
+    },
+    "Err: Invalid Answers State": {
+      "Type": "Fail",
+      "Error": "Answers in wrong format"
     },
     "Query database for the users questions": {
       "Type": "Task",

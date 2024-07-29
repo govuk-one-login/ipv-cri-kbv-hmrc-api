@@ -551,6 +551,8 @@ Resources:
             FunctionName: !Ref CreateAuthCodeFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref AnswerValidationFunction
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
@@ -603,6 +605,7 @@ Resources:
         UserAgent: !Ref UserAgent
         BearerTokenName: !Ref BearerTokenName
         SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
+        AnswerValidationArn: !GetAtt AnswerValidationFunction.Arn
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1007,6 +1010,31 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
+      RetentionInDays: 30
+
+  ####################################################################
+  #                                                                  #
+  # Answer Validation Function                                       #
+  #                                                                  #
+  ####################################################################
+
+  AnswerValidationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/answer-validation/src/answer-validation-handler.lambdaHandler
+      LoggingConfig:
+        LogGroup: !Sub /aws/lambda/${AWS::StackName}/AnswerValidationFunction
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+
+  AnswerValidationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}/AnswerValidationFunction
       RetentionInDays: 30
 
   ####################################################################
