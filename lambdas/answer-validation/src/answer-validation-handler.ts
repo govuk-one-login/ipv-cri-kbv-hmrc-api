@@ -1,9 +1,15 @@
 import { LambdaInterface } from "@aws-lambda-powertools/commons";
 import { Logger } from "@aws-lambda-powertools/logger";
+import { HandlerMetricExport } from "../../../lib/src/Service/metrics-probe";
 
 const logger = new Logger({ serviceName: "AnswerValidationHandler" });
 
 export class AnswerValidationHandler implements LambdaInterface {
+  @logger.injectLambdaContext({ clearState: true })
+  @HandlerMetricExport.logMetrics({
+    throwOnEmptyMetrics: false,
+    captureColdStartMetric: true,
+  })
   public async handler(event: any, _context: unknown): Promise<object> {
     let result: boolean = false;
     if (

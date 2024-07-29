@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "unit": "jest --silent",
+    "unit": "jest --runInBand lambdas/answer-validation/tests/answer-validation-handler.test.ts",
     "test": "npm run unit --",
     "test:coverage": "npm run unit -- --coverage",
     "sam:validate": "cd infrastructure && sam validate && sam validate --lint",
@@ -21,9 +21,9 @@
     "@aws-lambda-powertools/metrics": "1.14.2",
     "@aws-lambda-powertools/tracer": "1.14.2",
     "@aws-sdk/client-dynamodb": "3.602.0",
+    "@aws-sdk/client-kms": "3.451.0",
     "@aws-sdk/credential-providers": "3.352.0",
     "@aws-sdk/lib-dynamodb": "3.525.0",
-    "@aws-sdk/client-kms": "3.451.0",
     "esbuild": "0.19.5",
     "jose": "5.2.2",
     "uuid": "^10.0.0"
