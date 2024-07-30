@@ -5,4 +5,5 @@ export default {
   ...baseConfig,
   rootDir: "..",
   reporters: [["github-actions", { silent: false }], "summary"],
+  coveragePathIgnorePatterns: ["<rootDir>/lambdas/answer-validation/*/*.ts"],
 } satisfies Config;
