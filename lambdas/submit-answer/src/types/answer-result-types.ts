@@ -24,18 +24,27 @@ export class AnswerResultItem {
   ttl: number;
   answers: SubmitAnswerResult[];
   verificationScore: number;
+  ci?: Array<string>;
+  checkDetailsCount?: number;
+  failedCheckDetailsCount?: number;
 
   constructor(
     sessionId: string,
     correlationId: string,
     ttl: number,
     answers: SubmitAnswerResult[],
-    verificationScore: number
+    verificationScore: number,
+    checkDetailsCount?: number,
+    failedCheckDetailsCount?: number,
+    ci?: Array<string>
   ) {
     this.sessionId = sessionId;
     this.correlationId = correlationId;
     this.ttl = ttl;
     this.answers = answers;
     this.verificationScore = verificationScore;
+    this.checkDetailsCount = checkDetailsCount;
+    this.failedCheckDetailsCount = failedCheckDetailsCount;
+    this.ci = ci;
   }
 }

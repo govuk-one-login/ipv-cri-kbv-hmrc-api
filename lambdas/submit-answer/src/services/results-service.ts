@@ -8,9 +8,13 @@ import {
   GetCommand,
   PutCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { getParameter } from "@aws-lambda-powertools/parameters/ssm";
 
 const ServiceName: string = "ResultsService";
 const logger = new Logger({ serviceName: `${ServiceName}` });
+
+const MINIMUM_QUESTION_COUNT = 0;
+const MAXIMUM_QUESTION_COUNT_FOR_NO_CI = 2;
 
 export class ResultsService {
   private dynamo: DynamoDBDocument;
@@ -24,16 +28,39 @@ export class ResultsService {
     correlationId: string,
     ttl: number,
     answerResults: SubmitAnswerResult[],
-    verificationScore: number
+    verificationScore: number,
+    checkDetailsCount: number,
+    failedCheckDetailsCount: number
   ): Promise<boolean> {
     logger.info("Saving kbv results...");
+    let ciValue: string;
+    try {
+      logger.info("Getting SSM parameters");
+
+      const ciParameterPath = process.env.CI_VALUE_PARAM_NAME as string;
+      const ciParameter = await this.getContraIndicator(ciParameterPath);
+
+      ciValue = ciParameter;
+    } catch (error: any) {
+      logger.info(`Error getting SSM parameters: ${error.message}`);
+      ciValue = "";
+    }
 
     const answerResultItem: AnswerResultItem = new AnswerResultItem(
       sessionId,
       correlationId,
       ttl,
       answerResults,
-      verificationScore
+      verificationScore,
+      checkDetailsCount > MINIMUM_QUESTION_COUNT
+        ? checkDetailsCount
+        : undefined,
+      failedCheckDetailsCount > MINIMUM_QUESTION_COUNT
+        ? failedCheckDetailsCount
+        : undefined,
+      checkDetailsCount >= MAXIMUM_QUESTION_COUNT_FOR_NO_CI
+        ? undefined
+        : [ciValue]
     );
     logger.info("Mapped to answers to result item");
     try {
@@ -61,5 +88,13 @@ export class ResultsService {
       },
     });
     return await this.dynamo.send(command);
+  }
+
+  private async getContraIndicator(ssmParamName: string): Promise<string> {
+    const parameter = await getParameter(ssmParamName);
+
+    logger.info("Successfully retrieved paramater from SSM");
+
+    return parameter as string;
   }
 }

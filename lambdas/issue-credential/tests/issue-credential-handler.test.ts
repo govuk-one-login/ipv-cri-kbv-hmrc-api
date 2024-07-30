@@ -12,6 +12,7 @@ import {
 } from "../src/utils/credential-subject-builder";
 import { Vc, VerifiableCredential } from "../src/types/vc-types";
 import { v4 as uuidv4 } from "uuid";
+import { CheckDetailsBuilder } from "../src/utils/check-details-builder";
 
 import { MetricsProbe } from "../src/../../../lib/src/Service/metrics-probe";
 import {
@@ -79,6 +80,59 @@ const testAnswerResultHappy = {
       },
     ],
     verificationScore: 2,
+    ci: ["CI1"],
+    checkDetailsCount: 3,
+    failedCheckDetailsCount: 0,
+  },
+};
+
+const testAnswerResultHappyFailedCheckDetails = {
+  Item: {
+    correlationId: "correlationId",
+    ttl: 1234567890,
+    answers: [
+      {
+        questionKey: "rti-p60-payment-for-year",
+        status: "incorrect",
+      },
+      {
+        questionKey: "rti-payslip-income-tax",
+        status: "incorrect",
+      },
+      {
+        questionKey: "sa-income-from-pensions",
+        status: "incorrect",
+      },
+    ],
+    verificationScore: 0,
+    ci: ["CI1"],
+    failedCheckDetailsCount: 3,
+    checkDetailsCount: 0,
+  },
+};
+
+const testAnswerResultHappy1FailedCheckDetails = {
+  Item: {
+    correlationId: "correlationId",
+    ttl: 1234567890,
+    answers: [
+      {
+        questionKey: "rti-p60-payment-for-year",
+        status: "incorrect",
+      },
+      {
+        questionKey: "rti-payslip-income-tax",
+        status: "correct",
+      },
+      {
+        questionKey: "sa-income-from-pensions",
+        status: "correct",
+      },
+    ],
+    verificationScore: 2,
+    ci: ["CI1"],
+    failedCheckDetailsCount: 1,
+    checkDetailsCount: 2,
   },
 };
 
@@ -92,6 +146,7 @@ describe("IssueCredentialHandler", () => {
   let credentialSubjectBuilder: CredentialSubjectBuilder;
   let evidenceBuilder: EvidenceBuilder;
   let mockMetricsProbe: jest.MockedObjectDeep<typeof MetricsProbe>;
+  let checkDetailsBuilder: CheckDetailsBuilder;
 
   process.env.RESULTS_TABLE_NAME = "RESULTS_TABLE_NAME";
 
@@ -109,6 +164,12 @@ describe("IssueCredentialHandler", () => {
       "captureMetric"
     );
 
+    evidenceBuilder = new EvidenceBuilder();
+    credentialSubjectBuilder = new CredentialSubjectBuilder();
+    checkDetailsBuilder = new CheckDetailsBuilder();
+  });
+
+  it("SuccessWithVerifificationScore2", async () => {
     dynamoDbDocument = {
       send: jest.fn().mockReturnValue(Promise.resolve(testAnswerResultHappy)),
     } as unknown as DynamoDBDocument;
@@ -118,11 +179,7 @@ describe("IssueCredentialHandler", () => {
       mockMetricsProbe.prototype,
       resultsRetrievalService
     );
-    evidenceBuilder = new EvidenceBuilder();
-    credentialSubjectBuilder = new CredentialSubjectBuilder();
-  });
 
-  it("SuccessWithVerifificationScore2", async () => {
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
     const iss = mockInputEvent.vcIssuer;
@@ -148,7 +205,18 @@ describe("IssueCredentialHandler", () => {
       .build();
 
     const evidence: Array<Evidence> = evidenceBuilder
+      .addCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappy.Item.checkDetailsCount
+        )
+      )
+      .addFailedCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappy.Item.failedCheckDetailsCount
+        )
+      )
       .addVerificationScore(testAnswerResultHappy.Item.verificationScore)
+      .addCi(["CI1"])
       .addTxn(testAnswerResultHappy.Item.correlationId)
       .build();
 
@@ -176,6 +244,164 @@ describe("IssueCredentialHandler", () => {
       MetricUnit.Count,
       CompletionStatus.OK
     );
+
+    expect(lambdaResponse).toEqual(expectedResponse);
+  });
+
+  it("SuccessWithVerifificationScore0", async () => {
+    dynamoDbDocument = {
+      send: jest
+        .fn()
+        .mockReturnValue(
+          Promise.resolve(testAnswerResultHappyFailedCheckDetails)
+        ),
+    } as unknown as DynamoDBDocument;
+
+    resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
+    issueCredentialHandler = new IssueCredentialHandler(
+      mockMetricsProbe.prototype,
+      resultsRetrievalService
+    );
+
+    const sub = "urn:uuid:" + uuidv4().toString();
+    const nbf = Date.now();
+    const iss = mockInputEvent.vcIssuer;
+    const jti = "urn:uuid:" + uuidv4().toString();
+
+    const credentialSubject: CredentialSubject = credentialSubjectBuilder
+      .setSocialSecurityRecord(
+        mockInputEvent.userInfoEvent.Items[0].socialSecurityRecord.L.map(
+          (part: any) => ({ personalNumber: part.M.personalNumber.S })
+        )
+      )
+      .addNames(
+        mockInputEvent.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
+          (part: any) =>
+            ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
+        )
+      )
+      .setBirthDate(
+        mockInputEvent.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
+          value: part.M.value.S,
+        }))
+      )
+      .build();
+
+    const evidence: Array<Evidence> = evidenceBuilder
+      .addCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappyFailedCheckDetails.Item.checkDetailsCount
+        )
+      )
+      .addFailedCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappyFailedCheckDetails.Item.failedCheckDetailsCount
+        )
+      )
+      .addVerificationScore(
+        testAnswerResultHappyFailedCheckDetails.Item.verificationScore
+      )
+      .addCi(["CI1"])
+      .addTxn(testAnswerResultHappyFailedCheckDetails.Item.correlationId)
+      .build();
+
+    const type: Array<string> = [
+      "VerifiableCredential",
+      "IdentityCheckCredential",
+    ];
+
+    const vc = new Vc(evidence, credentialSubject, type);
+    const expectedResponse = new VerifiableCredential(sub, nbf, iss, vc, jti);
+
+    const lambdaResponse: VerifiableCredential =
+      (await issueCredentialHandler.handler(
+        mockInputEvent,
+        mockInputContext
+      )) as VerifiableCredential;
+
+    //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
+    lambdaResponse.sub = sub;
+    lambdaResponse.nbf = nbf;
+    lambdaResponse.jti = jti;
+
+    expect(lambdaResponse).toEqual(expectedResponse);
+  });
+
+  it("SuccessWith1FailedCheckAnd2CheckDetails", async () => {
+    dynamoDbDocument = {
+      send: jest
+        .fn()
+        .mockReturnValue(
+          Promise.resolve(testAnswerResultHappy1FailedCheckDetails)
+        ),
+    } as unknown as DynamoDBDocument;
+
+    resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
+    issueCredentialHandler = new IssueCredentialHandler(
+      mockMetricsProbe.prototype,
+      resultsRetrievalService
+    );
+
+    const sub = "urn:uuid:" + uuidv4().toString();
+    const nbf = Date.now();
+    const iss = mockInputEvent.vcIssuer;
+    const jti = "urn:uuid:" + uuidv4().toString();
+
+    const credentialSubject: CredentialSubject = credentialSubjectBuilder
+      .setSocialSecurityRecord(
+        mockInputEvent.userInfoEvent.Items[0].socialSecurityRecord.L.map(
+          (part: any) => ({ personalNumber: part.M.personalNumber.S })
+        )
+      )
+      .addNames(
+        mockInputEvent.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
+          (part: any) =>
+            ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
+        )
+      )
+      .setBirthDate(
+        mockInputEvent.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
+          value: part.M.value.S,
+        }))
+      )
+      .build();
+
+    const evidence: Array<Evidence> = evidenceBuilder
+      .addCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappy1FailedCheckDetails.Item.checkDetailsCount
+        )
+      )
+      .addFailedCheckDetails(
+        checkDetailsBuilder.buildCheckDetails(
+          testAnswerResultHappy1FailedCheckDetails.Item.failedCheckDetailsCount
+        )
+      )
+      .addVerificationScore(
+        testAnswerResultHappy1FailedCheckDetails.Item.verificationScore
+      )
+      .addCi(["CI1"])
+      .addTxn(testAnswerResultHappy1FailedCheckDetails.Item.correlationId)
+      .build();
+
+    const type: Array<string> = [
+      "VerifiableCredential",
+      "IdentityCheckCredential",
+    ];
+
+    const vc = new Vc(evidence, credentialSubject, type);
+    const expectedResponse = new VerifiableCredential(sub, nbf, iss, vc, jti);
+
+    const lambdaResponse: VerifiableCredential =
+      (await issueCredentialHandler.handler(
+        mockInputEvent,
+        mockInputContext
+      )) as VerifiableCredential;
+
+    //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
+    lambdaResponse.sub = sub;
+    lambdaResponse.nbf = nbf;
+    lambdaResponse.jti = jti;
 
     expect(lambdaResponse).toEqual(expectedResponse);
   });
