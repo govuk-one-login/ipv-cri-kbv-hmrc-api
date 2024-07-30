@@ -80,9 +80,7 @@ export class SaveQuestionsService {
   }
 
   //record string changed to be just string
-  public async getExistingSavedItem(
-    sessionId: Record<string, unknown>
-  ): Promise<any> {
+  public async getExistingSavedItem(sessionId: string): Promise<any> {
     const command = new GetCommand({
       TableName: process.env.QUESTIONS_TABLE_NAME,
       Key: {

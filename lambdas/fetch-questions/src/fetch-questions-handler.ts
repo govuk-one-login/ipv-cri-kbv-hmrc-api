@@ -17,6 +17,7 @@ import { QuestionsResult, Question } from "./types/questions-result-types";
 import { SaveQuestionsService } from "./services/save-questions-service";
 import { FilterQuestionsService } from "./services/filter-questions-service";
 import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
+import { FetchQuestionInputs } from "./types/fetch-question-types";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
@@ -54,12 +55,20 @@ export class FetchQuestionsHandler implements LambdaInterface {
     try {
       logger.info("handler start");
 
+      // Safely retrieve lambda inputs
+      const inputs: FetchQuestionInputs =
+        this.safeRetrieveLambdaEventInputs(event);
+
+      logger.debug(
+        `Event inputs - sessionId:${inputs.sessionId}, questionsUrl:${inputs.questionsUrl}, userAgent:${inputs.userAgent}, token:${inputs.bearerToken}, nino:${inputs.nino},`
+      );
+
       let fetchQuestionsState: FetchQuestionsState =
         FetchQuestionsState.InsufficientQuestions;
 
       // Look up questions table and see if already stored for this session/nino
       const existingSavedItem = (
-        await this.saveQuestionsService.getExistingSavedItem(event.sessionId)
+        await this.saveQuestionsService.getExistingSavedItem(inputs.sessionId)
       )?.Item;
       const alreadyExistingQuestionsResult: boolean =
         existingSavedItem != undefined;
@@ -69,7 +78,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
       if (!alreadyExistingQuestionsResult) {
         const questionsResult: QuestionsResult =
-          await this.questionsRetrievalService.retrieveQuestions(event);
+          await this.questionsRetrievalService.retrieveQuestions(inputs);
 
         const correlationId = questionsResult.getCorrelationId();
         const questionResultCount: number = questionsResult.getQuestionCount();
@@ -83,7 +92,6 @@ export class FetchQuestionsHandler implements LambdaInterface {
         // TBD if placed in handler or questionsRetrievalService
 
         logger.info("Filtering questions");
-
         const filteredQuestions: Question[] =
           await this.filterQuestionsService.filterQuestions(
             questionsResult.questions
@@ -97,10 +105,10 @@ export class FetchQuestionsHandler implements LambdaInterface {
         }
 
         // Save question keys to DynamoDB only if they pass filtering - other wise save an empty questions result
-        const sessionTtl: number = Number(event.sessionItem.Item.expiryDate.N);
-        logger.info(`Saving questions ${event.sessionId} - ${sessionTtl}`);
+        const sessionTtl: number = inputs.sessionTtl;
+        logger.info(`Saving questions ${inputs.sessionId} - ${sessionTtl}`);
         const questionsSaved = await this.saveQuestionsService.saveQuestions(
-          event.sessionId,
+          inputs.sessionId,
           sessionTtl,
           correlationId,
           filteredQuestions
@@ -156,6 +164,64 @@ export class FetchQuestionsHandler implements LambdaInterface {
       // Indicate to the statemachine a lambda error has occured
       return { error: errorMessage };
     }
+  }
+
+  private safeRetrieveLambdaEventInputs(event: any): FetchQuestionInputs {
+    const sessionId = event?.sessionId;
+    const sessionTtl = event?.sessionItem?.Item?.expiryDate?.N;
+
+    const parameters = event?.parameters;
+    const questionsUrl = event?.parameters?.url?.value;
+    const userAgent = event?.parameters?.userAgent?.value;
+    const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently
+
+    const personIdentityItem = event?.personIdentityItem;
+    const nino = event?.personIdentityItem?.nino;
+
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    if (!sessionId) {
+      throw new Error("sessionId was not provided");
+    }
+
+    if (!sessionTtl) {
+      throw new Error("sessionItem was not provided - cannot use ttl");
+    }
+
+    if (!parameters) {
+      throw new Error("event parameters not found");
+    }
+
+    if (!questionsUrl) {
+      throw new Error("questionsUrl was not provided");
+    }
+
+    if (!userAgent) {
+      throw new Error("userAgent was not provided");
+    }
+
+    if (!bearerToken) {
+      throw new Error("bearerToken was not provided");
+    }
+
+    if (!personIdentityItem) {
+      throw new Error("personIdentityItem not found");
+    }
+
+    if (!nino) {
+      throw new Error("nino was not provided");
+    }
+
+    return {
+      sessionId: sessionId,
+      sessionTtl: Number(sessionTtl),
+      questionsUrl: questionsUrl,
+      userAgent: userAgent,
+      bearerToken: bearerToken,
+      nino: nino,
+    } as FetchQuestionInputs;
   }
 }
 

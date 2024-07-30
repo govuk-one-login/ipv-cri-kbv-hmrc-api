@@ -9,6 +9,7 @@ import {
 import { QuestionsRetrievalService } from "../../src/services/questions-retrieval-service";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
+import { FetchQuestionInputs } from "../../src/types/fetch-question-types";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
@@ -24,18 +25,13 @@ describe("QuestionsRetrievalService", () => {
 
   let mockCaptureServiceMetricMetricsProbeSpy: jest.SpyInstance;
 
-  const mockInputEvent = {
-    parameters: {
-      url: { value: "dummyUrl" },
-      userAgent: { value: "dummyUserAgent" },
-    },
-    bearerToken: {
-      value: "dummyOAuthToken",
-    },
-    personIdentityItem: {
-      nino: "dummyNino",
-    },
-  };
+  const mockFetchQuestionInputs = {
+    sessionId: "SESSION_ID",
+    questionsUrl: "dummyUrl",
+    userAgent: "dummyUserAgent",
+    bearerToken: "dummyBearerToken",
+    nino: "dummyNino",
+  } as FetchQuestionInputs;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,7 +83,9 @@ describe("QuestionsRetrievalService", () => {
       ) as jest.Mock;
 
       const questionsResult: QuestionsResult =
-        await questionsRetrievalService.retrieveQuestions(mockInputEvent);
+        await questionsRetrievalService.retrieveQuestions(
+          mockFetchQuestionInputs
+        );
 
       const correlationId: string = questionsResult.getCorrelationId();
       expect(correlationId).toEqual(apiResponse["correlationId"]);
@@ -146,7 +144,7 @@ describe("QuestionsRetrievalService", () => {
       ) as jest.Mock;
 
       await expect(
-        questionsRetrievalService.retrieveQuestions(mockInputEvent)
+        questionsRetrievalService.retrieveQuestions(mockFetchQuestionInputs)
       ).rejects.toEqual(
         new Error(
           "API Request Failed : Unable to parse json from response unexpected content type : application/unknown"
@@ -197,7 +195,7 @@ describe("QuestionsRetrievalService", () => {
       ) as jest.Mock;
 
       await expect(
-        questionsRetrievalService.retrieveQuestions(mockInputEvent)
+        questionsRetrievalService.retrieveQuestions(mockFetchQuestionInputs)
       ).rejects.toEqual(
         new Error(
           `API Request Failed : Unable to parse json from response Unabled to map QuestionsResult from json in response : Cannot read properties of undefined (reading 'forEach')`
@@ -248,7 +246,7 @@ describe("QuestionsRetrievalService", () => {
       ) as jest.Mock;
 
       await expect(
-        questionsRetrievalService.retrieveQuestions(mockInputEvent)
+        questionsRetrievalService.retrieveQuestions(mockFetchQuestionInputs)
       ).rejects.toEqual(
         new Error(
           `API Request Failed : API Request Failed due to Credentials being rejected - ${errorReponseText}`
@@ -292,7 +290,7 @@ describe("QuestionsRetrievalService", () => {
         ) as jest.Mock;
 
         await expect(
-          questionsRetrievalService.retrieveQuestions(mockInputEvent)
+          questionsRetrievalService.retrieveQuestions(mockFetchQuestionInputs)
         ).rejects.toEqual(
           new Error(
             `API Request Failed : Unexpected Response ${httpStatus} - ${errorReponseText}`
