@@ -14,6 +14,11 @@ const config: Config = {
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
+  globals: {
+    "ts-jest": {
+      isolatedModules: true,
+    },
+  },
   reporters: [
     "default",
     ["jest-junit", { outputDirectory: "results", outputName: "report.xml" }],

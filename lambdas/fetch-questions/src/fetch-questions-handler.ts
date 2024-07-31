@@ -96,6 +96,13 @@ export class FetchQuestionsHandler implements LambdaInterface {
           await this.filterQuestionsService.filterQuestions(
             questionsResult.questions
           );
+        logger.info(
+          "Question keys returned for cid " +
+            correlationId +
+            " questions: " +
+            JSON.stringify(filteredQuestions)
+        );
+
         logger.info("Question keys have been filtered successfully");
 
         // Check filter outcome (questionResultCount placeholder)
