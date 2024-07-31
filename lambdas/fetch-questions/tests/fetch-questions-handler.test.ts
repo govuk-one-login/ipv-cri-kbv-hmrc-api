@@ -5,6 +5,11 @@ import { QuestionsRetrievalService } from "../src/services/questions-retrieval-s
 import { SaveQuestionsService } from "../src/services/save-questions-service";
 import { FilterQuestionsService } from "../src/services/filter-questions-service";
 import { MetricsProbe } from "../src/../../../lib/src/Service/metrics-probe";
+import { AuditService } from "../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../lib/src/types/audit-event";
 
 import {
   HandlerMetric,
@@ -17,6 +22,7 @@ jest.mock("../src/services/questions-retrieval-service");
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
 jest.mock("../src/services/save-questions-service");
 jest.mock("../src/services/filter-questions-service");
+jest.mock("../src/../../../lib/src/Service/audit-service");
 
 describe("FetchQuestionsHandler", () => {
   let fetchQuestionsHandler: FetchQuestionsHandler;
@@ -34,11 +40,14 @@ describe("FetchQuestionsHandler", () => {
     typeof FilterQuestionsService
   >;
 
+  let mockAuditService: jest.MockedObjectDeep<typeof AuditService>;
+
   let questionsRetrievalServiceSpy: jest.SpyInstance;
   let mockMetricsProbeSpy: jest.SpyInstance;
   let saveQuestionsServicegetExistingSavedItemSpy: jest.SpyInstance;
   let saveQuestionsServiceSaveQuestionsSpy: jest.SpyInstance;
   let filterQuestionsServiceSpy: jest.SpyInstance;
+  let mockAuditServiceSpy: jest.SpyInstance;
 
   const mockInputEvent = {
     sessionId: "sessionId",
@@ -46,6 +55,21 @@ describe("FetchQuestionsHandler", () => {
       Item: {
         expiryDate: {
           N: "1234",
+        },
+        clientIpAddress: {
+          S: "51.149.8.131",
+        },
+        subject: {
+          S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+        },
+        persistentSessionId: {
+          S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+        },
+        sessionId: {
+          S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+        },
+        clientSessionId: {
+          S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
         },
       },
     },
@@ -73,6 +97,7 @@ describe("FetchQuestionsHandler", () => {
     mockQuestionsRetrievalService = jest.mocked(QuestionsRetrievalService);
     mockSaveQuestionsService = jest.mocked(SaveQuestionsService);
     mockFilterQuestionsService = jest.mocked(FilterQuestionsService);
+    mockAuditService = jest.mocked(AuditService);
 
     questionsRetrievalServiceSpy = jest.spyOn(
       mockQuestionsRetrievalService.prototype,
@@ -99,11 +124,20 @@ describe("FetchQuestionsHandler", () => {
       "captureMetric"
     );
 
+    mockAuditServiceSpy = jest.spyOn(
+      mockAuditService.prototype,
+      "sendAuditEvent"
+    );
+
+    const SQS_AUDIT_EVENT_QUEUE_URL: string = "SQS_AUDIT_EVENT_QUEUE_URL";
+
     fetchQuestionsHandler = new FetchQuestionsHandler(
       mockMetricsProbe.prototype,
       mockQuestionsRetrievalService.prototype,
       mockSaveQuestionsService.prototype,
-      mockFilterQuestionsService.prototype
+      mockFilterQuestionsService.prototype,
+      mockAuditService.prototype,
+      SQS_AUDIT_EVENT_QUEUE_URL
     );
   });
 
@@ -159,6 +193,7 @@ describe("FetchQuestionsHandler", () => {
           userAgent: mockInputEvent.parameters.userAgent.value,
           bearerToken: mockInputEvent.bearerToken.value,
           nino: mockInputEvent.personIdentityItem.nino,
+          sessionItem: mockInputEvent.sessionItem,
         } as FetchQuestionInputs;
 
         expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
@@ -179,6 +214,17 @@ describe("FetchQuestionsHandler", () => {
         let expectedState: string;
         if (questionCount < 2) {
           expectedState = "InsufficientQuestions";
+
+          const hmrcIvqResponse: HmrcIvqResponse = {
+            outcome: "InsufficientQuestions",
+          };
+          expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+            AuditEventType.THIN_FILE_ENCOUNTERED,
+            mockInputEvent.sessionItem,
+            undefined,
+            undefined,
+            hmrcIvqResponse
+          );
         } else {
           expectedState = "SufficientQuestions";
         }
@@ -427,6 +473,7 @@ describe("FetchQuestionsHandler", () => {
         userAgent: mockInputEvent.parameters.userAgent.value,
         bearerToken: mockInputEvent.bearerToken.value,
         nino: mockInputEvent.personIdentityItem.nino,
+        sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
       expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
@@ -483,6 +530,7 @@ describe("FetchQuestionsHandler", () => {
         userAgent: mockInputEvent.parameters.userAgent.value,
         bearerToken: mockInputEvent.bearerToken.value,
         nino: mockInputEvent.personIdentityItem.nino,
+        sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
       expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(

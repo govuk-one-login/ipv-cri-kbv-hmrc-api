@@ -412,11 +412,25 @@
         "Name": "${UserAgent}"
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "Invoke Submit Answers Lambda",
+      "Next": "DynamoDB Get SessionItem",
       "ResultPath": "$.parameters.userAgent",
       "ResultSelector": {
         "value.$": "$.Parameter.Value"
       }
+    },
+    "DynamoDB Get SessionItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${SessionTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Invoke Submit Answers Lambda",
+      "ResultPath": "$.sessionItem"
     },
     "Invoke Submit Answers Lambda": {
       "Type": "Task",

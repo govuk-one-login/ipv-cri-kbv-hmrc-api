@@ -3,6 +3,8 @@ import { Logger } from "@aws-lambda-powertools/logger";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Answer, SubmitAnswerResult } from "../types/answer-result-types";
 import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { SQSClient } from "@aws-sdk/client-sqs";
+import { fromEnv } from "@aws-sdk/credential-providers";
 
 import {
   HTTPMetric,
@@ -10,7 +12,15 @@ import {
 } from "../../../../lib/src/MetricTypes/http-service-metrics";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 
+import { CheckDetailsCountCalculator } from ".././utils/check-details-count-calculator";
+
 import { StopWatch } from "../../../../lib/src/Service/stop-watch";
+import { AuditService } from "../../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../../lib/src/types/audit-event";
+import { CriAuditConfig } from "../../../../lib/src/types/cri-audit-config";
 
 enum AnswerServiceMetrics {
   AnswersSubmitted = "AnswersSubmitted",
@@ -21,15 +31,35 @@ enum AnswerServiceMetrics {
 const ServiceName: string = "SubmitAnswersService";
 const logger = new Logger({ serviceName: `${ServiceName}` });
 
+const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
+
+const sqsClient = new SQSClient({
+  region: "eu-west-2",
+  credentials: fromEnv(),
+});
+
+const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
+if (!queueUrl) {
+  throw new Error("Missing environment variable: SQS_AUDIT_EVENT_QUEUE_URL");
+}
+const issuer = "verifiable-credential/issuer";
+
+const criAuditConfig: CriAuditConfig = {
+  queueUrl,
+  issuer,
+};
+
 export class SubmitAnswerService {
   private metricsProbe: MetricsProbe;
   private dynamo: DynamoDBDocument;
   private stopWatch: StopWatch;
+  auditService: AuditService;
 
   constructor(metricProbe: MetricsProbe, dyanamoDbClient: DynamoDBDocument) {
     this.metricsProbe = metricProbe;
     this.dynamo = dyanamoDbClient;
     this.stopWatch = new StopWatch();
+    this.auditService = new AuditService(() => criAuditConfig, sqsClient);
   }
 
   public async checkAnswers(event: any): Promise<SubmitAnswerResult[]> {
@@ -39,7 +69,47 @@ export class SubmitAnswerService {
     logger.info("Mapping answers to format accepted by HMRC...");
     const answers: Answer[] = this.mapAnswersForThirdParty(event);
 
-    return await this.verifyWithThirdParty(event, nino, answers);
+    const results = await this.verifyWithThirdParty(event, nino, answers);
+
+    //For building and sending audit events
+    const sessionItem = event.sessionItem;
+    const endpoint = "SubmitAnswers";
+
+    const correctAnswerCount = checkDetailsCountCalculator.calculateAnswerCount(
+      results,
+      "correct"
+    );
+    const incorrectAnswerCount =
+      checkDetailsCountCalculator.calculateAnswerCount(results, "incorrect");
+
+    logger.info("Sending REQUEST_SENT Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.REQUEST_SENT,
+      sessionItem,
+      nino,
+      endpoint
+    );
+
+    const totalQuestionsAsked = correctAnswerCount + incorrectAnswerCount;
+    const outcome = "Not Authenticated";
+
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsAnsweredCorrect: correctAnswerCount,
+      totalQuestionsAsked: totalQuestionsAsked,
+      totalQuestionsAnsweredIncorrect: incorrectAnswerCount,
+      outcome: outcome,
+    };
+
+    logger.info("Sending RESPONSE RECEIVED Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.RESPONSE_RECEIVED,
+      sessionItem,
+      undefined,
+      endpoint,
+      hmrcIvqResponse
+    );
+
+    return results;
   }
 
   private async verifyWithThirdParty(

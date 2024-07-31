@@ -5,4 +5,5 @@ export interface FetchQuestionInputs {
   userAgent: string;
   bearerToken: string;
   nino: string;
+  sessionItem: any;
 }

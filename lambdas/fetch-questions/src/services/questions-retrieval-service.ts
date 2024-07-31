@@ -11,6 +11,12 @@ import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { StopWatch } from "../../../../lib/src/Service/stop-watch";
 import { FetchQuestionInputs } from "../types/fetch-question-types";
 
+import { AuditService } from "../../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../../lib/src/types/audit-event";
+
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
 }
@@ -21,16 +27,46 @@ const logger = new Logger({ serviceName: `${ServiceName}` });
 export class QuestionsRetrievalService {
   metricsProbe: MetricsProbe;
   stopWatch: StopWatch;
+  auditService: AuditService;
+  sqsQueueUrl: string | undefined;
 
-  constructor(metricProbe: MetricsProbe) {
+  constructor(metricProbe: MetricsProbe, auditService: AuditService) {
     this.metricsProbe = metricProbe;
     this.stopWatch = new StopWatch();
+    this.auditService = auditService;
   }
 
   public async retrieveQuestions(
     inputs: FetchQuestionInputs
   ): Promise<QuestionsResult> {
-    return await this.performAPIRequest(inputs);
+    const questionsResult = await this.performAPIRequest(inputs);
+    const sessionItem = inputs.sessionItem;
+    const nino = inputs.nino;
+    const endpoint: string = "GetQuestions";
+    const questionResultCount: number = questionsResult.getQuestionCount();
+
+    logger.info("Sending REQUEST SENT Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.REQUEST_SENT,
+      sessionItem,
+      nino,
+      endpoint
+    );
+
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsReturned: questionResultCount,
+    };
+
+    logger.info("Sending RESPONSE RECEIVED Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.RESPONSE_RECEIVED,
+      sessionItem,
+      undefined,
+      endpoint,
+      hmrcIvqResponse
+    );
+
+    return questionsResult;
   }
 
   private async performAPIRequest(

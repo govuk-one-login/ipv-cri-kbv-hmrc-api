@@ -1,6 +1,8 @@
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Logger } from "@aws-lambda-powertools/logger";
 import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
+import { fromEnv } from "@aws-sdk/credential-providers";
 
 import {
   HandlerMetricExport,
@@ -18,8 +20,20 @@ import { SaveQuestionsService } from "./services/save-questions-service";
 import { FilterQuestionsService } from "./services/filter-questions-service";
 import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 import { FetchQuestionInputs } from "./types/fetch-question-types";
+import { AuditService } from "../../../lib/src/Service/audit-service";
+import { CriAuditConfig } from "../../../lib/src/types/cri-audit-config";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../lib/src/types/audit-event";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
+const sqsClient = new SQSClient({
+  region: "eu-west-2",
+  credentials: fromEnv(),
+});
+
+const issuer = "verifiable-credential/issuer";
 
 // NOTE: these strings are also used in the metric for the outcome
 enum FetchQuestionsState {
@@ -33,19 +47,24 @@ export class FetchQuestionsHandler implements LambdaInterface {
   questionsRetrievalService: QuestionsRetrievalService;
   saveQuestionsService: SaveQuestionsService;
   filterQuestionsService: FilterQuestionsService;
+  auditService: AuditService;
+  sqsQueueUrl: string | undefined;
 
   constructor(
     metricsProbe: MetricsProbe,
     questionsRetrievalService: QuestionsRetrievalService,
     saveQuestionsService: SaveQuestionsService,
-    filterQuestionsService: FilterQuestionsService
+    filterQuestionsService: FilterQuestionsService,
+    auditService: AuditService,
+    sqsQueueUrl: string | undefined
   ) {
     this.metricsProbe = metricsProbe;
     this.questionsRetrievalService = questionsRetrievalService;
     this.saveQuestionsService = saveQuestionsService;
     this.filterQuestionsService = filterQuestionsService;
+    this.auditService = auditService;
+    this.sqsQueueUrl = sqsQueueUrl;
   }
-
   @logger.injectLambdaContext({ clearState: true })
   @HandlerMetricExport.logMetrics({
     throwOnEmptyMetrics: false,
@@ -58,6 +77,8 @@ export class FetchQuestionsHandler implements LambdaInterface {
       // Safely retrieve lambda inputs
       const inputs: FetchQuestionInputs =
         this.safeRetrieveLambdaEventInputs(event);
+
+      const sessionItem = inputs.sessionItem;
 
       logger.debug(
         `Event inputs - sessionId:${inputs.sessionId}, questionsUrl:${inputs.questionsUrl}, userAgent:${inputs.userAgent}, token:${inputs.bearerToken}, nino:${inputs.nino},`
@@ -82,7 +103,6 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
         const correlationId = questionsResult.getCorrelationId();
         const questionResultCount: number = questionsResult.getQuestionCount();
-
         logger.info(
           `Result returned - correlationId : ${correlationId}, questionResultCount ${questionResultCount}`
         );
@@ -109,6 +129,18 @@ export class FetchQuestionsHandler implements LambdaInterface {
         const filterQuestionsResultCount: number = filteredQuestions.length;
         if (filterQuestionsResultCount > 1) {
           fetchQuestionsState = FetchQuestionsState.SufficientQuestions;
+        } else {
+          //this is purely for audit events
+          const hmrcIvqResponse: HmrcIvqResponse = {
+            outcome: "InsufficientQuestions",
+          };
+          await this.auditService.sendAuditEvent(
+            AuditEventType.THIN_FILE_ENCOUNTERED,
+            sessionItem,
+            undefined,
+            undefined,
+            hmrcIvqResponse
+          );
         }
 
         // Save question keys to DynamoDB only if they pass filtering - other wise save an empty questions result
@@ -137,6 +169,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
           logger.info(
             "InsufficientQuestions in the existing result for this NINO"
           );
+
           fetchQuestionsState = FetchQuestionsState.InsufficientQuestions;
         }
       }
@@ -184,6 +217,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
     const personIdentityItem = event?.personIdentityItem;
     const nino = event?.personIdentityItem?.nino;
+    const sessionItem = event?.sessionItem;
 
     if (!event) {
       throw new Error("input event is empty");
@@ -221,6 +255,10 @@ export class FetchQuestionsHandler implements LambdaInterface {
       throw new Error("nino was not provided");
     }
 
+    if (!sessionItem) {
+      throw new Error("session item was not provided");
+    }
+
     return {
       sessionId: sessionId,
       sessionTtl: Number(sessionTtl),
@@ -228,16 +266,28 @@ export class FetchQuestionsHandler implements LambdaInterface {
       userAgent: userAgent,
       bearerToken: bearerToken,
       nino: nino,
+      sessionItem: sessionItem,
     } as FetchQuestionInputs;
   }
 }
 
 // Handler Export
 const metricProbe = new MetricsProbe();
+const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
+const criAuditConfig: CriAuditConfig = {
+  queueUrl,
+  issuer,
+};
+let auditService: AuditService = new AuditService(
+  () => criAuditConfig,
+  sqsClient
+);
 const handlerClass = new FetchQuestionsHandler(
   metricProbe,
-  new QuestionsRetrievalService(metricProbe),
+  new QuestionsRetrievalService(metricProbe, auditService),
   new SaveQuestionsService(createDynamoDbClient()),
-  new FilterQuestionsService(metricProbe)
+  new FilterQuestionsService(metricProbe),
+  auditService,
+  queueUrl
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);
