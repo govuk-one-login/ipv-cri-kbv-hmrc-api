@@ -63,6 +63,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
       if (!sessionTtl) {
         throw new Error("sessionItem was not provided - cannot use ttl");
       }
+      logger.info("Handler start");
 
       const answerResult: SubmitAnswerResult[] =
         await this.submitAnswerService.checkAnswers(event);
@@ -72,20 +73,26 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
       const correlationId = event.dynamoResult.Item.correlationId.S;
 
+      const ttl = event.usersQuestions.Items[0].expiryDate as number;
+      const correctAnswerCount =
+        checkDetailsCountCalculator.calculateAnswerCount(
+          answerResult,
+          "correct"
+        );
+      const incorrectAnswerCount =
+        checkDetailsCountCalculator.calculateAnswerCount(
+          answerResult,
+          "incorrect"
+        );
+
       await this.resultService.saveResults(
         sessionId,
         correlationId,
         Number(sessionTtl),
         answerResult,
         verificationScore,
-        checkDetailsCountCalculator.calculateAnswerCount(
-          answerResult,
-          "correct"
-        ),
-        checkDetailsCountCalculator.calculateAnswerCount(
-          answerResult,
-          "incorrect"
-        )
+        correctAnswerCount,
+        incorrectAnswerCount
       );
 
       this.metricsProbe.captureMetric(

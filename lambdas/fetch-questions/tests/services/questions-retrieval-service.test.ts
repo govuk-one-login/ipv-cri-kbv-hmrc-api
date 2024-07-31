@@ -10,6 +10,11 @@ import { QuestionsRetrievalService } from "../../src/services/questions-retrieva
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { FetchQuestionInputs } from "../../src/types/fetch-question-types";
+import { AuditService } from "../../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../../lib/src/types/audit-event";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
@@ -18,12 +23,15 @@ enum QuestionServiceMetrics {
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../../../../lib/src/Service/metrics-probe");
 jest.mock("node-fetch");
+jest.mock("../../../../lib/src/Service/audit-service");
 
 describe("QuestionsRetrievalService", () => {
   let questionsRetrievalService: QuestionsRetrievalService;
   let mockMetricsProbe: jest.MockedObjectDeep<typeof MetricsProbe>;
+  let mockAuditService: jest.MockedObjectDeep<typeof AuditService>;
 
   let mockCaptureServiceMetricMetricsProbeSpy: jest.SpyInstance;
+  let mockAuditServiceSpy: jest.SpyInstance;
 
   const mockFetchQuestionInputs = {
     sessionId: "SESSION_ID",
@@ -31,20 +39,49 @@ describe("QuestionsRetrievalService", () => {
     userAgent: "dummyUserAgent",
     bearerToken: "dummyBearerToken",
     nino: "dummyNino",
+    sessionItem: {
+      Item: {
+        expiryDate: {
+          N: "1234",
+        },
+        clientIpAddress: {
+          S: "51.149.8.131",
+        },
+        subject: {
+          S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+        },
+        persistentSessionId: {
+          S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+        },
+        sessionId: {
+          S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+        },
+        clientSessionId: {
+          S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
+        },
+      },
+    },
   } as FetchQuestionInputs;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockMetricsProbe = jest.mocked(MetricsProbe);
+    mockAuditService = jest.mocked(AuditService);
 
     mockCaptureServiceMetricMetricsProbeSpy = jest.spyOn(
       mockMetricsProbe.prototype,
       "captureServiceMetric"
     );
 
+    mockAuditServiceSpy = jest.spyOn(
+      mockAuditService.prototype,
+      "sendAuditEvent"
+    );
+
     questionsRetrievalService = new QuestionsRetrievalService(
-      mockMetricsProbe.prototype
+      mockMetricsProbe.prototype,
+      mockAuditService.prototype
     );
   });
 
@@ -126,6 +163,25 @@ describe("QuestionsRetrievalService", () => {
         "QuestionsRetrievalService",
         MetricUnit.Count,
         apiResponse["questions"].length
+      );
+
+      expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+        AuditEventType.REQUEST_SENT,
+        mockFetchQuestionInputs.sessionItem,
+        mockFetchQuestionInputs.nino,
+        "GetQuestions"
+      );
+
+      const hmrcIvqResponse: HmrcIvqResponse = {
+        totalQuestionsReturned: 3,
+      };
+
+      expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+        AuditEventType.RESPONSE_RECEIVED,
+        mockFetchQuestionInputs.sessionItem,
+        undefined,
+        "GetQuestions",
+        hmrcIvqResponse
       );
     });
   });

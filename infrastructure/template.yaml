@@ -55,6 +55,10 @@ Parameters:
     Description: >-
       The name of the bearer token parameter.
       Temporary solution to be changed once cross account behaviour implemented.
+  TxmaStackName:
+    Description: "The stack containing the TXMA infrastructure"
+    Type: String
+    Default: txma-infrastructure
 
 Conditions:
   IsDeployedFromPipeline:
@@ -717,6 +721,7 @@ Resources:
         MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
         JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
         TimeFunctionArn: !GetAtt TimeFunction.Arn
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         IssueCredentialArn: !GetAtt IssueCredentialFunction.Arn
         JwtSignerFunction: !GetAtt JwtSignerFunction.Arn
         CommonStackName: !Ref CommonStackName
@@ -800,6 +805,9 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-fetchquestions"
           QUESTIONS_TABLE_NAME: !Ref QuestionsTable
+          SQS_AUDIT_EVENT_PREFIX: !Ref AuditEventNamePrefix
+          SQS_AUDIT_EVENT_QUEUE_URL:
+            Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueUrl
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
@@ -814,6 +822,18 @@ Resources:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
+        - SQSSendMessagePolicy:
+            QueueName:
+              Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueName
+        - KMSDecryptPolicy:
+            KeyId: !ImportValue core-infrastructure-CriDecryptionKey1Id
+        - Statement:
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueEncryptionKeyArn
       PermissionsBoundary: !If
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
@@ -916,6 +936,8 @@ Resources:
           PERSON_IDENTITY_TABLE_NAME: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
           RESULTS_TABLE_NAME: !Ref ResultsTable
           CI_VALUE_PARAM_NAME: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/contraIndicator"
+          SQS_AUDIT_EVENT_QUEUE_URL:
+            Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueUrl
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
@@ -924,6 +946,18 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Ref ResultsTable
+        - SQSSendMessagePolicy:
+            QueueName:
+              Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueName
+        - KMSDecryptPolicy:
+            KeyId: !ImportValue core-infrastructure-CriDecryptionKey1Id
+        - Statement:
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueEncryptionKeyArn
         - Statement:
             Effect: Allow
             Action:
@@ -1038,6 +1072,8 @@ Resources:
           POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-issuecredential"
           ENVIRONMENT: !Ref Environment
           RESULTS_TABLE_NAME: !Ref ResultsTable
+          SQS_AUDIT_EVENT_QUEUE_URL:
+            Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueUrl
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
@@ -1045,6 +1081,18 @@ Resources:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref ResultsTable
+        - SQSSendMessagePolicy:
+            QueueName:
+              Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueName
+        - KMSDecryptPolicy:
+            KeyId: !ImportValue core-infrastructure-CriDecryptionKey1Id
+        - Statement:
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - Fn::ImportValue: !Sub ${TxmaStackName}-AuditEventQueueEncryptionKeyArn
       Timeout: 15
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]

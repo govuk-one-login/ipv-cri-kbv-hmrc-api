@@ -20,10 +20,39 @@ import {
   HandlerMetric,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
+import { AuditService } from "../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../lib/src/types/audit-event";
+
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
+jest.mock("../src/../../../lib/src/Service/audit-service");
 
 const mockInputEvent = {
   vcIssuer: "testIssuer",
+  sessionItem: {
+    Item: {
+      expiryDate: {
+        N: "1234",
+      },
+      clientIpAddress: {
+        S: "51.149.8.131",
+      },
+      subject: {
+        S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+      },
+      persistentSessionId: {
+        S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+      },
+      sessionId: {
+        S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+      },
+      clientSessionId: {
+        S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
+      },
+    },
+  },
   userInfoEvent: {
     Items: [
       {
@@ -147,21 +176,30 @@ describe("IssueCredentialHandler", () => {
   let evidenceBuilder: EvidenceBuilder;
   let mockMetricsProbe: jest.MockedObjectDeep<typeof MetricsProbe>;
   let checkDetailsBuilder: CheckDetailsBuilder;
+  let mockAuditService: jest.MockedObjectDeep<typeof AuditService>;
 
   process.env.RESULTS_TABLE_NAME = "RESULTS_TABLE_NAME";
+  process.env.SQS_AUDIT_EVENT_QUEUE_URL = "SQS_AUDIT_EVENT_QUEUE_URL";
 
   let dynamoDbDocument: DynamoDBDocument;
 
   let mockMetricsProbeSpy: jest.SpyInstance;
+  let mockAuditServiceSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockMetricsProbe = jest.mocked(MetricsProbe);
+    mockAuditService = jest.mocked(AuditService);
 
     mockMetricsProbeSpy = jest.spyOn(
       mockMetricsProbe.prototype,
       "captureMetric"
+    );
+
+    mockAuditServiceSpy = jest.spyOn(
+      mockAuditService.prototype,
+      "sendAuditEvent"
     );
 
     evidenceBuilder = new EvidenceBuilder();
@@ -174,10 +212,14 @@ describe("IssueCredentialHandler", () => {
       send: jest.fn().mockReturnValue(Promise.resolve(testAnswerResultHappy)),
     } as unknown as DynamoDBDocument;
 
+    const SQS_AUDIT_EVENT_QUEUE_URL: string = "SQS_AUDIT_EVENT_QUEUE_URL";
+
     resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
     issueCredentialHandler = new IssueCredentialHandler(
       mockMetricsProbe.prototype,
-      resultsRetrievalService
+      resultsRetrievalService,
+      mockAuditService.prototype,
+      SQS_AUDIT_EVENT_QUEUE_URL
     );
 
     const sub = "urn:uuid:" + uuidv4().toString();
@@ -245,6 +287,32 @@ describe("IssueCredentialHandler", () => {
       CompletionStatus.OK
     );
 
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsAnsweredCorrect:
+        testAnswerResultHappy.Item.checkDetailsCount,
+      totalQuestionsAsked:
+        testAnswerResultHappy.Item.checkDetailsCount +
+        testAnswerResultHappy.Item.failedCheckDetailsCount,
+      totalQuestionsAnsweredIncorrect:
+        testAnswerResultHappy.Item.failedCheckDetailsCount,
+      outcome: "Not Authenticated",
+    };
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.VC_ISSUED,
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      hmrcIvqResponse,
+      iss,
+      evidence
+    );
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.END,
+      mockInputEvent.sessionItem
+    );
+
     expect(lambdaResponse).toEqual(expectedResponse);
   });
 
@@ -257,10 +325,14 @@ describe("IssueCredentialHandler", () => {
         ),
     } as unknown as DynamoDBDocument;
 
+    const SQS_AUDIT_EVENT_QUEUE_URL: string = "SQS_AUDIT_EVENT_QUEUE_URL";
+
     resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
     issueCredentialHandler = new IssueCredentialHandler(
       mockMetricsProbe.prototype,
-      resultsRetrievalService
+      resultsRetrievalService,
+      mockAuditService.prototype,
+      SQS_AUDIT_EVENT_QUEUE_URL
     );
 
     const sub = "urn:uuid:" + uuidv4().toString();
@@ -324,6 +396,32 @@ describe("IssueCredentialHandler", () => {
     lambdaResponse.nbf = nbf;
     lambdaResponse.jti = jti;
 
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsAnsweredCorrect:
+        testAnswerResultHappyFailedCheckDetails.Item.checkDetailsCount,
+      totalQuestionsAsked:
+        testAnswerResultHappyFailedCheckDetails.Item.checkDetailsCount +
+        testAnswerResultHappyFailedCheckDetails.Item.failedCheckDetailsCount,
+      totalQuestionsAnsweredIncorrect:
+        testAnswerResultHappyFailedCheckDetails.Item.failedCheckDetailsCount,
+      outcome: "Not Authenticated",
+    };
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.VC_ISSUED,
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      hmrcIvqResponse,
+      iss,
+      evidence
+    );
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.END,
+      mockInputEvent.sessionItem
+    );
+
     expect(lambdaResponse).toEqual(expectedResponse);
   });
 
@@ -336,10 +434,14 @@ describe("IssueCredentialHandler", () => {
         ),
     } as unknown as DynamoDBDocument;
 
+    const SQS_AUDIT_EVENT_QUEUE_URL: string = "SQS_AUDIT_EVENT_QUEUE_URL";
+
     resultsRetrievalService = new ResultsRetrievalService(dynamoDbDocument);
     issueCredentialHandler = new IssueCredentialHandler(
       mockMetricsProbe.prototype,
-      resultsRetrievalService
+      resultsRetrievalService,
+      mockAuditService.prototype,
+      SQS_AUDIT_EVENT_QUEUE_URL
     );
 
     const sub = "urn:uuid:" + uuidv4().toString();
@@ -402,6 +504,32 @@ describe("IssueCredentialHandler", () => {
     lambdaResponse.sub = sub;
     lambdaResponse.nbf = nbf;
     lambdaResponse.jti = jti;
+
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsAnsweredCorrect:
+        testAnswerResultHappy1FailedCheckDetails.Item.checkDetailsCount,
+      totalQuestionsAsked:
+        testAnswerResultHappy1FailedCheckDetails.Item.checkDetailsCount +
+        testAnswerResultHappy1FailedCheckDetails.Item.failedCheckDetailsCount,
+      totalQuestionsAnsweredIncorrect:
+        testAnswerResultHappy1FailedCheckDetails.Item.failedCheckDetailsCount,
+      outcome: "Not Authenticated",
+    };
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.VC_ISSUED,
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      hmrcIvqResponse,
+      iss,
+      evidence
+    );
+
+    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      AuditEventType.END,
+      mockInputEvent.sessionItem
+    );
 
     expect(lambdaResponse).toEqual(expectedResponse);
   });
