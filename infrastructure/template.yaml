@@ -1110,15 +1110,16 @@ Resources:
         Sourcemap: true
     Properties:
       Handler: lambdas/answer-validation/src/answer-validation-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-answer-validation"
       LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${AWS::StackName}/AnswerValidationFunction
+        LogGroup: !Sub "/aws/lambda/${AWS::StackName}-AnswerValidationFunction"
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
   AnswerValidationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${AWS::StackName}/AnswerValidationFunction
+      LogGroupName: !Sub "/aws/lambda/${AnswerValidationFunction}"
       RetentionInDays: 30
 
   ####################################################################

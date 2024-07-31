@@ -26,7 +26,7 @@ export class ResultsService {
   public async saveResults(
     sessionId: string,
     correlationId: string,
-    ttl: number,
+    expiryDate: number,
     answerResults: SubmitAnswerResult[],
     verificationScore: number,
     checkDetailsCount: number,
@@ -49,7 +49,7 @@ export class ResultsService {
     const answerResultItem: AnswerResultItem = new AnswerResultItem(
       sessionId,
       correlationId,
-      ttl,
+      expiryDate,
       answerResults,
       verificationScore,
       checkDetailsCount > MINIMUM_QUESTION_COUNT

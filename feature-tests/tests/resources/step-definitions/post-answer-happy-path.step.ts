@@ -128,7 +128,7 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send(ANSWER_POST_PAYLOAD_1)
+          .send(ANSWER_POST_PAYLOAD)
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);

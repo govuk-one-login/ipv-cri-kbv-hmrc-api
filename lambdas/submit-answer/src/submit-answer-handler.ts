@@ -49,20 +49,33 @@ export class SubmitAnswerHandler implements LambdaInterface {
   })
   public async handler(event: any, _context: unknown): Promise<object> {
     try {
+      const sessionId = event?.sessionId;
+      const sessionTtl = event?.sessionItem?.Item?.expiryDate?.N;
+
+      if (!event) {
+        throw new Error("input event is empty");
+      }
+
+      if (!sessionId) {
+        throw new Error("sessionId was not provided");
+      }
+
+      if (!sessionTtl) {
+        throw new Error("sessionItem was not provided - cannot use ttl");
+      }
+
       const answerResult: SubmitAnswerResult[] =
         await this.submitAnswerService.checkAnswers(event);
 
       const verificationScore: number =
         verificationScoreCalculator.calculateVerificationScore(answerResult);
 
-      const sessionId = event.sessionId;
       const correlationId = event.dynamoResult.Item.correlationId.S;
-      const ttl = event.usersQuestions.Items[0].expiryDate as number;
 
       await this.resultService.saveResults(
         sessionId,
         correlationId,
-        ttl,
+        Number(sessionTtl),
         answerResult,
         verificationScore,
         checkDetailsCountCalculator.calculateAnswerCount(

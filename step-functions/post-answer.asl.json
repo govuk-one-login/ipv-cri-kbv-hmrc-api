@@ -1,7 +1,64 @@
 {
   "Comment": "State machine for saving answers submitted in the HMRC KBV journey",
-  "StartAt": "Invoke Validating Answers Lambda",
+  "StartAt": "Check Session-Id is Present",
   "States": {
+    "Check Session-Id is Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionId",
+              "IsString": true
+            }
+          ],
+          "Next": "DynamoDB Get SessionItem"
+        }
+      ],
+      "Default": "Err: Fail SessionId missing"
+    },
+    "DynamoDB Get SessionItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${SessionTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Is there a sessionItem for the sessionId",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.sessionItem"
+    },
+    "Is there a sessionItem for the sessionId": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "IsString": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.sessionId.S",
+              "StringEqualsPath": "$.sessionId"
+            }
+          ],
+          "Next": "Invoke Validating Answers Lambda"
+        }
+      ],
+      "Default": "Err: SessionItem not found"
+    },
     "Invoke Validating Answers Lambda": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
@@ -20,6 +77,7 @@
       "Next": "Validation Outcome",
       "Parameters": {
         "sessionId.$": "$.sessionId",
+        "sessionItem.$": "$.sessionItem",
         "inputAnswer.$": "$.value",
         "answeredQuestionKey.$": "$.key",
         "validated.$": "$.result.validated"
@@ -147,8 +205,8 @@
           "correlationId": {
             "S.$": "$.usersQuestions.Items[0].correlationId.S"
           },
-          "ttl": {
-            "S": "$.time"
+          "expiryDate": {
+            "N.$": "$.sessionItem.Item.expiryDate.N"
           },
           "answers": {
             "L.$": "$.answers[?(@.M)]"
@@ -422,6 +480,14 @@
     "Err: Lambda responded unexpectedly": {
       "Type": "Fail",
       "Error": "Lambda responded unexpectedly"
+    },
+    "Err: Fail SessionId missing": {
+      "Type": "Fail",
+      "Error": "SessionId missing or not found"
+    },
+    "Err: SessionItem not found": {
+      "Type": "Fail",
+      "Error": "SessionItem not found"
     },
     "Success": {
       "Type": "Succeed"

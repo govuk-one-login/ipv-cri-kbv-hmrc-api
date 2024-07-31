@@ -21,7 +21,7 @@ export class Answer {
 export class AnswerResultItem {
   sessionId: string;
   correlationId: string;
-  ttl: number;
+  expiryDate: number;
   answers: SubmitAnswerResult[];
   verificationScore: number;
   ci?: Array<string>;
@@ -31,7 +31,7 @@ export class AnswerResultItem {
   constructor(
     sessionId: string,
     correlationId: string,
-    ttl: number,
+    expiryDate: number,
     answers: SubmitAnswerResult[],
     verificationScore: number,
     checkDetailsCount?: number,
@@ -40,7 +40,7 @@ export class AnswerResultItem {
   ) {
     this.sessionId = sessionId;
     this.correlationId = correlationId;
-    this.ttl = ttl;
+    this.expiryDate = expiryDate;
     this.answers = answers;
     this.verificationScore = verificationScore;
     this.checkDetailsCount = checkDetailsCount;

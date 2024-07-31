@@ -76,7 +76,7 @@ export async function postRequestToSessionEndpoint() {
     postSessionEndpoint.statusCode
   );
   console.log(
-    "Request to SessionId endpoint Response Body = " +
+    `Request to SessionId endpoint ${EndPoints.PRIVATE_API_GATEWAY_URL}${EndPoints.SESSION_URL} Response Body = ` +
       JSON.stringify(postSessionEndpoint.body, undefined, 2)
   );
   console.log("SESSION_ID = ", postSessionEndpoint.body.session_id);
