@@ -83,7 +83,7 @@ export class SubmitAnswerService {
       checkDetailsCountCalculator.calculateAnswerCount(results, "incorrect");
 
     logger.info("Sending REQUEST_SENT Audit Event");
-    this.auditService.sendAuditEvent(
+    await this.auditService.sendAuditEvent(
       AuditEventType.REQUEST_SENT,
       sessionItem,
       nino,
@@ -101,7 +101,7 @@ export class SubmitAnswerService {
     };
 
     logger.info("Sending RESPONSE RECEIVED Audit Event");
-    this.auditService.sendAuditEvent(
+    await this.auditService.sendAuditEvent(
       AuditEventType.RESPONSE_RECEIVED,
       sessionItem,
       undefined,
