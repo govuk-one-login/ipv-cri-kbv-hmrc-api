@@ -117,7 +117,6 @@ jobs:
           CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
           CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
           ORCHESTRATOR_STUB_URL: ${{ secrets.ORCHESTRATOR_STUB_URL }}
-          CUCUMBER_PUBLISH_ENABLED: true
         run: |
           echo "🤞 now run integration tests..."
           STACK_NAME=${{ needs.deploy.outputs.stack-name }}
