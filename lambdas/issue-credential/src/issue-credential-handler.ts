@@ -76,8 +76,6 @@ export class IssueCredentialHandler implements LambdaInterface {
     const sessionId = event.userInfoEvent.Items[0].sessionId.S;
     let answerResults;
 
-    logger.info(JSON.stringify(event));
-
     try {
       answerResults = await this.resultsRetrievalService.getResults(sessionId);
 
@@ -156,8 +154,6 @@ export class IssueCredentialHandler implements LambdaInterface {
 
       logger.info("Sending CRI_END Audit Event");
       await this.auditService.sendAuditEvent(AuditEventType.END, sessionItem);
-
-      logger.info(JSON.stringify(verifiableCredential));
 
       return verifiableCredential;
     } catch (error: any) {
