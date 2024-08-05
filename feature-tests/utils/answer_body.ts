@@ -50,7 +50,7 @@ export const questionKeyResponse = {
   },
   ANSWER_POST_PAYLOAD_SA_P_D: {
     questionKey: "sa-payment-details",
-    value: '"{"amount": 300,"paymentDate":"2010-01-01"}"',
+    value: '{"amount": 300.00,"paymentDate":"2010-01-01"}',
   },
   ANSWER_POST_PAYLOAD_2_SA_I_F_P: {
     questionKey: "sa-income-from-pensions",

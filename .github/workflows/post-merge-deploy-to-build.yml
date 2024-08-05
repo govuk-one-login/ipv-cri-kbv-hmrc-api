@@ -54,9 +54,6 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BUILD:$IMAGE_TAG feature-tests
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_BUILD:$IMAGE_TAG
           cosign sign --key awskms:///${CONTAINER_SIGN_KMS_KEY} $ECR_REGISTRY/$ECR_REPOSITORY_BUILD:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_BUILD:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_STAGING:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_STAGING:$IMAGE_TAG
-          cosign sign --key awskms:///${CONTAINER_SIGN_KMS_KEY} $ECR_REGISTRY/$ECR_REPOSITORY_STAGING:$IMAGE_TAG
 
       - name: Deploy SAM app
         uses: govuk-one-login/devplatform-upload-action@v3.9

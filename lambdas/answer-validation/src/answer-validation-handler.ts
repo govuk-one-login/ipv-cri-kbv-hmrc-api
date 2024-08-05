@@ -6,6 +6,7 @@ const logger = new Logger({ serviceName: "AnswerValidationHandler" });
 export class AnswerValidationHandler implements LambdaInterface {
   public async handler(event: any, _context: unknown): Promise<object> {
     let result: boolean = false;
+
     if (
       event.key === "rti-p60-earnings-above-pt" ||
       event.key === "rti-p60-postgraduate-loan-deductions" ||
@@ -49,8 +50,8 @@ export function sAPaymentValidation(event: any): boolean {
   }
 
   try {
-    JSON.parse(event.value);
     logger.info("Parsing Json:");
+    JSON.parse(event.value);
     return true;
   } catch (error) {
     logger.info(`Parsing Json failed ${error}`);

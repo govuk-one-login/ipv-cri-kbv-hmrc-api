@@ -28,12 +28,6 @@ import {
 } from "../../../lib/src/types/audit-event";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
-const sqsClient = new SQSClient({
-  region: "eu-west-2",
-  credentials: fromEnv(),
-});
-
-const issuer = "verifiable-credential/issuer";
 
 // NOTE: these strings are also used in the metric for the outcome
 enum FetchQuestionsState {
@@ -107,20 +101,21 @@ export class FetchQuestionsHandler implements LambdaInterface {
           `Result returned - correlationId : ${correlationId}, questionResultCount ${questionResultCount}`
         );
 
-        // Request sent audit event
-        // Response recieved audit event
-        // TBD if placed in handler or questionsRetrievalService
+        logger.debug(
+          `Retrieved Question keys returned for nino ${inputs.nino} / session ${
+            inputs.sessionId
+          } - ${JSON.stringify(questionsResult.questions)}`
+        );
 
         logger.info("Filtering questions");
         const filteredQuestions: Question[] =
           await this.filterQuestionsService.filterQuestions(
             questionsResult.questions
           );
-        logger.info(
-          "Question keys returned for cid " +
-            correlationId +
-            " questions: " +
-            JSON.stringify(filteredQuestions)
+        logger.debug(
+          `Filtered Question keys returned  for nino ${inputs.nino} / session ${
+            inputs.sessionId
+          } - ${JSON.stringify(filteredQuestions)}`
         );
 
         logger.info("Question keys have been filtered successfully");
@@ -208,7 +203,6 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
   private safeRetrieveLambdaEventInputs(event: any): FetchQuestionInputs {
     const sessionId = event?.sessionId;
-    const sessionTtl = event?.sessionItem?.Item?.expiryDate?.N;
 
     const parameters = event?.parameters;
     const questionsUrl = event?.parameters?.url?.value;
@@ -225,10 +219,6 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
     if (!sessionId) {
       throw new Error("sessionId was not provided");
-    }
-
-    if (!sessionTtl) {
-      throw new Error("sessionItem was not provided - cannot use ttl");
     }
 
     if (!parameters) {
@@ -256,8 +246,19 @@ export class FetchQuestionsHandler implements LambdaInterface {
     }
 
     if (!sessionItem) {
-      throw new Error("session item was not provided");
+      throw new Error("Session item was not provided");
+    } else {
+      try {
+        this.validateSessionItem(sessionItem);
+      } catch (error: any) {
+        const errorText: string = error.message;
+
+        throw new Error(`Session item was malformed : ${errorText}`);
+      }
     }
+
+    // Now save to use this
+    const sessionTtl = event.sessionItem.Item.expiryDate.N;
 
     return {
       sessionId: sessionId,
@@ -269,18 +270,87 @@ export class FetchQuestionsHandler implements LambdaInterface {
       sessionItem: sessionItem,
     } as FetchQuestionInputs;
   }
+
+  private validateSessionItem(sessionItem: any) {
+    const item = sessionItem?.Item;
+
+    const sessionId = item?.sessionId?.S;
+    const expiryDate = item?.expiryDate?.N;
+    const clientIpAddress = item?.clientIpAddress?.S;
+    const redirectUri = item?.redirectUri?.S;
+    const clientSessionId = item?.clientSessionId?.S;
+    const createdDate = item?.createdDate?.N;
+    const clientId = item?.clientId?.S;
+    const persistentSessionId = item?.persistentSessionId?.S;
+    const attemptCount = item?.attemptCount?.N;
+    const state = item?.state?.S;
+    const subject = item?.subject?.S;
+
+    if (!item) {
+      throw new Error("Session item missing Item");
+    }
+
+    if (!sessionId) {
+      throw new Error("Session item missing sessionId");
+    }
+
+    if (!expiryDate) {
+      throw new Error("Session item missing expiryDate");
+    }
+
+    if (!clientIpAddress) {
+      throw new Error("Session item missing clientIpAddress");
+    }
+
+    if (!redirectUri) {
+      throw new Error("Session item missing redirectUri");
+    }
+
+    if (!clientSessionId) {
+      throw new Error("Session item missing clientSessionId");
+    }
+
+    if (!createdDate) {
+      throw new Error("Session item missing createdDate");
+    }
+
+    if (!clientId) {
+      throw new Error("Session item missing clientId");
+    }
+
+    if (!persistentSessionId) {
+      throw new Error("Session item missing persistentSessionId");
+    }
+
+    if (!attemptCount) {
+      throw new Error("Session item missing attemptCount");
+    }
+
+    if (!state) {
+      throw new Error("Session item missing state");
+    }
+
+    if (!subject) {
+      throw new Error("Session item missing subject");
+    }
+  }
 }
 
 // Handler Export
 const metricProbe = new MetricsProbe();
 const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
+const issuer = "verifiable-credential/issuer";
 const criAuditConfig: CriAuditConfig = {
   queueUrl,
   issuer,
 };
-let auditService: AuditService = new AuditService(
+
+const auditService: AuditService = new AuditService(
   () => criAuditConfig,
-  sqsClient
+  new SQSClient({
+    region: "eu-west-2",
+    credentials: fromEnv(),
+  })
 );
 const handlerClass = new FetchQuestionsHandler(
   metricProbe,

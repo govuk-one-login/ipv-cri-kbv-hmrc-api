@@ -18,14 +18,15 @@ describe("fetch-questions-happy", () => {
 
   const sessionItem = {
     sessionId: sessionId,
-    attemptCount: 0,
-    clientId: "ipv-core-stub-aws-prod",
-    clientIpAddress: "192.0.2.1",
+    expiryDate: ttl,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
     clientSessionId: uuidv4(),
     createdDate: Date.now(),
-    expiryDate: ttl,
+    clientId: "integration-test-clientid",
+    subject: "integration-test-subject",
     persistentSessionId: uuidv4(),
-    redirectUri: "http://localhost:8085/callback",
+    attemptCount: 0,
     state: uuidv4(),
   };
 

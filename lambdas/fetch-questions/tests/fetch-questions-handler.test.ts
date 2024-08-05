@@ -57,7 +57,19 @@ describe("FetchQuestionsHandler", () => {
           N: "1234",
         },
         clientIpAddress: {
-          S: "51.149.8.131",
+          S: "127.0.0.1",
+        },
+        redirectUri: {
+          S: "http://localhost:8085/callback",
+        },
+        clientSessionId: {
+          S: "2d35a412-125e-423e-835e-ca66111a38a1",
+        },
+        createdDate: {
+          N: "1722954983024",
+        },
+        clientId: {
+          S: "unit-test-clientid",
         },
         subject: {
           S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
@@ -65,11 +77,14 @@ describe("FetchQuestionsHandler", () => {
         persistentSessionId: {
           S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
         },
+        attemptCount: {
+          N: "0",
+        },
         sessionId: {
           S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
         },
-        clientSessionId: {
-          S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
+        state: {
+          S: "7f42f0cc-1681-4455-872f-dd228103a12e",
         },
       },
     },
@@ -313,13 +328,6 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: undefined,
-        },
-        "sessionItem was not provided - cannot use ttl",
-      ],
-      [
-        {
-          sessionId: "sessionId",
           sessionItem: {
             Item: {
               expiryDate: {
@@ -431,7 +439,628 @@ describe("FetchQuestionsHandler", () => {
         "nino was not provided",
       ],
     ])(
-      "should return an error event is null ",
+      "should return an error event is missing required values",
+      async (testInputEvent: any, expectedError: string) => {
+        const lambdaResponse = await fetchQuestionsHandler.handler(
+          testInputEvent,
+          mockInputContext
+        );
+
+        expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+          HandlerMetric.CompletionStatus,
+          MetricUnit.Count,
+          CompletionStatus.ERROR
+        );
+
+        const lambdaName = FetchQuestionsHandler.name;
+        const errorMessage = `${lambdaName} : ${expectedError}`;
+        const expectedResponse = { error: errorMessage };
+
+        expect(lambdaResponse).toEqual(expectedResponse);
+      }
+    );
+
+    // The following tests test the lambda being called missing requried inputs
+    // and checks the assoicated error is thrown
+    it.each([
+      [
+        {
+          sessionId: "sessionId",
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {},
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing Item",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing sessionId",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing expiryDate",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing clientIpAddress",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing redirectUri",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing clientSessionId",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing createdDate",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing clientId",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing subject",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing persistentSessionId",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+              state: {
+                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing attemptCount",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: {
+            Item: {
+              expiryDate: {
+                N: "1234",
+              },
+              clientIpAddress: {
+                S: "127.0.0.1",
+              },
+              redirectUri: {
+                S: "http://localhost:8085/callback",
+              },
+              clientSessionId: {
+                S: "2d35a412-125e-423e-835e-ca66111a38a1",
+              },
+              createdDate: {
+                N: "1722954983024",
+              },
+              clientId: {
+                S: "unit-test-clientid",
+              },
+              subject: {
+                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+              },
+              persistentSessionId: {
+                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+              },
+              attemptCount: {
+                N: "0",
+              },
+              sessionId: {
+                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+              },
+            },
+          },
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            nino: "TEST_NINO",
+          },
+        },
+        "Session item was malformed : Session item missing state",
+      ],
+    ])(
+      "should return an error sessionItem is missing required values",
       async (testInputEvent: any, expectedError: string) => {
         const lambdaResponse = await fetchQuestionsHandler.handler(
           testInputEvent,
