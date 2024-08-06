@@ -19,7 +19,7 @@ const decode = (returnedVcData: string): string =>
   Buffer.from(returnedVcData, ENCODING).toString(DECODING);
 
 export async function generateClaimsUrl(selectedNino: string) {
-  console.log("Generating Initial Claimset");
+  console.log("Generating Initial Claimset - ");
   const rowNumber = "&rowNumber=197";
   const ninoValue = "&nino=" + selectedNino;
   const claimsForUserUrl =
@@ -111,6 +111,7 @@ export async function getRequestAuthorisationCode() {
     .set("session-id", sessionId)
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");
+  console.log("sessionId: ", sessionId);
   console.log("AUTH CODE: ", getReqAuthCode.body.authorizationCode.value);
   console.log(
     "Request to Authorisation Code endpoint Status Code:",
@@ -138,6 +139,7 @@ export async function getAccessTokenRequest() {
     )
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");
+  console.log("authCode: ", authCode);
   console.log(
     "Generate Access Token Status Code: ",
     getTokenRequest.statusCode

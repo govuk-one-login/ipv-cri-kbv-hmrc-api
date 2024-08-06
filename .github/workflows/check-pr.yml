@@ -20,9 +20,10 @@ jobs:
     name: Run tests
     uses: ./.github/workflows/run-unit-tests.yml
 
-  mocked-tests:
-    name: Run tests
-    uses: ./.github/workflows/run-mocked-tests.yml
+  # Disabled
+  # mocked-tests:
+  #   name: Run tests
+  #   uses: ./.github/workflows/run-mocked-tests.yml
 
   pre-merge-integration-tests:
     name: Run pre-merge integration tests

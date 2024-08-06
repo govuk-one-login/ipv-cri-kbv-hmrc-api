@@ -91,6 +91,12 @@ defineFeature(feature, (test) => {
       );
       questionKeyFromGetResponse =
         await getRequestToQuestionEndpoint.body.questionKey;
+
+      console.log(
+        JSON.stringify(
+          `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
+        )
+      );
     });
     and(
       /^I send a POST request to the answer endpoint with the correct answerKey$/,
@@ -137,6 +143,13 @@ defineFeature(feature, (test) => {
           questionKeyResponse,
           questionKeyFromGetResponse
         );
+
+        console.log(
+          JSON.stringify(
+            `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
+          )
+        );
+
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
         postRequestToAnswerEndpoint = await request(
@@ -171,6 +184,19 @@ defineFeature(feature, (test) => {
         );
         questionKeyFromGetResponse =
           await getRequestToQuestionEndpoint.body.questionKey;
+
+        console.log(
+          JSON.stringify(
+            `QUESTION_ENDPOINT statusCode ${getRequestToQuestionEndpoint.statusCode}`
+          )
+        );
+
+        console.log(
+          JSON.stringify(
+            `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
+          )
+        );
+
         const postPayload = await findObjectContainingValue(
           questionKeyResponse,
           questionKeyFromGetResponse

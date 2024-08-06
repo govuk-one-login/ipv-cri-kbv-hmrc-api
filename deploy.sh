@@ -21,7 +21,7 @@ fi
 
 sam validate -t infrastructure/template.yaml --lint
 
-sam build -t infrastructure/template.yaml --no-cached --parallel
+sam build -t infrastructure/template.yaml --cached --parallel
 
 echo -e "👉 deploying ipv-cri-hmrc-kbv-api with:"
 echo -e "\tstack name: ${GREEN}$stack_name${NOCOLOR}"
