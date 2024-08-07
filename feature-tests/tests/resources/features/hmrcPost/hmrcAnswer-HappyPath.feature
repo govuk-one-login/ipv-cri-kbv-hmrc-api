@@ -20,7 +20,7 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000005A    |
             | application/json | application/json | 200        | 204             | AA000006A    |
 
-    @pre-merge @post-merge
+    @pre-merge
     Scenario Outline: Happy Path - Post request to /answer Endpoint for userId with 2 questions over 2 questionKeys
         Given I send a new request to the core stub with nino value <selectedNino> for a user with 2 questions
         Given I send a valid 2 question POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>

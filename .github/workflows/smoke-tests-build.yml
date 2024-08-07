@@ -1,88 +1,88 @@
-# Disabled
-# name: Smoke Test against Build
+ name: Smoke Test against Build
 
-# on:
-#   # schedule:
-#   #   # Every weekday at 5am
-#   #   - cron: "0 5 * * 1-5"
-#   push:
+ on:
+   # schedule:
+   #   # Every weekday at 5am
+   #   - cron: "0 5 * * 1-5"
+   push:
 
-# concurrency:
-#   group: smoke-test-build
-#   cancel-in-progress: false
+ concurrency:
+   group: smoke-test-build
+   cancel-in-progress: false
 
-# env:
-#   ENVIRONMENT: ${{ secrets.TEST_ENVIRONMENT }}
-#   CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
-#   PRIVATE_API_GATEWAY: ${{ secrets.DEV_PRIVATE_API_GATEWAY }}
-#   CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
-#   CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
+ env:
+   ENVIRONMENT: ${{ secrets.TEST_ENVIRONMENT }}
+   CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
+   PRIVATE_API_GATEWAY: ${{ secrets.DEV_PRIVATE_API_GATEWAY }}
+   CORE_STUB_USERNAME: ${{ secrets.CORE_STUB_USERNAME }}
+   CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
+   FRONTEND: ${{ secrets.BUILD_FRONTEND }}
 
-# permissions:
-#   id-token: write
-#   contents: read
+ permissions:
+   id-token: write
+   contents: read
 
-# jobs:
-#   smoke:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       id-token: write
-#       contents: read
-#       packages: write
-#     environment:
-#       name: development
-#     steps:
-#       - name: Check out repository code
-#         uses: actions/checkout@v4
-#         with:
-#           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-#           submodules: true
+ jobs:
+   smoke:
+     runs-on: ubuntu-latest
+     permissions:
+       id-token: write
+       contents: read
+       packages: write
+     environment:
+       name: development
+     steps:
+       - name: Check out repository code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+           submodules: true
 
-#       - name: Setup SAM
-#         uses: aws-actions/setup-sam@v2
-#         with:
-#           use-installer: true
+       - name: Setup SAM
+         uses: aws-actions/setup-sam@v2
+         with:
+           use-installer: true
 
-#       - name: Assume AWS Role
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
-#           aws-region: eu-west-2
+       - name: Assume AWS Role
+         uses: aws-actions/configure-aws-credentials@v4
+         with:
+           role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
+           aws-region: eu-west-2
 
-#       - name: Set up Node
-#         uses: actions/setup-node@v4
-#         with:
-#           cache: npm
-#           node-version: 20
+       - name: Set up Node
+         uses: actions/setup-node@v4
+         with:
+           cache: npm
+           node-version: 20
 
-#       - name: Install dependencies
-#         run: cd feature-tests && npm install
+       - name: Install dependencies
+         run: cd feature-tests && npm install
 
-#       - name: Run Feature Tests
-#         run: cd feature-tests && tagFilter=@post-merge npm run test
+       - name: Run Feature Tests
+         run: cd feature-tests && tagFilter=@post-merge npm run test
 
-#       - name: Get test results history
-#         uses: actions/checkout@v4
-#         if: always()
-#         continue-on-error: true
-#         with:
-#           ref: LIME-Cucumber-gh-pages
-#           path: LIME-Cucumber-gh-pages
+       - name: Get test results history
+         uses: actions/checkout@v4
+         if: always()
+         continue-on-error: true
+         with:
+           ref: LIME-Cucumber-gh-pages
+           path: LIME-Cucumber-gh-pages
 
-#       - name: Cucumber HTML Report action
-#         uses: PavanMudigonda/html-reporter-github-pages@v1.1
-#         id: test-report
-#         if: always()
-#         with:
-#           test_results: feature-tests/target/cucumber-report
-#           gh_pages: LIME-Cucumber-gh-pages
-#           results_history: feature-tests/results-history
+       - name: Cucumber HTML Report action
+         uses: PavanMudigonda/html-reporter-github-pages@v1.1
+         id: test-report
+         if: always()
+         with:
+           test_results: feature-tests/target/cucumber-report
+           gh_pages: LIME-Cucumber-gh-pages
+           results_history: feature-tests/results-history
 
-#       - name: Publish Github Pages
-#         if: always() && ${{ github.actor != 'dependabot[bot]' }}
-#         uses: peaceiris/actions-gh-pages@v4.0.0
-#         with:
-#           github_token: ${{ secrets.GITHUB_TOKEN }}
-#           publish_branch: LIME-Cucumber-gh-pages
-#           publish_dir: feature-tests/results-history
-#           keep_files: true
+       - name: Publish Github Pages
+         if: always() && ${{ github.actor != 'dependabot[bot]' }}
+         uses: peaceiris/actions-gh-pages@v4.0.0
+         with:
+           github_token: ${{ secrets.GITHUB_TOKEN }}
+           publish_branch: LIME-Cucumber-gh-pages
+           publish_dir: feature-tests/results-history
+           keep_files: true
