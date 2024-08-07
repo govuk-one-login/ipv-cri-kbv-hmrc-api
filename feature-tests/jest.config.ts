@@ -6,7 +6,7 @@ const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
   coveragePathIgnorePatterns: ["/node_modules/"],
-  testMatch: ["**/**/*.step.ts"],
+  testMatch: ["**/**/*.step.ts", "**/**/**/*.step.ts"],
   verbose: true,
   forceExit: true,
   setupFiles: ["./jest-cucumber-config"],

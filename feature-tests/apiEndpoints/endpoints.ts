@@ -3,6 +3,7 @@ export default class EndPoints {
   static readonly PUBLIC_API_GATEWAY_URL = `${process.env.PUBLIC_API_GATEWAY}`;
   static readonly AUTHORIZATION_URL = "/oauth2/authorize";
   static readonly CORE_STUB_URL = `${process.env.CORE_STUB_URL}`;
+  static readonly FRONTEND = `${process.env.FRONTEND}`;
   static readonly FETCH_QUESTIONS_ENDPOINT = "/fetchquestions";
   static readonly QUESTION_ENDPOINT = "/question";
   static readonly ANSWER_ENDPOINT = "/answer";

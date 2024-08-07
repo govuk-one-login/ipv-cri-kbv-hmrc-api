@@ -69,6 +69,7 @@ export async function postUpdatedClaimsUrl() {
     postClaimsUrl.statusCode
   );
   expect(postClaimsUrl.statusCode).toEqual(Number(200));
+  return postClaimsUrl.body;
 }
 
 export async function postRequestToSessionEndpoint() {
