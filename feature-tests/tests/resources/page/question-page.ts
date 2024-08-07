@@ -3,7 +3,7 @@ import { AbstractPageObject } from './abstract-page-object';
 
 export class QuestionPage extends AbstractPageObject {
 
-    private continueButton = By.id('continue');
+    private continueButton = By.xpath("//*[@id=\"main-content\"]/div/div/form/button");
 
     constructor(driver: WebDriver) {
         super(driver);

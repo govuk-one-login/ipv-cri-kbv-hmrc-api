@@ -1,16 +1,16 @@
- name: Smoke Test against Build
+name: Smoke Test against Build
 
- on:
-   # schedule:
-   #   # Every weekday at 5am
-   #   - cron: "0 5 * * 1-5"
-   push:
+on:
+    # schedule:
+    #   # Every weekday at 5am
+    #   - cron: "0 5 * * 1-5"
+    push:
 
- concurrency:
+concurrency:
    group: smoke-test-build
    cancel-in-progress: false
 
- env:
+env:
    ENVIRONMENT: ${{ secrets.TEST_ENVIRONMENT }}
    CORE_STUB_URL: ${{ secrets.CORE_STUB_URL }}
    PRIVATE_API_GATEWAY: ${{ secrets.DEV_PRIVATE_API_GATEWAY }}
@@ -18,16 +18,16 @@
    CORE_STUB_PASSWORD: ${{ secrets.CORE_STUB_PASSWORD }}
    FRONTEND: ${{ secrets.BUILD_FRONTEND }}
 
- permissions:
+permissions:
    id-token: write
    contents: read
 
- jobs:
+jobs:
    smoke:
      runs-on: ubuntu-latest
      permissions:
        id-token: write
-       contents: read
+       contents: write
        packages: write
      environment:
        name: development
@@ -59,7 +59,7 @@
          run: cd feature-tests && npm install
 
        - name: Run Feature Tests
-         run: cd feature-tests && tagFilter=@post-merge npm run test
+         run: cd feature-tests && tagFilter=@post-merge npm run test:browser:ci
 
        - name: Get test results history
          uses: actions/checkout@v4

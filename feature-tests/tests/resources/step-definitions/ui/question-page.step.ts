@@ -22,22 +22,25 @@ defineFeature(feature, (test) => {
   let driver: WebDriver;
 
   let chromeOptions = new Options();
-  chromeOptions.addArguments("--no-sandbox");
-  chromeOptions.addArguments("--whitelisted-ips= ");
-  chromeOptions.addArguments("--disable-dev-shm-usage");
-  chromeOptions.addArguments("--remote-debugging-port=9222");
+  if (process.env.CI) {
+    chromeOptions.addArguments("--no-sandbox");
+    chromeOptions.addArguments("--whitelisted-ips= ");
+    chromeOptions.addArguments("--disable-dev-shm-usage");
+    chromeOptions.addArguments("--remote-debugging-port=9222");
 
-  chromeOptions.addArguments("start-maximized");
-  chromeOptions.addArguments("disable-infobars");
-  chromeOptions.addArguments("--disable-extensions");
+    chromeOptions.addArguments("start-maximized");
+    chromeOptions.addArguments("disable-infobars");
+    chromeOptions.addArguments("--disable-extensions");
 
-  chromeOptions.addArguments("--remote-allow-origins=*");
-  chromeOptions.addArguments("--headless");
+    chromeOptions.addArguments("--remote-allow-origins=*");
+    chromeOptions.addArguments("--headless");
+  }
 
   driver = new Builder()
         .forBrowser('chrome')
         .setChromeOptions(chromeOptions)
         .build();
+
   beforeEach(async () => {});
 
   afterAll(async () => {
@@ -101,9 +104,17 @@ defineFeature(feature, (test) => {
       /^I should receive a VC with the correct values for a user with >=3 questions over 2 questionKey$/,
       async () => {
         let stubPage: StubPage = new StubPage(driver);
+        
+        let summaryElement = await driver.findElements(By.xpath("//*[@id=\"main-content\"]/div/details/summary"));
+        if (summaryElement.length <= 0) {
+          let currentUrl = await driver.getCurrentUrl();
+          let urlWithoutPrefix = currentUrl.substring("https://".length);
+          let authUrl = "https://" + EndPoints.CORE_STUB_USERNAME + ":" + EndPoints.CORE_STUB_PASSWORD + "@" + urlWithoutPrefix;
+          driver.get(authUrl);
+        }
+
         let vcText = await stubPage.getVc();
         expect(vcText).toContain("\"verificationScore\": 2")
-        
       });
 });
 
@@ -128,7 +139,7 @@ async function enterAnswer() {
   let quesionPage: QuestionPage = new QuestionPage(driver);
 
   if (postQuestionKey.questionKey === "sa-payment-details") {
-    let saPaymentJson = JSON.parse(postQuestionKey.value.substring(1, postQuestionKey.value.length-1));
+    let saPaymentJson = JSON.parse(postQuestionKey.value);
     let dateArray = saPaymentJson.paymentDate.split("-");
     await quesionPage.enterAnswer(dateArray[2], "selfAssessmentPaymentDate-day");
     await quesionPage.enterAnswer(dateArray[1], "selfAssessmentPaymentDate-month");
@@ -137,12 +148,12 @@ async function enterAnswer() {
   } else if (postQuestionKey.questionKey === "sa-income-from-pensions") {
     await quesionPage.selectRadio("selfAssessmentRouter-sa200");
     await driver.findElement(By.xpath("//*[@id=\"main-content\"]/div/div/form/button")).click()
-
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "statePensionShort");
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "otherPensionShort");
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "employmentAndSupportAllowanceShort");
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "jobSeekersAllowanceShort");
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "statePensionAndBenefitsShort");
+
   } else {
     await quesionPage.enterAnswer(postQuestionKey.value, postQuestionKey.questionKey);
   }

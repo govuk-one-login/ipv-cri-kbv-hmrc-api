@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --runInBand --verbose",
-    "test:browser": "jest --runInBand --verbose --debug",
+    "test:browser": "jest --runInBand --verbose ",
+    "test:browser:ci": "CI=true jest --runInBand --verbose ",
     "lint:code": "eslint --ext .ts .",
     "lint:code:fix": "yarn lint:code --fix"
   },

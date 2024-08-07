@@ -17,17 +17,19 @@ defineFeature(feature, (test) => {
   let driver: WebDriver;
 
   let chromeOptions = new Options();
-  chromeOptions.addArguments("--no-sandbox");
-  chromeOptions.addArguments("--whitelisted-ips= ");
-  chromeOptions.addArguments("--disable-dev-shm-usage");
-  chromeOptions.addArguments("--remote-debugging-port=9222");
+  if (process.env.CI) {
+    chromeOptions.addArguments("--no-sandbox");
+    chromeOptions.addArguments("--whitelisted-ips= ");
+    chromeOptions.addArguments("--disable-dev-shm-usage");
+    chromeOptions.addArguments("--remote-debugging-port=9222");
 
-  chromeOptions.addArguments("start-maximized");
-  chromeOptions.addArguments("disable-infobars");
-  chromeOptions.addArguments("--disable-extensions");
+    chromeOptions.addArguments("start-maximized");
+    chromeOptions.addArguments("disable-infobars");
+    chromeOptions.addArguments("--disable-extensions");
 
-  chromeOptions.addArguments("--remote-allow-origins=*");
-  chromeOptions.addArguments("--headless");
+    chromeOptions.addArguments("--remote-allow-origins=*");
+    chromeOptions.addArguments("--headless");
+  }
 
   driver = new Builder()
         .forBrowser('chrome')
