@@ -5,7 +5,8 @@ import {
   postUpdatedClaimsUrl,
 } from "../../../../utils/create-session";
 import { ContextPage } from "../../page/context-page";
-import { Builder, WebDriver } from "selenium-webdriver";
+import { Builder, Capabilities, WebDriver } from "selenium-webdriver";
+import { Options } from "selenium-webdriver/chrome";
 
 const feature = loadFeature(
   "./tests/resources/features/ui/hmrcGet/hmrcQuestion-HappyPath.feature"
@@ -15,8 +16,22 @@ defineFeature(feature, (test) => {
 
   let driver: WebDriver;
 
+  let chromeOptions = new Options();
+  chromeOptions.addArguments("--no-sandbox");
+  chromeOptions.addArguments("--whitelisted-ips= ");
+  chromeOptions.addArguments("--disable-dev-shm-usage");
+  chromeOptions.addArguments("--remote-debugging-port=9222");
+
+  chromeOptions.addArguments("start-maximized");
+  chromeOptions.addArguments("disable-infobars");
+  chromeOptions.addArguments("--disable-extensions");
+
+  chromeOptions.addArguments("--remote-allow-origins=*");
+  chromeOptions.addArguments("--headless");
+
   driver = new Builder()
         .forBrowser('chrome')
+        .setChromeOptions(chromeOptions)
         .build();
 
   beforeEach(async () => {});

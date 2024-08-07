@@ -1,6 +1,6 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 
-import { Builder, WebDriver } from "selenium-webdriver";
+import { Builder, By, WebDriver } from "selenium-webdriver";
 import { findObjectContainingValue } from "../../../../utils/utility";
 import { questionKeyResponse } from "../../../../utils/answer_body";
 import { urlKeyMap } from "../../../../utils/url-key-map";
@@ -10,6 +10,7 @@ import { QuestionPage } from "../../page/question-page";
 
 import EndPoints from "../../../../apiEndpoints/endpoints";
 import { StubPage } from "../../page/stub-page";
+import { Options } from "selenium-webdriver/chrome";
 
 
 const feature = loadFeature(
@@ -20,10 +21,23 @@ defineFeature(feature, (test) => {
 
   let driver: WebDriver;
 
+  let chromeOptions = new Options();
+  chromeOptions.addArguments("--no-sandbox");
+  chromeOptions.addArguments("--whitelisted-ips= ");
+  chromeOptions.addArguments("--disable-dev-shm-usage");
+  chromeOptions.addArguments("--remote-debugging-port=9222");
+
+  chromeOptions.addArguments("start-maximized");
+  chromeOptions.addArguments("disable-infobars");
+  chromeOptions.addArguments("--disable-extensions");
+
+  chromeOptions.addArguments("--remote-allow-origins=*");
+  chromeOptions.addArguments("--headless");
+
   driver = new Builder()
         .forBrowser('chrome')
+        .setChromeOptions(chromeOptions)
         .build();
-
   beforeEach(async () => {});
 
   afterAll(async () => {
@@ -122,7 +136,7 @@ async function enterAnswer() {
     await quesionPage.enterAnswer(saPaymentJson.amount.toFixed(2), "selfAssessmentPaymentAmount");
   } else if (postQuestionKey.questionKey === "sa-income-from-pensions") {
     await quesionPage.selectRadio("selfAssessmentRouter-sa200");
-    await clickContinue();
+    await driver.findElement(By.xpath("//*[@id=\"main-content\"]/div/div/form/button")).click()
 
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "statePensionShort");
     await quesionPage.enterAnswer("" + (postQuestionKey.value / 5).toFixed(), "otherPensionShort");
