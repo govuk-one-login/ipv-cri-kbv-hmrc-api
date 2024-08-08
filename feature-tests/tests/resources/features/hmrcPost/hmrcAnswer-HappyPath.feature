@@ -33,4 +33,3 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000002A    | "verificationScore":2 |
             | application/json | application/json | 200        | 204             | AA000002Z    | "verificationScore":0 |
             | application/json | application/json | 200        | 204             | AA000002C    | "verificationScore":0 |
-
