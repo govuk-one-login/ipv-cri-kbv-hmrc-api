@@ -1,6 +1,6 @@
 Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
 
-    @pre-merge @regression
+    @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - sessionId
         Given I send a request to the core stub with nino value <selectedNino>
         Given I send a valid POST request with <contentType> and <accept> to the fetchQuestions endpoint
@@ -11,10 +11,10 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | contentType      | accept           | statusCode | selectedNino | session_id                           |
             | application/json | application/json | 500        | AA000002A    | 44443939-4cf4-41e9-9fee-231e16e9f382 |
 
-    @pre-merge
+    @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Header Values
         Given I send a valid request to the core stub with nino value <selectedNino>
-        And I send a POST request to the question endpoint with invalid <contentType> and <accept>
+        When I send a POST request to the answer endpoint with invalid <contentType> and <accept>
         Then I should receive the appropriate response for the invalid headers value with statusCode <statusCode> and <responseMessage>
         Examples:
             | contentType      | accept           | statusCode | selectedNino | responseMessage        |

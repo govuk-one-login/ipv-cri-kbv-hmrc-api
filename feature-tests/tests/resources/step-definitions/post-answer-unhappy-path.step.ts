@@ -114,6 +114,10 @@ defineFeature(feature, (test) => {
             });
           });
         console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Answer Endpoint Invalid Headers - SessionId ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
       }
     );
 
@@ -135,7 +139,6 @@ defineFeature(feature, (test) => {
     given,
     then,
     when,
-    and,
   }) => {
     given(
       /^I send a valid request to the core stub with nino value (.*)$/,
@@ -147,8 +150,8 @@ defineFeature(feature, (test) => {
       }
     );
 
-    and(
-      /^I send a POST request to the question endpoint with invalid (.*) and (.*)$/,
+    when(
+      /^I send a POST request to the answer endpoint with invalid (.*) and (.*)$/,
       async (contentType: string, accept: string) => {
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
@@ -158,6 +161,10 @@ defineFeature(feature, (test) => {
           .set("Content-Type", contentType)
           .set("Accept", accept)
           .set("session-id", getValidSessionId);
+        console.log(
+          "Answer Endpoint Invalid Headers - Headers ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
       }
     );
 

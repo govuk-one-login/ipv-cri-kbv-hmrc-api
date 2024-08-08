@@ -25,6 +25,7 @@ defineFeature(feature, (test) => {
   let postRequestToHmrcKbvEndpoint: any;
   let getValidSessionId: string;
   let questionKeyFromGetResponse: string;
+  let decrypedVcResponse: any;
 
   beforeEach(async () => {});
 
@@ -73,7 +74,7 @@ defineFeature(feature, (test) => {
         );
       }
     );
-    when(/^I send a GET request to the question endpoint$/, async () => {
+    when(/^I send a new GET request to the question endpoint$/, async () => {
       getRequestToQuestionEndpoint = await request(
         EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
       )
@@ -246,12 +247,16 @@ defineFeature(feature, (test) => {
     );
 
     then(
-      /^I should receive a VC with the correct values for a user with >=3 questions over 2 questionKey$/,
-      async () => {
+      /^I should receive a VC with the correct values (.*) for (.*) with >=3 questions over 2 questionKey$/,
+      async (selectedNino: string, verificationScore: any) => {
         await getRequestAuthorisationCode();
         await getAccessTokenRequest();
         await postRequestToAccessTokenEndpoint();
-        await postRequestHmrcKbvCriVc();
+        decrypedVcResponse = await postRequestHmrcKbvCriVc();
+        console.log("Full VC" + decrypedVcResponse);
+        expect(decrypedVcResponse).toBeTruthy();
+        expect(decrypedVcResponse).toContain(verificationScore);
+        expect(decrypedVcResponse).toContain(selectedNino);
       }
     );
   });
@@ -398,12 +403,16 @@ defineFeature(feature, (test) => {
     );
 
     then(
-      /^I should receive a VC with the correct values for a user with 2 questions over 2 question keys$/,
-      async () => {
+      /^I should receive a VC with the correct values (.*) for (.*) with 2 questions over 2 question keys$/,
+      async (selectedNino: string, verificationScore: any) => {
         await getRequestAuthorisationCode();
         await getAccessTokenRequest();
         await postRequestToAccessTokenEndpoint();
-        await postRequestHmrcKbvCriVc();
+        decrypedVcResponse = await postRequestHmrcKbvCriVc();
+        console.log("Full VC" + decrypedVcResponse);
+        expect(decrypedVcResponse).toBeTruthy();
+        expect(decrypedVcResponse).toContain(verificationScore);
+        expect(decrypedVcResponse).toContain(selectedNino);
       }
     );
   });
