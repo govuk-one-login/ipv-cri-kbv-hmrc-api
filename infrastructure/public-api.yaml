@@ -154,11 +154,13 @@ paths:
                 "stateMachineArn": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-IssueCredential"
               }
         responses:
-          "200":
-            statusCode: 200
+          default:
+            statusCode: 500
             responseTemplates:
-              application/json:
-                Fn::Sub: $input.path('$').output.replace('"',"")
+              application/jwt: |
+                #set($context.responseOverride.header.Content-Type = "application/jwt")
+                #set($context.responseOverride.status = 200)
+                $input.path('$').output.replace('"',"")
 
 components:
   schemas:

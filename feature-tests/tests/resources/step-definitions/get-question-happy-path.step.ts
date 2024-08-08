@@ -20,7 +20,7 @@ defineFeature(feature, (test) => {
 
   beforeEach(async () => {});
 
-  test("Happy Path - Get request to /question Endpoint for userId", ({
+  test("Happy Path - Get request to /question Endpoint for userId with Nino <selectedNino>", ({
     given,
     then,
     when,

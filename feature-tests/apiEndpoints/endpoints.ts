@@ -6,6 +6,9 @@ export default class EndPoints {
   static readonly FETCH_QUESTIONS_ENDPOINT = "/fetchquestions";
   static readonly QUESTION_ENDPOINT = "/question";
   static readonly ANSWER_ENDPOINT = "/answer";
+  static readonly INVALID_FETCH_QUESTIONS_ENDPOINT = "/fetchquestion";
+  static readonly INVALID_QUESTION_ENDPOINT = "/questions";
+  static readonly INVALID_ANSWER_ENDPOINT = "/answers";
   static readonly SESSION_URL = "/session";
   static readonly CRI_ID = "hmrc-kbv-cri-dev";
   static readonly CRI_VALUE = "&cri=";

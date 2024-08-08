@@ -19,7 +19,7 @@ defineFeature(feature, (test) => {
 
   beforeEach(async () => {});
 
-  test("Happy Path - Post Request to /fetchquestions Endpoint for userId", ({
+  test("Happy Path - Post Request to /fetchquestions Endpoint for userId with Nino <selectedNino>", ({
     given,
     when,
     then,
@@ -71,7 +71,7 @@ defineFeature(feature, (test) => {
     );
   });
 
-  test("Happy Path - Post Request to /fetchquestions Endpoint for same userId", ({
+  test("Happy Path - Post Request to /fetchquestions Endpoint for same userId with Nino <selectedNino", ({
     given,
     when,
     and,

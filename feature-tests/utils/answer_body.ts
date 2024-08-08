@@ -56,4 +56,8 @@ export const questionKeyResponse = {
     questionKey: "sa-income-from-pensions",
     value: "163",
   },
+  ANSWER_POST_PAYLOAD_INVALID_QUESTION_KEY: {
+    questionKey: "test-test-test",
+    value: "163",
+  },
 };
