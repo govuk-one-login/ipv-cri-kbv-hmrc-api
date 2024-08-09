@@ -67,6 +67,7 @@ describe("HMRC KBV Happy Path", () => {
     ])("Successful Request Test for $selectedNino - VC Generation for User with 2 HMRC KBV Questions", async (selectedNino: string) => {
         // Generate Shared Claims URL Response
         const generateClaimsUrlResponse = await getClaimsUrl(selectedNino);
+        getClaimsResponse = generateClaimsUrlResponse.data;
         // Post Updates Claims URL Response
         const postUpdatedClaimsUrlResponse = await postUpdatedClaimsUrl(generateClaimsUrlResponse.data);
         clientId = postUpdatedClaimsUrlResponse.data.client_id;
