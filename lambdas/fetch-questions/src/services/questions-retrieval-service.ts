@@ -186,25 +186,25 @@ export class QuestionsRetrievalService {
 
     responseQuestions.forEach(
       (question: {
-        [info: string]: { taxYearCurrent: string; taxYearPrevious: string };
+        [info: string]: { currentTaxYear: string; previousTaxYear: string };
         questionKey: any;
       }) => {
         const questionKey: string = question.questionKey;
         logger.debug(`question : ${questionKey}`);
 
-        let taxYearCurrent: string | undefined = undefined;
-        let taxYearPrevious: string | undefined = undefined;
+        let currentTaxYear: string | undefined = undefined;
+        let previousTaxYear: string | undefined = undefined;
 
         if (Object.prototype.hasOwnProperty.call(question, "info")) {
-          taxYearCurrent = question["info"].taxYearCurrent;
-          taxYearPrevious = question["info"].taxYearPrevious;
+          currentTaxYear = question["info"].currentTaxYear;
+          previousTaxYear = question["info"].previousTaxYear;
         }
 
-        logger.debug(`info taxYearCurrent: ${taxYearCurrent}`);
-        logger.debug(`info taxYearPrevious: ${taxYearPrevious}`);
+        logger.debug(`info currentTaxYear: ${currentTaxYear}`);
+        logger.debug(`info previousTaxYear: ${previousTaxYear}`);
 
         mappedQuestions.push(
-          new Question(questionKey, taxYearCurrent, taxYearPrevious)
+          new Question(questionKey, currentTaxYear, previousTaxYear)
         );
       }
     );
