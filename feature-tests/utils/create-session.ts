@@ -1,7 +1,7 @@
 import EndPoints from "../apiEndpoints/endpoints";
 import request from "supertest";
 import { App } from "supertest/types";
-import { jwtPartsEnum } from "../utils/utility";
+import { getJWTPayload, getJwtSignature, decode } from "../utils/jwt-utils";
 
 let getClaimsUrl: any;
 let postClaimsUrl: any;
@@ -10,13 +10,6 @@ let postAccessTokenEndpoint: any;
 let getReqAuthCode: any;
 let getTokenRequest: any;
 let postHmrcKbvVCEndpoint: any;
-
-const ENCODING = "base64";
-const DECODING = "utf8";
-const getJWTPayload = (jwt: string): string =>
-  getJWTPart(jwt, jwtPartsEnum.PAYLOAD);
-const decode = (returnedVcData: string): string =>
-  Buffer.from(returnedVcData, ENCODING).toString(DECODING);
 
 export async function generateClaimsUrl(selectedNino: string) {
   console.log("Generating Initial Claimset - ");
@@ -35,6 +28,10 @@ export async function generateClaimsUrl(selectedNino: string) {
     )
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");
+  console.log(
+    "POST Request to the generateInitialClaimsSet Endpoint: ",
+    JSON.stringify(getClaimsUrl, undefined, 2)
+  );
   console.log(
     "Initial ClaimSet: " + JSON.stringify(getClaimsUrl.text, undefined, 2)
   );
@@ -61,6 +58,10 @@ export async function postUpdatedClaimsUrl() {
     .set("Content-Type", "application/json")
     .set("Accept", "application/json");
   console.log(
+    "POST Request to the createSessionRequest Endpoint: ",
+    JSON.stringify(postClaimsUrl, undefined, 2)
+  );
+  console.log(
     "Encoded ClaimSet Response Body: " +
       JSON.stringify(postClaimsUrl.body, undefined, 2)
   );
@@ -82,6 +83,10 @@ export async function postRequestToSessionEndpoint() {
     .set("Accept", "application/json")
     .set("X-Forwarded-For", "123456789");
   console.log(
+    "POST Request to the session Endpoint: ",
+    JSON.stringify(postSessionEndpoint, undefined, 2)
+  );
+  console.log(
     "Request to SessionId endpoint Status Code:",
     postSessionEndpoint.statusCode
   );
@@ -90,7 +95,6 @@ export async function postRequestToSessionEndpoint() {
       JSON.stringify(postSessionEndpoint.body, undefined, 2)
   );
   console.log("SESSION_ID = ", postSessionEndpoint.body.session_id);
-
   expect(postSessionEndpoint.statusCode).toEqual(Number(201));
 }
 
@@ -187,25 +191,14 @@ export async function postRequestHmrcKbvCriVc() {
   expect(postHmrcKbvVCEndpoint.statusCode).toEqual(Number(200));
   const returnedVcData = postHmrcKbvVCEndpoint.body;
   console.log("Returned Encrypted VC: ", postHmrcKbvVCEndpoint.body);
-  const vc = JSON.parse(decode(getJWTPayload(returnedVcData)));
-  console.log("Returned Decrypted VC: ", vc);
-}
-
-function getJWTPart(jwt: string, part: jwtPartsEnum): string {
-  const jwtParts = jwt.split(".");
-  if (!jwtParts || jwtParts.length != 3) {
-    throw new TypeError(
-      `The JWT is invalid. Missing parts, unable to get ${jwtPartsEnum[part]}.`
-    );
-  }
-
-  if (jwtParts[part]) {
-    return jwtParts[part] as string;
-  } else {
-    throw new TypeError(
-      `The JWT is invalid, ${jwtPartsEnum[part]} is missing.`
-    );
-  }
+  const vc = decode(getJWTPayload(returnedVcData));
+  const signature = getJwtSignature(returnedVcData);
+  console.log(
+    "Returned Decrypted VC: ",
+    vc + " Decrypted VC Signature",
+    signature
+  );
+  return vc;
 }
 
 export function getSessionId() {

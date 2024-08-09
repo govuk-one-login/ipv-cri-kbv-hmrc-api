@@ -38,9 +38,3 @@ export async function findObjectContainingValue(obj: any, searchValue: string) {
   }
   return null;
 }
-
-export enum jwtPartsEnum {
-  HEADER,
-  PAYLOAD,
-  SIGNATURE,
-}
