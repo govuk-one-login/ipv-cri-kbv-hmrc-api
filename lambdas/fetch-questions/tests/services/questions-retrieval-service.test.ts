@@ -93,8 +93,8 @@ describe("QuestionsRetrievalService", () => {
           {
             questionKey: "TEST-KEY-1",
             info: {
-              taxYearCurrent: "2024/25",
-              taxYearPrevious: "2023/24",
+              currentTaxYear: "2024/25",
+              previousTaxYear: "2023/24",
             },
           },
           {

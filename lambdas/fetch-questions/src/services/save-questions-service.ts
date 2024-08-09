@@ -75,7 +75,7 @@ export class SaveQuestionsService {
     logger.info("mappingInfo");
 
     const questionResultItemInfo: QuestionResultItemInfo =
-      new QuestionResultItemInfo(info?.taxYearCurrent, info?.taxYearPrevious);
+      new QuestionResultItemInfo(info?.currentTaxYear, info?.previousTaxYear);
     return questionResultItemInfo;
   }
 

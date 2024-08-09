@@ -1,13 +1,13 @@
 export class Info {
-  readonly taxYearCurrent: string | undefined;
-  readonly taxYearPrevious: string | undefined;
+  readonly currentTaxYear: string | undefined;
+  readonly previousTaxYear: string | undefined;
 
   constructor(
-    taxYearCurrent: string | undefined,
-    taxYearPrevious: string | undefined
+    currentTaxYear: string | undefined,
+    previousTaxYear: string | undefined
   ) {
-    this.taxYearCurrent = taxYearCurrent;
-    this.taxYearPrevious = taxYearPrevious;
+    this.currentTaxYear = currentTaxYear;
+    this.previousTaxYear = previousTaxYear;
   }
 }
 
@@ -17,13 +17,13 @@ export class Question {
 
   constructor(
     questionKey: string,
-    taxYearCurrent: string | undefined,
-    taxYearPrevious: string | undefined
+    currentTaxYear: string | undefined,
+    previousTaxYear: string | undefined
   ) {
     this.questionKey = questionKey;
 
-    this.info = taxYearCurrent
-      ? new Info(taxYearCurrent, taxYearPrevious)
+    this.info = currentTaxYear
+      ? new Info(currentTaxYear, previousTaxYear)
       : undefined;
   }
 }
@@ -66,15 +66,15 @@ export class QuestionResultItem {
 }
 
 export class QuestionResultItemInfo {
-  taxYearCurrent: string | undefined;
-  taxYearPrevious: string | undefined;
+  currentTaxYear: string | undefined;
+  previousTaxYear: string | undefined;
 
   constructor(
-    taxYearCurrent: string | undefined,
-    taxYearPrevious: string | undefined
+    currentTaxYear: string | undefined,
+    previousTaxYear: string | undefined
   ) {
-    this.taxYearCurrent = taxYearCurrent;
-    this.taxYearPrevious = taxYearPrevious;
+    this.currentTaxYear = currentTaxYear;
+    this.previousTaxYear = previousTaxYear;
   }
 }
 
