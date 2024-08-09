@@ -13,7 +13,8 @@
     "test:browser": "jest --runInBand --verbose",
     "test:browser:ci": "CI=true jest --runInBand --verbose",
     "lint:code": "eslint --ext .ts .",
-    "lint:code:fix": "yarn lint:code --fix"
+    "lint:code:fix": "yarn lint:code --fix",
+    "test:happy-path": "JEST_JUNIT_OUTPUT_NAME=api-report.xml jest feature-tests/tests/HappyPath.test.ts"
   },
   "devDependencies": {
     "@types/jest": "29.5.12",
@@ -23,7 +24,7 @@
     "@types/selenium-webdriver": "^4.1.12",
     "dotenv": "16.4.5",
     "eslint": "9.3.0",
-    "jest": "29.7.0",
+    "jest": "^29.7.0",
     "jest-cucumber": "4.4.0",
     "jest-junit": "16.0.0",
     "supertest": "7.0.0",
@@ -42,6 +43,9 @@
     "@aws-sdk/client-secrets-manager": "3.577.0",
     "@aws-sdk/client-sns": "3.577.0",
     "@aws-sdk/credential-providers": "3.577.0",
-    "@aws-sdk/util-dynamodb": "3.577.0"
+    "@aws-sdk/util-dynamodb": "3.577.0",
+    "axios": "^1.7.3",
+    "crypto": "^1.0.1",
+    "jest-html-reporter": "^3.10.2"
   }
 }
