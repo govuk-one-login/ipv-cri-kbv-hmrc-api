@@ -19,6 +19,9 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000004A    | "verificationScore":2 |
             | application/json | application/json | 200        | 204             | AA000005A    | "verificationScore":2 |
             | application/json | application/json | 200        | 204             | AA000006A    | "verificationScore":2 |
+            | application/json | application/json | 200        | 204             | AA000003I    | "verificationScore":2 |
+            | application/json | application/json | 200        | 204             | AA000003C    | "verificationScore":0 |
+            | application/json | application/json | 200        | 204             | AA000003Z    | "verificationScore":0 |
 
     @pre-merge @post-merge @hmrc-answer
     Scenario Outline: Happy Path - Post request to /answer Endpoint for userId with 2 questions over 2 questionKeys
