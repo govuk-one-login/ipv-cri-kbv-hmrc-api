@@ -189,7 +189,6 @@ async function validateRawHead(rawHead: any): Promise<void> {
 
 function validateRawBody(rawBody: any, getClaimsResponse: GetClaimsUrlResponse, verificationScore: number): void {
 	const decodedBody = JSON.parse(Buffer.from(rawBody.replace(/\W/g, ""), "base64url").toString());
-  console.log("Decoded Body: " + JSON.stringify(decodedBody));
   expect(decodedBody.vc.evidence[0].verificationScore).toBe(verificationScore);
 	expect(decodedBody.vc.credentialSubject.socialSecurityRecord[0].personalNumber).toBe(getClaimsResponse.shared_claims.socialSecurityRecord[0].personalNumber);
 	expect(decodedBody.vc.credentialSubject.name).toStrictEqual(getClaimsResponse.shared_claims.name);

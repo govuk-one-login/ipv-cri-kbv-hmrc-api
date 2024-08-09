@@ -16,7 +16,7 @@ describe("HMRC KBV UnHappy Path", () => {
 
     it.each([
         "AA000002A",
-    ])("Invalid Request to /question endpoint for $selectedNino", async (selectedNino: string) => {
+    ])("Invalid Request to /answer endpoint for $selectedNino", async (selectedNino: string) => {
         // Generate Shared Claims URL Response
         const generateClaimsUrlResponse = await getClaimsUrl(selectedNino);
         // Post Updates Claims URL Response
