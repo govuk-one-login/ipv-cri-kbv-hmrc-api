@@ -10,9 +10,23 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["jest", "node"],
+    "types": [
+      "jest",
+      "node"
+    ],
     "outDir": "./build/"
   },
-  "exclude": ["build", "coverage", "node_modules"],
-  "include": ["src", "tests", "apiEndpoints", "utils", "tests/ApiConstants.ts", "tests/answer_body.ts"]
+  "exclude": [
+    "build",
+    "coverage",
+    "node_modules"
+  ],
+  "include": [
+    "src",
+    "tests",
+    "apiEndpoints",
+    "utils",
+    "tests/ApiConstants.ts",
+    "tests/answer_body.ts"
+  ]
 }
