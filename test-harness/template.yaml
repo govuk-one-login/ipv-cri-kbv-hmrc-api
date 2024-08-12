@@ -1,0 +1,321 @@
+Transform: "AWS::Serverless-2016-10-31"
+Description: "Digital Identity HMRC KBV Test Automation Harness"
+
+Parameters:
+  CodeSigningConfigArn:
+    Type: String
+    Default: "none"
+    Description: >
+      The ARN of the Code Signing Config to use, provided by the deployment pipeline
+  Environment:
+    Description: "The environment type"
+    Type: "String"
+    AllowedValues:
+      - "dev"
+      - "build"
+  PermissionsBoundary:
+    Description: "The ARN of the permissions boundary to apply when creating IAM roles"
+    Type: String
+    Default: "none"
+  VpcStackName:
+    Type: String
+    Default: "cri-vpc"
+    Description: The name of the VPC stack deployed.
+  BackendStack:
+    Description: The stack name of the API stack under test
+    Default: ipv-cri-kbv-hmrc-api
+    Type: String
+
+Mappings:
+  EnvironmentConfiguration: # This is where you store per-environment settings.
+    dev:
+      logretentionindays: 3
+      apiTracingEnabled: true
+    build:
+      logretentionindays: 3
+      apiTracingEnabled: true
+
+  EnvironmentVariables: # This is all the environment specific environment variables that don't belong in globals.
+    dev:
+      TESTHARNESSURL: "testharness.review-hk.dev.account.gov.uk"
+    build:
+      TESTHARNESSURL: "testharness.review-hk.build.account.gov.uk"
+
+Conditions:
+  CreateDevResources: !Equals
+    - !Ref Environment
+    - dev
+  UseCodeSigning:
+    Fn::Not:
+      - Fn::Equals:
+          - !Ref CodeSigningConfigArn
+          - "none"
+  UsePermissionsBoundary:
+    Fn::Not:
+      - Fn::Equals:
+          - !Ref PermissionsBoundary
+          - "none"
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    VpcConfig:
+      SecurityGroupIds:
+        - !GetAtt LambdaEgressSecurityGroup.GroupId
+      SubnetIds:
+        - Fn::ImportValue:
+            "Fn::Sub": "${VpcStackName}-ProtectedSubnetIdA"
+        - Fn::ImportValue:
+            "Fn::Sub": "${VpcStackName}-ProtectedSubnetIdB"
+    PermissionsBoundary: !If
+      - UsePermissionsBoundary
+      - !Ref PermissionsBoundary
+      - !Ref AWS::NoValue
+    CodeSigningConfigArn: !If
+      - UseCodeSigning
+      - !Ref CodeSigningConfigArn
+      - !Ref AWS::NoValue
+    Timeout: 30 # seconds
+    Tracing: Active
+    MemorySize: 1024
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        AWS_STACK_NAME: !Sub ${AWS::StackName}
+        POWERTOOLS_LOG_LEVEL: DEBUG
+        POWERTOOLS_METRICS_NAMESPACE: !Ref CriIdentifier
+    AutoPublishAlias: live
+
+Resources:
+  LambdaEgressSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: >-
+        Permits outbound on port 443 from within the VPC to the internet.
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow to the wider internet on port 443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${VpcStackName}-VpcId"
+
+  ### Start of DynamoDb Access Role definition.
+
+  DynamoDbAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "bav-test-harness-${AWS::StackName}-apigw"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: 2012-10-17
+      Policies:
+      - PolicyName: QuestionsTableReadAccess
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - dynamodb:GetItem
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-question-table-arn"
+          - Effect: Allow
+            Action: 
+            - dynamodb:Query
+            Resource:
+              "Fn::Sub": [
+                "${tableName}/index/*",
+                {
+                  "tableName": {
+                    Fn::ImportValue: !Sub "${BackendStack}-question-table-arn"
+                  }
+                }
+              ]
+      - PolicyName: QuestionsTableDecryptPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - kms:Decrypt
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-question-table-key-arn"
+      - PolicyName: ResultsTableReadAccess
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - dynamodb:GetItem
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-results-table-arn"
+          - Effect: Allow
+            Action: 
+            - dynamodb:Query
+            Resource:
+              "Fn::Sub": [
+                "${tableName}/index/*",
+                {
+                  "tableName": {
+                    Fn::ImportValue: !Sub "${BackendStack}-results-table-arn"
+                  }
+                }
+              ]
+      - PolicyName: ResultsTableDecryptPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - kms:Decrypt
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-results-table-key-arn"
+      - PolicyName: AnswersTableReadAccess
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - dynamodb:GetItem
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-answers-table-arn"
+          - Effect: Allow
+            Action: 
+            - dynamodb:Query
+            Resource:
+              "Fn::Sub": [
+                "${tableName}/index/*",
+                {
+                  "tableName": {
+                    Fn::ImportValue: !Sub "${BackendStack}-answers-table-arn"
+                  }
+                }
+              ]
+      - PolicyName: AnswersTableDecryptPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: 
+            - kms:Decrypt
+            Resource:
+              Fn::ImportValue: !Sub "${BackendStack}-answers-table-key-arn"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
+  ### Start of API Gateway definition.
+
+  TestHarnessRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      AlwaysDeploy: true
+      StageName: !Ref Environment
+      OpenApiVersion: 3.0.1
+      AccessLogSetting:
+        Format: "$context.requestId $context.httpMethod $context.path"
+        DestinationArn: !GetAtt TestHarnessAPIGatewayAccessLogGroup.Arn
+      EndpointConfiguration:
+        Type: REGIONAL
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: './test-harness-spec.yaml'
+          OpenApiVersion: 3.0.1
+      MethodSettings:
+        - LoggingLevel: INFO
+          MetricsEnabled: true
+          ThrottlingBurstLimit: 400
+          ThrottlingRateLimit: 200
+          DataTraceEnabled: false
+          HttpMethod: "*"
+          ResourcePath: "/*"
+      TracingEnabled: true
+      Tags:
+        Product: GOV.UK Sign In
+        System: HMRC KBV
+        Environment: !Ref Environment
+        Service: TestHarness
+        Name: TestHarnessRestApi
+
+  TestHarnessAPIGatewayAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays:
+        !FindInMap [
+          EnvironmentConfiguration,
+          !Ref Environment,
+          logretentionindays,
+        ]
+      Tags:
+        - Key: Product
+          Value: GOV.UK Sign In
+        - Key: System
+          Value: Dev Platform
+        - Key: Environment
+          Value: Demo
+        - Key: Service
+          Value: backend
+        - Key: Name
+          Value: APIGatewayAccessLogGroup
+
+  ### End of API Gateway definition.
+
+  TestHarnessCustomDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName: !If
+        - CreateDevResources
+        - !Sub
+          - "${AWS::StackName}-${TESTHARNESSURL}"
+          - TESTHARNESSURL:
+              !FindInMap [ EnvironmentVariables, !Ref Environment, TESTHARNESSURL ]
+        - !FindInMap [ EnvironmentVariables, !Ref Environment, TESTHARNESSURL ]
+      DomainNameConfigurations:
+        - CertificateArn: !Sub "arn:aws:acm:eu-west-2:404250751813:certificate/3184cd95-3e3f-4eff-80e4-3bf18a924113"
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+
+  TestHarnessApiDomainRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Ref TestHarnessCustomDomain
+      Type: A
+      HostedZoneId: !Sub "Z05095321OWON8MHVJIQD"
+      AliasTarget:
+        DNSName: !GetAtt TestHarnessCustomDomain.RegionalDomainName
+        HostedZoneId: !GetAtt TestHarnessCustomDomain.RegionalHostedZoneId
+        EvaluateTargetHealth: false
+
+  # Base Path Mapping
+  TestHarnessApiBasePathMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    Properties:
+      DomainName: !Ref TestHarnessCustomDomain
+      RestApiId: !Ref TestHarnessRestApi
+
+      # workaround for sam bug - see https://github.com/aws/serverless-application-model/issues/192#issuecomment-520893111
+      # noinspection YamlUnresolvedReferences
+      Stage: !Ref TestHarnessRestApi.Stage
+
+Outputs:
+  TestHarnessExecuteUrl:
+    Description: "API Gateway endpoint URL for the test harness endpoints"
+    Export:
+      Name: !Sub "${AWS::StackName}-TestHarnessExecuteUrl"
+    Value: !Sub
+      - "https://${URL}/"
+      - URL: !Ref TestHarnessCustomDomain

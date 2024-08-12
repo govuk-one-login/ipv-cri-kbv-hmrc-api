@@ -1127,8 +1127,8 @@ Resources:
         Sourcemap: true
     Properties:
       Handler: lambdas/jwt-signer/src/jwt-signer-handler.lambdaHandler
-      LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
+      # LoggingConfig:
+      #   LogGroup: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
       Policies:
@@ -1161,8 +1161,8 @@ Resources:
     Properties:
       Handler: lambdas/answer-validation/src/answer-validation-handler.lambdaHandler
       FunctionName: !Sub "${AWS::StackName}-answer-validation"
-      LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${AWS::StackName}-AnswerValidationFunction"
+      # LoggingConfig:
+      #   LogGroup: !Sub "/aws/lambda/${AWS::StackName}-AnswerValidationFunction"
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
@@ -1194,6 +1194,41 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expiryDate
         Enabled: true
+      SSESpecification:
+        KMSMasterKeyId: !Ref QuestionsTableKey
+        SSEEnabled: true
+        SSEType: KMS
+  
+  QuestionsTableKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "${AWS::StackName} questions table key"
+      Enabled: true
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      MultiRegion: false
+      PendingWindowInDays: 7
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Allow the account to manage the key"
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} questions table key"
+        - Key: Environment
+          Value: !Ref Environment
+
+  QuestionsTableKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}-questions-table-key"
+      TargetKeyId: !Ref QuestionsTableKey
 
   AnswersTable:
     Type: "AWS::DynamoDB::Table"
@@ -1211,6 +1246,41 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expiryDate
         Enabled: true
+      SSESpecification:
+        KMSMasterKeyId: !Ref AnswersTableKey
+        SSEEnabled: true
+        SSEType: KMS
+
+  AnswersTableKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "${AWS::StackName} answers table key"
+      Enabled: true
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      MultiRegion: false
+      PendingWindowInDays: 7
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Allow the account to manage the key"
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} answers table key"
+        - Key: Environment
+          Value: !Ref Environment
+
+  AnswersTableKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}-answers-table-key"
+      TargetKeyId: !Ref AnswersTableKey
 
   ResultsTable:
     Type: "AWS::DynamoDB::Table"
@@ -1228,6 +1298,41 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expiryDate
         Enabled: true
+      SSESpecification:
+        KMSMasterKeyId: !Ref ResultsTableKey
+        SSEEnabled: true
+        SSEType: KMS
+
+  ResultsTableKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "${AWS::StackName} results table key"
+      Enabled: true
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      MultiRegion: false
+      PendingWindowInDays: 7
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Allow the account to manage the key"
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} results table key"
+        - Key: Environment
+          Value: !Ref Environment
+
+  ResultsTableKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}-results-table-key"
+      TargetKeyId: !Ref ResultsTableKey
 
   ####################################################################
   #                                                                  #
@@ -1464,8 +1569,42 @@ Outputs:
     Description: Exported for integration test (Common API person identity table name)
     Value: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
   QuestionsTableName:
-    Description: Exported for integration test
+    Description: "The name of the DynamoDB Questions table"
     Value: !Ref QuestionsTable
+  QuestionsTableArn:
+    Description: "The Arn of the DynamoDB Questions table"
+    Value: !GetAtt QuestionsTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-question-table-arn"
+  QuestionsTableKeyArn:
+    Description: "The Arn of the Questions table encryption key"
+    Value: !GetAtt QuestionsTableKey.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-question-table-key-arn"
   ResultsTableName:
-    Description: Exported for integration test
+    Description: "The name of the DynamoDB Results table"
     Value: !Ref ResultsTable
+  ResultsTableArn:
+    Description: "The Arn of the DynamoDB Results table"
+    Value: !GetAtt ResultsTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-results-table-arn"
+  ResultsTableKeyArn:
+    Description: "The Arn of the Results table encryption key"
+    Value: !GetAtt ResultsTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-results-table-key-arn"
+  AnswersTableName:
+    Description: "The name of the DynamoDB Answers table"
+    Value: !Ref AnswersTable
+  AnswersTableArn:
+    Description: "The Arn of the DynamoDB Answers table"
+    Value: !GetAtt AnswersTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-answers-table-arn"
+  AnswersTableKeyArn:
+    Description: "The Arn of the Answers table encryption key"
+    Value: !GetAtt AnswersTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-answers-table-key-arn"
+  

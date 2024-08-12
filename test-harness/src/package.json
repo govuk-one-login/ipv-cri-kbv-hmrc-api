@@ -1,0 +1,30 @@
+{
+  "name": "test-harness",
+  "version": "1.0.0",
+  "description": "Harness to enable automation testing",
+  "main": "index.js",
+  "scripts": {
+    "compile": "./node_modules/.bin/tsc",
+    "lint": "eslint --output-file ./reports/eslint/reportFile.html --format html --ext .ts .",
+    "lint:fix": "eslint --fix --output-file ./reports/eslint/report.html --format html --ext .ts ."
+    },
+  "author": "GDS",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^8.0.0",
+    "prettier": "^3.3.3"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-typescript"
+    ]
+  },
+  "engines": {
+    "node": "^18.0.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/parser": "^8.0.1"
+  }
+}

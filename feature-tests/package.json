@@ -12,7 +12,7 @@
     "test": "jest --runInBand --verbose",
     "lint:code": "eslint --ext .ts .",
     "lint:code:fix": "yarn lint:code --fix",
-    "test:happy-path": "JEST_JUNIT_OUTPUT_NAME=api-report.xml jest feature-tests/tests/HappyPath.test.ts"
+    "test:happy-path": "JEST_JUNIT_OUTPUT_NAME=api-report.xml jest feature-tests/tests/UnhappyPath.test.ts"
   },
   "devDependencies": {
     "@types/jest": "29.5.12",
@@ -31,12 +31,13 @@
   "dependencies": {
     "@aws-lambda-powertools/commons": "2.1.1",
     "@aws-lambda-powertools/parameters": "2.1.1",
-    "@aws-sdk/client-cloudwatch-logs": "3.577.0",
-    "@aws-sdk/client-dynamodb": "3.577.0",
-    "@aws-sdk/client-secrets-manager": "3.577.0",
-    "@aws-sdk/client-sns": "3.577.0",
-    "@aws-sdk/credential-providers": "3.577.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.624.0",
+    "@aws-sdk/client-dynamodb": "^3.624.0",
+    "@aws-sdk/client-secrets-manager": "^3.624.0",
+    "@aws-sdk/client-sns": "^3.624.0",
+    "@aws-sdk/credential-providers": "^3.577.0",
     "@aws-sdk/util-dynamodb": "3.577.0",
+    "aws4-axios": "^3.3.7",
     "axios": "^1.7.3",
     "crypto": "^1.0.1",
     "jest-html-reporter": "^3.10.2"

@@ -193,10 +193,10 @@ export class FilterQuestionsService {
 
   private captureFilteringMetrics(questions: Question[], isPre: boolean) {
     // Are metrics for Pre or Post filtering
-    let prefix: string = isPre ? "Pre" : "Post";
-    let questionCountMetric: string =
+    const prefix: string = isPre ? "Pre" : "Post";
+    const questionCountMetric: string =
       prefix + FilterQuestionsServiceMetrics.FilteringQuestionKeyCount;
-    let categoryCountMetric: string =
+    const categoryCountMetric: string =
       prefix + FilterQuestionsServiceMetrics.FilteringCategoryCount;
 
     // Question count
