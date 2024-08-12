@@ -1,0 +1,11 @@
+version = 0.1
+[dev]
+[dev.deploy]
+[dev.deploy.parameters]
+stack_name = "f2f-test-harness-zm"
+s3_prefix = "f2f-test-harness-zm"
+region = "eu-west-2"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+parameter_overrides = "CodeSigningConfigArn=\"none\" Environment=\"dev\" PermissionsBoundary=\"none\" SecretPrefix=\"none\" VpcStackName=\"cri-vpc\" BackendStack=\"ipv-cri-hmrc-kbv-api-zm\""
+image_repositories = []
