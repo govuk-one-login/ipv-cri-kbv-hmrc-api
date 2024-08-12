@@ -14,7 +14,7 @@
     "test:browser:ci": "CI=true jest --runInBand --verbose",
     "lint:code": "eslint --ext .ts .",
     "lint:code:fix": "yarn lint:code --fix",
-    "test:happy-path": "JEST_JUNIT_OUTPUT_NAME=api-report.xml jest feature-tests/tests/HappyPath.test.ts"
+    "test:happy-path": "JEST_JUNIT_OUTPUT_NAME=api-report.xml jest feature-tests/tests/ --detectOpenHandles"
   },
   "devDependencies": {
     "@types/jest": "29.5.12",
