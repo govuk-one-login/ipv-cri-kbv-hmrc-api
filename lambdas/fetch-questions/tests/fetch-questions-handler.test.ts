@@ -91,6 +91,7 @@ describe("FetchQuestionsHandler", () => {
     parameters: {
       url: { value: "TEST_URL" },
       userAgent: { value: "TEST_USER_AGENT" },
+      issuer: { value: "TEST_ISSUER" },
     },
     bearerToken: {
       expiry: Date.now() + 7200 * 1000,
@@ -206,6 +207,7 @@ describe("FetchQuestionsHandler", () => {
           sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
           questionsUrl: mockInputEvent.parameters.url.value,
           userAgent: mockInputEvent.parameters.userAgent.value,
+          issuer: mockInputEvent.parameters.issuer.value,
           bearerToken: mockInputEvent.bearerToken.value,
           nino: mockInputEvent.personIdentityItem.nino,
           sessionItem: mockInputEvent.sessionItem,
@@ -238,7 +240,8 @@ describe("FetchQuestionsHandler", () => {
             mockInputEvent.sessionItem,
             undefined,
             undefined,
-            hmrcIvqResponse
+            hmrcIvqResponse,
+            mockInputEvent.parameters.issuer.value
           );
         } else {
           expectedState = "SufficientQuestions";
@@ -368,6 +371,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: undefined,
+            issuer: { value: "TEST_ISSUER" },
           },
         },
         "userAgent was not provided",
@@ -385,6 +389,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             value: undefined,
@@ -405,6 +410,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -427,6 +433,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -469,6 +476,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -487,6 +495,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -538,6 +547,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -589,6 +599,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -640,6 +651,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -691,6 +703,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -742,6 +755,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -793,6 +807,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -844,6 +859,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -895,6 +911,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -946,6 +963,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -997,6 +1015,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -1048,6 +1067,7 @@ describe("FetchQuestionsHandler", () => {
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "ISSUER" },
           },
           bearerToken: {
             expiry: Date.now() + 7200 * 1000,
@@ -1100,6 +1120,7 @@ describe("FetchQuestionsHandler", () => {
         sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
         questionsUrl: mockInputEvent.parameters.url.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
+        issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
         nino: mockInputEvent.personIdentityItem.nino,
         sessionItem: mockInputEvent.sessionItem,
@@ -1157,6 +1178,7 @@ describe("FetchQuestionsHandler", () => {
         sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
         questionsUrl: mockInputEvent.parameters.url.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
+        issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
         nino: mockInputEvent.personIdentityItem.nino,
         sessionItem: mockInputEvent.sessionItem,

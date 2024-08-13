@@ -149,7 +149,8 @@
       "Result": {
         "otgApiUrl": "NOT_SET",
         "url": "NOT_SET",
-        "userAgent": "NOT_SET"
+        "userAgent": "NOT_SET",
+        "issuer": "NOT_SET"
       },
       "ResultPath": "$.parameters"
     },
@@ -221,8 +222,20 @@
         "Name": "${UserAgent}"
       },
       "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "Invoke FetchQuestions Lambda",
+      "Next": "GetParameter Issuer",
       "ResultPath": "$.parameters.userAgent",
+      "ResultSelector": {
+        "value.$": "$.Parameter.Value"
+      }
+    },
+    "GetParameter Issuer": {
+      "Type": "Task",
+      "Parameters": {
+        "Name": "${Issuer}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Next": "Invoke FetchQuestions Lambda",
+      "ResultPath": "$.parameters.issuer",
       "ResultSelector": {
         "value.$": "$.Parameter.Value"
       }

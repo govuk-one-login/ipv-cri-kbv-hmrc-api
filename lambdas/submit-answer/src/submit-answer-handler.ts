@@ -18,6 +18,11 @@ import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
 import { SubmitAnswerResult } from "./types/answer-result-types";
 import { VerificationScoreCalculator } from "./utils/verification-score-calculator";
 import { CheckDetailsCountCalculator } from "./utils/check-details-count-calculator";
+import { AuditService } from "../../../lib/src/Service/audit-service";
+import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
+import { SQSClient } from "@aws-sdk/client-sqs";
+import { fromEnv } from "@aws-sdk/credential-providers";
+import { CriAuditConfig } from "../../../lib/src/types/cri-audit-config";
 
 const logger = new Logger({ serviceName: "SubmitAnswerHandler" });
 const verificationScoreCalculator = new VerificationScoreCalculator();
@@ -37,7 +42,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
     submitAnswerService: SubmitAnswerService,
     saveAnswerResultService: ResultsService
   ) {
-    this.metricsProbe = metricProbe;
+    this.metricsProbe = metricsProbe;
     this.submitAnswerService = submitAnswerService;
     this.resultService = saveAnswerResultService;
   }
@@ -73,7 +78,6 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
       const correlationId = event.dynamoResult.Item.correlationId.S;
 
-      const ttl = event.usersQuestions.Items[0].expiryDate as number;
       const correctAnswerCount =
         checkDetailsCountCalculator.calculateAnswerCount(
           answerResult,
@@ -129,9 +133,29 @@ export class SubmitAnswerHandler implements LambdaInterface {
 
 // Handler export
 const metricProbe = new MetricsProbe();
+const dynamoClient = createDynamoDbClient();
+
+const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
+if (!queueUrl) {
+  throw new Error("Missing environment variable: SQS_AUDIT_EVENT_QUEUE_URL");
+}
+
+const criAuditConfig: CriAuditConfig = {
+  queueUrl,
+};
+
+const auditService = new AuditService(
+  new SqsAuditClient(
+    () => criAuditConfig,
+    new SQSClient({
+      region: "eu-west-2",
+      credentials: fromEnv(),
+    })
+  )
+);
 const handlerClass = new SubmitAnswerHandler(
   metricProbe,
-  new SubmitAnswerService(metricProbe, createDynamoDbClient()),
-  new ResultsService(createDynamoDbClient())
+  new SubmitAnswerService(metricProbe, dynamoClient, auditService),
+  new ResultsService(dynamoClient)
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);

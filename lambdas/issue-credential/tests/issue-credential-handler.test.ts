@@ -295,10 +295,11 @@ describe("IssueCredentialHandler", () => {
         testAnswerResultHappy.Item.failedCheckDetailsCount,
       totalQuestionsAnsweredIncorrect:
         testAnswerResultHappy.Item.failedCheckDetailsCount,
-      outcome: "Not Authenticated",
+      outcome: "Authenticated",
     };
 
-    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+    expect(mockAuditServiceSpy).toHaveBeenNthCalledWith(
+      1,
       AuditEventType.VC_ISSUED,
       mockInputEvent.sessionItem,
       undefined,
@@ -308,11 +309,17 @@ describe("IssueCredentialHandler", () => {
       evidence
     );
 
-    expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+    expect(mockAuditServiceSpy).toHaveBeenNthCalledWith(
+      2,
       AuditEventType.END,
-      mockInputEvent.sessionItem
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      undefined,
+      iss
     );
 
+    expect(mockAuditServiceSpy).toHaveBeenCalledTimes(2);
     expect(lambdaResponse).toEqual(expectedResponse);
   });
 
@@ -419,7 +426,11 @@ describe("IssueCredentialHandler", () => {
 
     expect(mockAuditServiceSpy).toHaveBeenCalledWith(
       AuditEventType.END,
-      mockInputEvent.sessionItem
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      undefined,
+      iss
     );
 
     expect(lambdaResponse).toEqual(expectedResponse);
@@ -513,7 +524,7 @@ describe("IssueCredentialHandler", () => {
         testAnswerResultHappy1FailedCheckDetails.Item.failedCheckDetailsCount,
       totalQuestionsAnsweredIncorrect:
         testAnswerResultHappy1FailedCheckDetails.Item.failedCheckDetailsCount,
-      outcome: "Not Authenticated",
+      outcome: "Authenticated",
     };
 
     expect(mockAuditServiceSpy).toHaveBeenCalledWith(
@@ -528,7 +539,11 @@ describe("IssueCredentialHandler", () => {
 
     expect(mockAuditServiceSpy).toHaveBeenCalledWith(
       AuditEventType.END,
-      mockInputEvent.sessionItem
+      mockInputEvent.sessionItem,
+      undefined,
+      undefined,
+      undefined,
+      iss
     );
 
     expect(lambdaResponse).toEqual(expectedResponse);

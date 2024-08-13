@@ -43,6 +43,7 @@ export class QuestionsRetrievalService {
     const sessionItem = inputs.sessionItem;
     const nino = inputs.nino;
     const endpoint: string = "GetQuestions";
+    const issuer = inputs.issuer;
     const questionResultCount: number = questionsResult.getQuestionCount();
 
     logger.info("Sending REQUEST SENT Audit Event");
@@ -50,7 +51,9 @@ export class QuestionsRetrievalService {
       AuditEventType.REQUEST_SENT,
       sessionItem,
       nino,
-      endpoint
+      endpoint,
+      undefined,
+      issuer
     );
 
     const hmrcIvqResponse: HmrcIvqResponse = {
@@ -63,7 +66,8 @@ export class QuestionsRetrievalService {
       sessionItem,
       undefined,
       endpoint,
-      hmrcIvqResponse
+      hmrcIvqResponse,
+      issuer
     );
 
     return questionsResult;

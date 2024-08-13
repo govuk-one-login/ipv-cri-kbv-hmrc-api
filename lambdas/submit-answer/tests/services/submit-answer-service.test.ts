@@ -1,7 +1,6 @@
-/*
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 
-import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 
 import {
   HTTPMetric,
@@ -12,11 +11,7 @@ import { SubmitAnswerService } from "../../src/services/submit-answer-service";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { mock } from "jest-mock-extended";
-
-enum AnswerServiceMetrics {
-  ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedAnswerKeyCount = "MappedAnswerKeyCount",
-}
+import { AuditService } from "../../../../lib/src/Service/audit-service";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../../../../lib/src/Service/metrics-probe");
@@ -25,14 +20,54 @@ jest.mock("node-fetch");
 describe("SubmitAnswerService", () => {
   let submitAnswerService: SubmitAnswerService;
   let mockMetricsProbe: jest.MockedObjectDeep<typeof MetricsProbe>;
-
   let mockCaptureServiceMetricMetricsProbeSpy: jest.SpyInstance;
+
+  const mockAuditService = mock<AuditService>();
   const mockDynamoDocument = mock<DynamoDBDocument>();
 
   const mockInputEvent = {
+    sessionId: "sessionId",
+    sessionItem: {
+      Item: {
+        expiryDate: {
+          N: "1234",
+        },
+        clientIpAddress: {
+          S: "127.0.0.1",
+        },
+        redirectUri: {
+          S: "http://localhost:8085/callback",
+        },
+        clientSessionId: {
+          S: "2d35a412-125e-423e-835e-ca66111a38a1",
+        },
+        createdDate: {
+          N: "1722954983024",
+        },
+        clientId: {
+          S: "unit-test-clientid",
+        },
+        subject: {
+          S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+        },
+        persistentSessionId: {
+          S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+        },
+        attemptCount: {
+          N: "0",
+        },
+        sessionId: {
+          S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+        },
+        state: {
+          S: "7f42f0cc-1681-4455-872f-dd228103a12e",
+        },
+      },
+    },
     parameters: {
       url: "dummyUrl",
       userAgent: "dummyUserAgent",
+      issuer: "https://issuer/gov.uk",
     },
     bearerToken: {
       value: "dummyOAuthToken",
@@ -68,7 +103,7 @@ describe("SubmitAnswerService", () => {
     },
   };
 
-  const personIdentity: Promise<JSON> = {
+  const personIdentity = {
     personIdentity: {
       Item: {
         socialSecurityRecord: {
@@ -80,7 +115,9 @@ describe("SubmitAnswerService", () => {
     },
   };
 
-  mockDynamoDocument.send.mockReturnValue(personIdentity);
+  mockDynamoDocument.send.mockImplementation(() =>
+    Promise.resolve(personIdentity)
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -94,37 +131,41 @@ describe("SubmitAnswerService", () => {
 
     submitAnswerService = new SubmitAnswerService(
       mockMetricsProbe.prototype,
-      mockDynamoDocument
+      mockDynamoDocument,
+      mockAuditService
     );
   });
 
   describe("Success Scenarios", () => {
     it("should return AnswerResult if request is successfull", async () => {
-      const apiResponse = {
-        correlationId: "test-correlationId",
-        answers: [
-          {
-            questionKey: "TEST-KEY-1",
-            answer: "correct",
-          },
-          {
-            questionKey: "TEST-KEY-2",
-            answer: "incorrect",
-          },
-        ],
-      };
+      const apiRequest: Array<any> = [
+        {
+          questionKey: "TEST-KEY-1",
+          answer: "correct",
+        },
+        {
+          questionKey: "TEST-KEY-2",
+          answer: "incorrect",
+        },
+      ];
+
+      const apiResponse: Array<any> = [
+        {
+          status: undefined,
+          questionKey: "TEST-KEY-1",
+        },
+        {
+          status: undefined,
+          questionKey: "TEST-KEY-2",
+        },
+      ];
 
       global.fetch = jest.fn(() =>
         Promise.resolve({
           status: 200,
-          headers: {
-            get: jest.fn(() => {
-              return "application/json";
-            }),
-          },
-          json: () => Promise.resolve(apiResponse),
-          text: () => Promise.resolve(apiResponse),
-        })
+          headers: new Headers({ "content-type": "application/json" }),
+          json: async () => apiRequest,
+        } as Response)
       ) as jest.Mock;
 
       const result = await submitAnswerService.checkAnswers(mockInputEvent);
@@ -132,7 +173,8 @@ describe("SubmitAnswerService", () => {
       expect(result).toEqual(apiResponse);
 
       // Latency Metric
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        1,
         HTTPMetric.ResponseLatency,
         Classification.HTTP,
         "SubmitAnswersService",
@@ -140,8 +182,19 @@ describe("SubmitAnswerService", () => {
         expect.any(Number)
       );
 
+      // Answers submitted
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        2,
+        "AnswersSubmitted",
+        Classification.SERVICE_SPECIFIC,
+        "SubmitAnswersService",
+        MetricUnit.Count,
+        3
+      );
+
       // Status code
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        3,
         HTTPMetric.HTTPStatusCode,
         Classification.HTTP,
         "SubmitAnswersService",
@@ -149,31 +202,34 @@ describe("SubmitAnswerService", () => {
         200
       );
 
+      // Answers correct
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        4,
+        "AnswersCorrect",
+        Classification.SERVICE_SPECIFIC,
+        "SubmitAnswersService",
+        MetricUnit.Count,
+        0
+      );
+
+      // Answers incorrect
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        5,
+        "AnswersIncorrect",
+        Classification.SERVICE_SPECIFIC,
+        "SubmitAnswersService",
+        MetricUnit.Count,
+        2
+      );
+
       // Response to be valid
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
+      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenNthCalledWith(
+        6,
         HTTPMetric.ResponseValidity,
         Classification.HTTP,
         "SubmitAnswersService",
         MetricUnit.Count,
         ResponseValidity.Valid
-      );
-
-      // Processed Questions to match response
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
-        AnswerServiceMetrics.ResponseQuestionKeyCount,
-        Classification.SERVICE_SPECIFIC,
-        "SubmitAnswersService",
-        MetricUnit.Count,
-        apiResponse["answers"].length
-      );
-
-      // Mapped Questions to the same as Processed (until fitering is added)
-      expect(mockCaptureServiceMetricMetricsProbeSpy).toHaveBeenCalledWith(
-        AnswerServiceMetrics.MappedAnswerKeyCount,
-        Classification.SERVICE_SPECIFIC,
-        "SubmitAnswersService",
-        MetricUnit.Count,
-        apiResponse["answers"].length
       );
     });
   });
@@ -246,7 +302,7 @@ describe("SubmitAnswerService", () => {
         submitAnswerService.checkAnswers(mockInputEvent)
       ).rejects.toEqual(
         new Error(
-          `API Request Failed : Unable to parse json from response Unabled to map QuestionsResult from json in response : Cannot read properties of undefined (reading 'forEach')`
+          `API Request Failed : Unable to parse json from response Unabled to map QuestionsResult from json in response : responseAnswers.forEach is not a function`
         )
       );
 
@@ -366,4 +422,3 @@ describe("SubmitAnswerService", () => {
     );
   });
 });
-*/

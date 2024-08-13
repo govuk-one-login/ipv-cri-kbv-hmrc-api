@@ -33,10 +33,13 @@ describe("QuestionsRetrievalService", () => {
   let mockCaptureServiceMetricMetricsProbeSpy: jest.SpyInstance;
   let mockAuditServiceSpy: jest.SpyInstance;
 
+  const issuer = "https//issuer.go.uk";
+
   const mockFetchQuestionInputs = {
     sessionId: "SESSION_ID",
     questionsUrl: "dummyUrl",
     userAgent: "dummyUserAgent",
+    issuer: issuer,
     bearerToken: "dummyBearerToken",
     nino: "dummyNino",
     sessionItem: {
@@ -165,24 +168,30 @@ describe("QuestionsRetrievalService", () => {
         apiResponse["questions"].length
       );
 
-      expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      expect(mockAuditServiceSpy).toHaveBeenNthCalledWith(
+        1,
         AuditEventType.REQUEST_SENT,
         mockFetchQuestionInputs.sessionItem,
         mockFetchQuestionInputs.nino,
-        "GetQuestions"
+        "GetQuestions",
+        undefined,
+        issuer
       );
 
       const hmrcIvqResponse: HmrcIvqResponse = {
         totalQuestionsReturned: 3,
       };
 
-      expect(mockAuditServiceSpy).toHaveBeenCalledWith(
+      expect(mockAuditServiceSpy).toHaveBeenNthCalledWith(
+        2,
         AuditEventType.RESPONSE_RECEIVED,
         mockFetchQuestionInputs.sessionItem,
         undefined,
         "GetQuestions",
-        hmrcIvqResponse
+        hmrcIvqResponse,
+        issuer
       );
+      expect(mockAuditServiceSpy).toHaveBeenCalledTimes(2);
     });
   });
 

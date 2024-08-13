@@ -19,6 +19,7 @@ export class JwtSignerHandler implements LambdaInterface {
 
   public async handler(event: SignerPayLoad): Promise<string> {
     logger.info("Encoding JWT details");
+
     const header = base64url.encode(event.header);
     const payload = base64url.encode(event.claimsSet);
 
