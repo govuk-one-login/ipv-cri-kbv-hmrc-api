@@ -61,14 +61,16 @@ Parameters:
     Default: txma-infrastructure
 
 Conditions:
+  # Avoid adding a standalone IsDevEnv condition
+  # As "dev" covers multiple configurations - pipeline, manual, pre-merge and preview
   IsDeployedFromPipeline:
     Fn::Equals:
       - !Ref DeploymentType
       - "pipeline"
   # Don't send logs in dev to avoid overwhelming the destination with debug
-  # LogSendingEnabled: !And
-  #   - !Not [!Equals [!Ref Environment, "dev"]]
-  #   - !Condition IsDeployedFromPipeline
+  LogSendingEnabled: !And
+    - !Not [!Equals [!Ref Environment, "dev"]]
+    - !Condition IsDeployedFromPipeline
   EnforceCodeSigning: !Not [!Equals [!Ref CodeSigningConfigArn, ""]]
   UsePermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundary, ""]]
   UseParameterPrefix:
@@ -88,13 +90,8 @@ Globals:
     Runtime: nodejs18.x
     Architectures: [arm64]
     MemorySize: 256
-
     PermissionsBoundary:
       !If [UsePermissionsBoundary, !Ref PermissionsBoundary, !Ref AWS::NoValue]
-    Layers:
-      - !Sub
-        - "{{resolve:secretsmanager:${SecretArn}:SecretString:NODEJS_LAYER}}"
-        - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
     Environment:
       Variables:
         NODE_OPTIONS: --enable-source-maps
@@ -109,46 +106,86 @@ Globals:
         DT_OPEN_TELEMETRY_ENABLE_INTEGRATION: true
         DT_CONNECTION_AUTH_TOKEN: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_AUTH_TOKEN}}"
-          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+          - SecretArn:
+              !FindInMap [
+                EnvironmentConfiguration,
+                !Ref Environment,
+                dynatraceSecretArn,
+              ]
         DT_CONNECTION_BASE_URL: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CONNECTION_BASE_URL}}"
-          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+          - SecretArn:
+              !FindInMap [
+                EnvironmentConfiguration,
+                !Ref Environment,
+                dynatraceSecretArn,
+              ]
         DT_CLUSTER_ID: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_CLUSTER_ID}}"
-          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+          - SecretArn:
+              !FindInMap [
+                EnvironmentConfiguration,
+                !Ref Environment,
+                dynatraceSecretArn,
+              ]
         DT_LOG_COLLECTION_AUTH_TOKEN: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_LOG_COLLECTION_AUTH_TOKEN}}"
-          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+          - SecretArn:
+              !FindInMap [
+                EnvironmentConfiguration,
+                !Ref Environment,
+                dynatraceSecretArn,
+              ]
         DT_TENANT: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:DT_TENANT}}"
-          - SecretArn: !FindInMap [Dynatrace, SecretArn, !Ref Environment]
+          - SecretArn:
+              !FindInMap [
+                EnvironmentConfiguration,
+                !Ref Environment,
+                dynatraceSecretArn,
+              ]
+    Layers:
+      - !Sub
+        - "{{resolve:secretsmanager:${SecretArn}:SecretString:JAVA_LAYER}}" # or NODEJS_LAYER or PYTHON_LAYER
+        - SecretArn:
+            !FindInMap [
+              EnvironmentConfiguration,
+              !Ref Environment,
+              dynatraceSecretArn,
+            ]
 
 Mappings:
-  # Only numeric values should be assigned here
-  MaxJwtTtl:
-    Environment:
-      dev: 2
-      build: 2
-      staging: 6
-      integration: 6
-      production: 6
-
-  # Permitted values: SECONDS,MINUTES,HOURS,DAYS,MONTHS,YEARS
-  JwtTtlUnit:
-    Environment:
-      dev: HOURS
-      build: HOURS
-      staging: MONTHS
-      integration: MONTHS
-      production: MONTHS
-
-  Dynatrace:
-    SecretArn:
-      dev: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      build: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      staging: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      integration: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
-      production: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
+  EnvironmentConfiguration:
+    dev:
+      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      VerifiableCredentialMaxJwtTtl: 2
+      VerifiableCredentialJwtTtlUnit: HOURS
+      StateMachineLoggingIncludeExecutionData: true
+      StateMachineLoggingLevel: "ALL"
+    build:
+      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      VerifiableCredentialMaxJwtTtl: 2
+      VerifiableCredentialJwtTtlUnit: HOURS
+      StateMachineLoggingIncludeExecutionData: true
+      StateMachineLoggingLevel: "ALL"
+    staging:
+      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      VerifiableCredentialMaxJwtTtl: 6
+      VerifiableCredentialJwtTtlUnit: MONTHS
+      StateMachineLoggingIncludeExecutionData: true
+      StateMachineLoggingLevel: "ALL"
+    integration:
+      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
+      VerifiableCredentialMaxJwtTtl: 6
+      VerifiableCredentialJwtTtlUnit: MONTHS
+      StateMachineLoggingIncludeExecutionData: false # PII in state data
+      StateMachineLoggingLevel: "ALL"
+    production:
+      dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
+      VerifiableCredentialMaxJwtTtl: 6
+      VerifiableCredentialJwtTtlUnit: MONTHS
+      StateMachineLoggingIncludeExecutionData: false # PII in state data
+      StateMachineLoggingLevel: "ALL"
 
 Resources:
   ####################################################################
@@ -217,13 +254,13 @@ Resources:
       RetentionInDays: 30
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
-  # PublicKbvHmrcApiAccessLogGroupSubscriptionFilter:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref PublicKbvHmrcApiAccessLogGroup
+  PublicKbvHmrcApiAccessLogGroupSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref PublicKbvHmrcApiAccessLogGroup
 
   PrivateKbvHmrcApi:
     Type: AWS::Serverless::Api
@@ -296,13 +333,13 @@ Resources:
       RetentionInDays: 30
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
-  # PrivateKbvHmrcApiAccessLogGroupSubscriptionFilter:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref PrivateKbvHmrcApiAccessLogGroup
+  PrivateKbvHmrcApiAccessLogGroupSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref PrivateKbvHmrcApiAccessLogGroup
 
   ExecuteStateMachineRole:
     Type: AWS::IAM::Role
@@ -352,7 +389,7 @@ Resources:
 
   ####################################################################
   #                                                                  #
-  # FetchQuestionsStateMachine                                      #
+  # FetchQuestionsStateMachine                                       #
   #                                                                  #
   ####################################################################
 
@@ -383,8 +420,18 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt FetchQuestionsStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
+        IncludeExecutionData:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingIncludeExecutionData,
+          ]
+        Level:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingLevel,
+          ]
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
@@ -441,13 +488,13 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-FetchQuestionsStateMachine-logs
       RetentionInDays: 30
 
-  # FetchQuestionsStateMachineLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref FetchQuestionsStateMachineLogGroup
+  FetchQuestionsStateMachineLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref FetchQuestionsStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -468,8 +515,18 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt CheckSessionStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
+        IncludeExecutionData:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingIncludeExecutionData,
+          ]
+        Level:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingLevel,
+          ]
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref CurrentTimeFunction
@@ -490,13 +547,13 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
       RetentionInDays: 30
 
-  # CheckSessionStateMachineLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref CheckSessionStateMachineLogGroup
+  CheckSessionStateMachineLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref CheckSessionStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -514,8 +571,18 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt GetQuestionStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
+        IncludeExecutionData:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingIncludeExecutionData,
+          ]
+        Level:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingLevel,
+          ]
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
@@ -541,13 +608,13 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
       RetentionInDays: 30
 
-  # GetQuestionStateMachineLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref GetQuestionStateMachineLogGroup
+  GetQuestionStateMachineLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref GetQuestionStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -565,8 +632,18 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt PostAnswerStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
+        IncludeExecutionData:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingIncludeExecutionData,
+          ]
+        Level:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingLevel,
+          ]
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
@@ -649,13 +726,13 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
       RetentionInDays: 30
 
-  # PostAnswerStateMachineLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref PostAnswerStateMachineLogGroup
+  PostAnswerStateMachineLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref PostAnswerStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -673,8 +750,18 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt IssueCredentialStateMachineLogGroup.Arn
-        IncludeExecutionData: True
-        Level: ALL
+        IncludeExecutionData:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingIncludeExecutionData,
+          ]
+        Level:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            StateMachineLoggingLevel,
+          ]
       Policies:
         - Statement:
             Effect: Allow
@@ -732,13 +819,13 @@ Resources:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
       RetentionInDays: 30
 
-  # IssueCredentialStateMachineLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref IssueCredentialStateMachineLogGroup
+  IssueCredentialStateMachineLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref IssueCredentialStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -778,13 +865,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${OTGTokenFunction}"
       RetentionInDays: 30
 
-  # OTGTokenFunctionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref OTGTokenFunctionFunctionLogGroup
+  OTGTokenFunctionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref OTGTokenFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -845,13 +932,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${FetchQuestionsFunction}"
       RetentionInDays: 30
 
-  # FetchQuestionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref FetchQuestionsFunctionLogGroup
+  FetchQuestionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref FetchQuestionsFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -876,13 +963,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${TimeFunction}"
       RetentionInDays: 30
 
-  # TimeFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref TimeFunctionLogGroup
+  TimeFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref TimeFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -907,13 +994,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CurrentTimeFunction}"
       RetentionInDays: 30
 
-  # CurrentTimeFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref CurrentTimeFunctionLogGroup
+  CurrentTimeFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref CurrentTimeFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -982,13 +1069,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${SubmitAnswerFunction}"
       RetentionInDays: 30
 
-  # SubmitAnswerFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref SubmitAnswerFunctionLogGroup
+  SubmitAnswerFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref SubmitAnswerFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -1013,13 +1100,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CreateAuthCodeFunction}"
       RetentionInDays: 30
 
-  # CreateAuthCodeFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref CreateAuthCodeFunctionLogGroup
+  CreateAuthCodeFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref CreateAuthCodeFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -1044,13 +1131,13 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${EvidenceCheckDetailsFunction}"
       RetentionInDays: 30
 
-  # EvidenceCheckDetailsFunctionLogGroupSubscriptionFilterCsls:
-  #   Type: AWS::Logs::SubscriptionFilter
-  #   Condition: LogSendingEnabled
-  #   Properties:
-  #     DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython"
-  #     FilterPattern: ""
-  #     LogGroupName: !Ref EvidenceCheckDetailsFunctionLogGroup
+  EvidenceCheckDetailsFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref EvidenceCheckDetailsFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -1113,6 +1200,14 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${IssueCredentialFunction}"
       RetentionInDays: 30
 
+  IssueCredentialFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref IssueCredentialFunctionLogGroup
+
   ####################################################################
   #                                                                  #
   # JWT Signer Function                                              #
@@ -1146,6 +1241,14 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
       RetentionInDays: 30
 
+  JwtSignerFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref JwtSignerFunctionLogGroup
+
   ####################################################################
   #                                                                  #
   # Answer Validation Function                                       #
@@ -1171,6 +1274,14 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AnswerValidationFunction}"
       RetentionInDays: 30
+
+  AnswerValidationFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref AnswerValidationFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -1294,7 +1405,12 @@ Resources:
     Properties:
       Type: String
       Name: !Sub /${AWS::StackName}/MaxJwtTtl
-      Value: !FindInMap [MaxJwtTtl, Environment, !Ref Environment]
+      Value:
+        !FindInMap [
+          EnvironmentConfiguration,
+          !Ref Environment,
+          VerifiableCredentialMaxJwtTtl,
+        ]
       Description: Default time to live for an JWT in (seconds)
 
   JwtTtlUnitParameter:
@@ -1302,7 +1418,12 @@ Resources:
     Properties:
       Type: String
       Name: !Sub /${AWS::StackName}/JwtTtlUnit
-      Value: !FindInMap [JwtTtlUnit, Environment, !Ref Environment]
+      Value:
+        !FindInMap [
+          EnvironmentConfiguration,
+          !Ref Environment,
+          VerifiableCredentialJwtTtlUnit,
+        ]
       Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
 
   UserAgent:
