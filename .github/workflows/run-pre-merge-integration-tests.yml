@@ -126,3 +126,9 @@ jobs:
           export PUBLIC_API_GATEWAY="https://$API_GATEWAY_ID_PUBLIC.execute-api.eu-west-2.amazonaws.com/$ENVIRONMENT/"
           export API_GATEWAY_KEY=${{ secrets.API_KEY_DEV }}
           cd feature-tests && npm install && tagFilter=@pre-merge npm test
+
+      - name: Delete pre-merge test stack
+        if: always()
+        run: |
+          STACK_NAME=${{ needs.deploy.outputs.stack-name }}
+          aws cloudformation delete-stack --region eu-west-2 --stack-name $STACK_NAME
