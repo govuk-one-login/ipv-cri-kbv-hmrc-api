@@ -74,9 +74,53 @@
               "questionKey.$": "$.questionKey.S",
               "info.$": "$[?(@.info)].info.M",
               "order.$": "$.order.N",
-              "answered.$": "$.answered.Bool"
+              "answered.$": "$.answered.Bool",
+              "infoCount.$": "States.ArrayLength($[?(@.info)].info.M)",
+              "infoIsEmpty.$": "States.ArrayContains($[?(@.info)].info.M, '{}')"
             },
-            "End": true
+            "Next": "Choice"
+          },
+          "Choice": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "And": [
+                  {
+                    "Variable": "$.infoCount",
+                    "NumericGreaterThan": 0
+                  },
+                  {
+                    "Variable": "$.infoIsEmpty",
+                    "BooleanEquals": false
+                  }
+                ],
+                "Next": "Sanitise Info Array"
+              }
+            ],
+            "Default": "Remove Info Object"
+          },
+          "Sanitise Info Array": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "questionKey.$": "$.questionKey",
+              "info": {
+                "currentTaxYear.$": "States.ArrayGetItem($[?(@.info[0].currentTaxYear)].info[0].currentTaxYear.S,0)",
+                "previousTaxYear.$": "States.ArrayGetItem($[?(@.info[0].previousTaxYear)].info[0].previousTaxYear.S,0)"
+              },
+              "order.$": "$.order",
+              "answered.$": "$.answered"
+            }
+          },
+          "Remove Info Object": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "questionKey.$": "$.questionKey",
+              "info": [],
+              "order.$": "$.order",
+              "answered.$": "$.answered"
+            }
           }
         }
       },
