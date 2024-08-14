@@ -1222,8 +1222,6 @@ Resources:
         Sourcemap: true
     Properties:
       Handler: lambdas/jwt-signer/src/jwt-signer-handler.lambdaHandler
-      LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
       Policies:
@@ -1264,8 +1262,6 @@ Resources:
     Properties:
       Handler: lambdas/answer-validation/src/answer-validation-handler.lambdaHandler
       FunctionName: !Sub "${AWS::StackName}-answer-validation"
-      LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${AWS::StackName}-AnswerValidationFunction"
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
 
