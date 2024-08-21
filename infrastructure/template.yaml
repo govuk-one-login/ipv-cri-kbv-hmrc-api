@@ -1522,7 +1522,7 @@ Resources:
       TopicArn:
         Ref: AlarmTopicHmrcKbv
       Endpoint:
-        Fn::Sub: "{{resolve:ssm:/alerting/pagerduty/url}}"
+        Fn::Sub: "{{resolve:ssm:/alerting/pagerduty-hmrc-kbv/url}}"
       Protocol: https
     Metadata:
       SamResourceId: AlarmTopicSubscriptionPagerDutyHmrcKbv
