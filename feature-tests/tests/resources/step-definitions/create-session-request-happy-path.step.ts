@@ -15,7 +15,7 @@ defineFeature(feature, (test) => {
 
   beforeEach(async () => {});
 
-  test("Happy Path - Request for user claimSet from CoreStub for Valid User", ({
+  test("Happy Path - Request for user claimSet from CoreStub for Valid User with Nino <selectedNino>", ({
     given,
   }) => {
     given(

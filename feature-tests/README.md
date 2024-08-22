@@ -20,15 +20,12 @@ Set up the following env vars.
 ```shell
 cd feature-tests
 npm install && npm build
-export TEST_ENVIRONMENT=dev
-export SAM_STACK_NAME=stackName
-export tagFilter=@regression
 ```
 
 To run all API tests locally in Jest via Jest.
 
 ```shell
-npm test
+tagFilter=@pre-merge npm test
 ```
 
 To run all API tests locally as the Test Container would do.

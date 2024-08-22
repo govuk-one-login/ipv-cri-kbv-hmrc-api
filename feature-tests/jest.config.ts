@@ -23,6 +23,6 @@ const config: Config = {
     "default",
     ["jest-junit", { outputDirectory: "results", outputName: "report.xml" }],
   ],
-  testTimeout: 100_000,
+  testTimeout: 50_000,
 };
 export default config;

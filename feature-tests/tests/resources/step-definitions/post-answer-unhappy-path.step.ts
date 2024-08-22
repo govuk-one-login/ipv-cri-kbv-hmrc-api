@@ -114,6 +114,10 @@ defineFeature(feature, (test) => {
             });
           });
         console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Answer Endpoint Invalid Headers - SessionId ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
       }
     );
 
@@ -131,7 +135,7 @@ defineFeature(feature, (test) => {
     );
   });
 
-  test("Unhappy Path - Post request to /answer Endpoint - Invalid Header Values", ({
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - contentType and accept", ({
     given,
     then,
     when,
@@ -148,16 +152,83 @@ defineFeature(feature, (test) => {
     );
 
     and(
-      /^I send a POST request to the question endpoint with invalid (.*) and (.*)$/,
+      /^I send a valid POST request to the fetchQuestions endpoint$/,
+      async () => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+
+    and(
+      /^I send a new valid GET request to the question endpoint$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Questions Endpoint - Status Code= ",
+          getRequestToQuestionEndpoint.statusCode
+        );
+        console.log(
+          "GET Request Questions Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+      }
+    );
+
+    when(
+      /^I send a POST request to the answer endpoint with invalid (.*) and (.*)$/,
       async (contentType: string, accept: string) => {
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .post(EndPoints.ANSWER_ENDPOINT)
-          .send("")
+          .send(postQuestionKey)
           .set("Content-Type", contentType)
           .set("Accept", accept)
           .set("session-id", getValidSessionId);
+
+        console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Response from Answer Endpoint using invalid headers: " +
+            JSON.stringify(postRequestToAnswerEndpoint, undefined, 2)
+        );
       }
     );
 
@@ -177,6 +248,431 @@ defineFeature(feature, (test) => {
         console.log(
           "Response from Answer Endpoint using invalid headers: " +
             JSON.stringify(postRequestToAnswerEndpoint.text, undefined, 2)
+        );
+      }
+    );
+  });
+
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Endpoint", ({
+    given,
+    then,
+    when,
+    and,
+  }) => {
+    given(
+      /^I send a valid request to the core stub with the selected nino value (.*)$/,
+      async (selectedNino) => {
+        await generateClaimsUrl(selectedNino);
+        await postUpdatedClaimsUrl();
+        await postRequestToSessionEndpoint();
+        getValidSessionId = getSessionId();
+      }
+    );
+
+    and(
+      /^I send a valid new POST request to the fetchQuestions endpoint$/,
+      async () => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+
+    and(
+      /^I send a valid new GET request to the question endpoint$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Questions Endpoint - Status Code= ",
+          getRequestToQuestionEndpoint.statusCode
+        );
+        console.log(
+          "GET Request Questions Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+      }
+    );
+
+    when(
+      /^I send a POST request to a Invalid answer endpoint with valid (.*) and (.*)$/,
+      async (contentType: string, accept: string) => {
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.INVALID_ANSWER_ENDPOINT)
+          .send("")
+          .set("Content-Type", contentType)
+          .set("Accept", accept)
+          .set("session-id", getValidSessionId);
+        console.log(
+          "Answer Endpoint Invalid Endpoint: ",
+          JSON.stringify(postRequestToAnswerEndpoint.request.url, undefined, 2)
+        );
+      }
+    );
+
+    then(
+      /^I should receive the appropriate response for the invalid answer endpoint with statusCode (.*) and (.*)$/,
+      async (statusCode: string, responseMessage: any) => {
+        expect(postRequestToAnswerEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
+        expect(postRequestToAnswerEndpoint.body.message).toContain(
+          responseMessage
+        );
+        console.log(
+          "Answer Endpoint statuscode: " +
+            postRequestToAnswerEndpoint.statusCode
+        );
+        console.log(
+          "Response from Answer Endpoint using invalid headers: " +
+            JSON.stringify(postRequestToAnswerEndpoint.text, undefined, 2)
+        );
+      }
+    );
+  });
+
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Invalid Question Key", ({
+    given,
+    then,
+    when,
+    and,
+  }) => {
+    given(
+      /^I send a request to the core stub with a nino value (.*)$/,
+      async (selectedNino) => {
+        await generateClaimsUrl(selectedNino);
+        await postUpdatedClaimsUrl();
+        await postRequestToSessionEndpoint();
+        getValidSessionId = getSessionId();
+      }
+    );
+    given(
+      /^I send a new valid POST request to the fetchQuestions endpoint$/,
+      async () => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+    when(
+      /^I send a valid GET request to the question endpoint for a valid userId$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+      }
+    );
+
+    and(
+      /^I send a POST request to the question endpoint with a invalid questionKey body$/,
+      async () => {
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_INVALID_QUESTION_KEY)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "Answer Endpoint Invalid Payload= ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
+      }
+    );
+
+    then(
+      /^I should receive the appropriate response for the invalid post body with statusCode (.*)$/,
+      async (statusCode: string) => {
+        expect(postRequestToAnswerEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
+        console.log(
+          "StatusCode from Questions Endpoint = " +
+            postRequestToAnswerEndpoint.statusCode
+        );
+      }
+    );
+  });
+
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Incorrect Question Key", ({
+    given,
+    then,
+    when,
+    and,
+  }) => {
+    given(
+      /^I send a new request to the core stub with a nino value (.*)$/,
+      async (selectedNino) => {
+        await generateClaimsUrl(selectedNino);
+        await postUpdatedClaimsUrl();
+        await postRequestToSessionEndpoint();
+        getValidSessionId = getSessionId();
+      }
+    );
+    given(
+      /^I send a new POST request to the fetchQuestions endpoint$/,
+      async () => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+    when(
+      /^I send a new valid GET request to the question endpoint for a valid userId$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+      }
+    );
+
+    and(
+      /^I send a POST request to the question endpoint with a incorrect questionKey body$/,
+      async () => {
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(questionKeyResponse.ANSWER_POST_PAYLOAD_ITA_BANK)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "Answer Endpoint Invalid Payload= ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
+      }
+    );
+
+    then(
+      /^I should receive the appropriate response for the incorrect post body with statusCode (.*)$/,
+      async (statusCode: string) => {
+        expect(postRequestToAnswerEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
+        console.log(
+          "StatusCode from Questions Endpoint = " +
+            postRequestToAnswerEndpoint.statusCode
+        );
+      }
+    );
+  });
+
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Incorrect Question Key Value", ({
+    given,
+    then,
+    when,
+    and,
+  }) => {
+    given(
+      /^I send a new valid request to the core stub with a nino value (.*)$/,
+      async (selectedNino) => {
+        await generateClaimsUrl(selectedNino);
+        await postUpdatedClaimsUrl();
+        await postRequestToSessionEndpoint();
+        getValidSessionId = getSessionId();
+      }
+    );
+    given(
+      /^I send a new POST request to the fetchQuestions endpoint for a valid userId$/,
+      async () => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+    when(
+      /^I send a new GET request to the question endpoint for a valid userId$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+      }
+    );
+
+    and(
+      /^I send a POST request to the question endpoint with a invalid questionKey (.*) value body$/,
+      async (invalidQuestionKeyValue) => {
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(invalidQuestionKeyValue)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        console.log(
+          "Answer Endpoint Invalid Payload= ",
+          JSON.stringify(postRequestToAnswerEndpoint.request, undefined, 2)
+        );
+      }
+    );
+
+    then(
+      /^I should receive the appropriate response for the invalid value post body with statusCode (.*)$/,
+      async (statusCode: string) => {
+        expect(postRequestToAnswerEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
+        console.log(
+          "StatusCode from Questions Endpoint = " +
+            postRequestToAnswerEndpoint.statusCode
         );
       }
     );
