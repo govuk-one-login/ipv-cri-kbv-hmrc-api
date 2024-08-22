@@ -53,6 +53,7 @@ export async function postUpdatedClaimsUrl() {
       JSON.stringify(postClaimsUrl.body, undefined, 2)
   );
   expect(postClaimsUrl.statusCode).toEqual(Number(200));
+  return postClaimsUrl.body;
 }
 
 export async function postRequestToSessionEndpoint() {

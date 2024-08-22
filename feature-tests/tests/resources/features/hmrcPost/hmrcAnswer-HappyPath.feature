@@ -22,7 +22,7 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000003C    | "verificationScore":0 |
             | application/json | application/json | 200        | 204             | AA000003Z    | "verificationScore":0 |
 
-    @pre-merge @post-merge @hmrc-answer
+    @pre-merge @hmrc-answer
     Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 2 questions over 2 questionKeys
         Given I send a new request to the core stub with nino value <selectedNino> for a user with 2 questions
         Given I send a valid 2 question POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
@@ -37,7 +37,7 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000002C    | "verificationScore":0 |
 
 
-    @pre-merge @post-merge @hmrc-answer
+    @pre-merge @hmrc-answer
     Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 3 questions including 1 low confidence question
         Given I send a new request to the core stub with nino value <selectedNino> for a user with 3 questions including 1 low confidence question
         Given I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>

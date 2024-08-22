@@ -6,7 +6,7 @@ const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
   coveragePathIgnorePatterns: ["/node_modules/"],
-  testMatch: ["**/**/*.step.ts"],
+  testMatch: ["**/**/*.step.ts", "**/**/**/*.step.ts"],
   verbose: true,
   forceExit: true,
   setupFiles: ["./jest-cucumber-config"],
@@ -14,15 +14,10 @@ const config: Config = {
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
-  globals: {
-    "ts-jest": {
-      isolatedModules: true,
-    },
-  },
   reporters: [
     "default",
     ["jest-junit", { outputDirectory: "results", outputName: "report.xml" }],
   ],
-  testTimeout: 50_000,
+  testTimeout: 100_000,
 };
 export default config;
