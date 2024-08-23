@@ -1505,6 +1505,367 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  HMRCKBVLambdaErrors:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - HMRC KBV lambda Error Alarm"
+      AlarmDescription: !Sub HMRC KBV ${Environment} lambda errors
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Dimensions: []
+      Period: 300
+      DatapointsToAlarm: 3
+      EvaluationPeriods: 3
+      Threshold: 2
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  HMRCKBVAPIGW5XXErrors:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} API Gateway 5XX errors
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      DatapointsToAlarm: 3
+      EvaluationPeriods: 3
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: e1
+          Label: Expression1
+          ReturnData: true
+          Expression: SUM(METRICS())
+        - Id: m1
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 5XXError
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub "${AWS::StackName}-PublicKbvHmrcApi"
+            Period: 300
+            Stat: Sum
+        - Id: m2
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 5XXError
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub "${AWS::StackName}-PrivateKbvHmrcApi"
+            Period: 300
+            Stat: Sum
+
+  HMRCKBVAPIGW5XXErrorsPrivatePercentage:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} Private API Gateway Percentage 5XX Errors
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      DatapointsToAlarm: 3
+      EvaluationPeriods: 3
+      Threshold: 49
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: e1
+          Label: PercentageFailure
+          ReturnData: true
+          Expression: (m2/m1)*100
+        - Id: m1
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: Count
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub "${AWS::StackName}-PrivateKbvHmrcApi"
+            Period: 60
+            Stat: Sum
+        - Id: m2
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 5XXError
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub "${AWS::StackName}-PrivateKbvHmrcApi"
+            Period: 60
+            Stat: Sum
+
+  AnswerValidationLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Answer Validation Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AnswerValidationFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  EvidenceCheckLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Evidence Check Details Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref EvidenceCheckDetailsFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  FetchQuestionsLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Fetch Questions Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FetchQuestionsFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  IssueCredentialLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Issue Credential Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref IssueCredentialFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  JwtSignerLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - JWT Signer Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref JwtSignerFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  OtgTokenLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - OTG Token Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref OTGTokenFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  SubmitAnswerLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Submit Answer Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SubmitAnswerFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  TimeLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Time Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref TimeFunction
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 9
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  CommonAPISessionLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API Session Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${CommonStackName}-SessionFunctionTS"
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 6
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  CommonAPIAuthorizationLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API Authorization Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${CommonStackName}-AuthorizationFunctionTS"
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 6
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  CommonAPIAccessTokenLambdaConcurrencyThresholdReached:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API AccessToken Lambda concurrency threshold reached
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopicHmrcKbv
+      OKActions:
+        - !Ref AlarmTopicHmrcKbv
+      InsufficientDataActions: []
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${CommonStackName}-AccessTokenFunctionTS"
+      Period: 60
+      EvaluationPeriods: 15
+      DatapointsToAlarm: 12
+      Threshold: 6
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   ####################################################################
   #                                                                  #
   # Alarm setup                                                      #
