@@ -1,5 +1,5 @@
 import type { Config } from "jest";
 
 export default {
-  projects: ["lambdas/*/jest.config.ts"],
+  projects: ["lambdas/*/jest.config.ts", "lib/jest.config.ts"],
 } satisfies Config;

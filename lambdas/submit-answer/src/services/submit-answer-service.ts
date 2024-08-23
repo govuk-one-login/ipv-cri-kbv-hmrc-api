@@ -3,8 +3,6 @@ import { Logger } from "@aws-lambda-powertools/logger";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Answer, SubmitAnswerResult } from "../types/answer-result-types";
 import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
-import { SQSClient } from "@aws-sdk/client-sqs";
-import { fromEnv } from "@aws-sdk/credential-providers";
 
 import {
   HTTPMetric,
@@ -20,7 +18,6 @@ import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../../lib/src/types/audit-event";
-import { CriAuditConfig } from "../../../../lib/src/types/cri-audit-config";
 
 enum AnswerServiceMetrics {
   AnswersSubmitted = "AnswersSubmitted",
@@ -33,33 +30,21 @@ const logger = new Logger({ serviceName: `${ServiceName}` });
 
 const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
 
-const sqsClient = new SQSClient({
-  region: "eu-west-2",
-  credentials: fromEnv(),
-});
-
-const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
-if (!queueUrl) {
-  throw new Error("Missing environment variable: SQS_AUDIT_EVENT_QUEUE_URL");
-}
-const issuer = "verifiable-credential/issuer";
-
-const criAuditConfig: CriAuditConfig = {
-  queueUrl,
-  issuer,
-};
-
 export class SubmitAnswerService {
   private metricsProbe: MetricsProbe;
   private dynamo: DynamoDBDocument;
   private stopWatch: StopWatch;
-  auditService: AuditService;
+  private auditService: AuditService;
 
-  constructor(metricProbe: MetricsProbe, dyanamoDbClient: DynamoDBDocument) {
+  constructor(
+    metricProbe: MetricsProbe,
+    dyanamoDbClient: DynamoDBDocument,
+    auditService: AuditService
+  ) {
     this.metricsProbe = metricProbe;
     this.dynamo = dyanamoDbClient;
     this.stopWatch = new StopWatch();
-    this.auditService = new AuditService(() => criAuditConfig, sqsClient);
+    this.auditService = auditService;
   }
 
   public async checkAnswers(event: any): Promise<SubmitAnswerResult[]> {
@@ -87,11 +72,16 @@ export class SubmitAnswerService {
       AuditEventType.REQUEST_SENT,
       sessionItem,
       nino,
-      endpoint
+      endpoint,
+      undefined,
+      event.parameters.issuer
     );
 
     const totalQuestionsAsked = correctAnswerCount + incorrectAnswerCount;
-    const outcome = "Not Authenticated";
+    let outcome = "Not Authenticated";
+    if (correctAnswerCount > 2) {
+      outcome = "Authenticated";
+    }
 
     const hmrcIvqResponse: HmrcIvqResponse = {
       totalQuestionsAnsweredCorrect: correctAnswerCount,
@@ -106,7 +96,8 @@ export class SubmitAnswerService {
       sessionItem,
       undefined,
       endpoint,
-      hmrcIvqResponse
+      hmrcIvqResponse,
+      event.parameters.issuer
     );
 
     return results;
@@ -253,7 +244,7 @@ export class SubmitAnswerService {
 
   private async getNino(event: any): Promise<string> {
     const personIdentity = await this.getPersonIdentityItem(event.sessionId);
-    const nino: string = personIdentity.socialSecurityRecord[0].personalNumber;
+    const nino: string = personIdentity?.socialSecurityRecord[0].personalNumber;
     return nino;
   }
 

@@ -26,6 +26,7 @@ import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
+import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
 
 const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
 
@@ -134,7 +135,8 @@ export class FetchQuestionsHandler implements LambdaInterface {
             sessionItem,
             undefined,
             undefined,
-            hmrcIvqResponse
+            hmrcIvqResponse,
+            inputs.issuer
           );
         }
 
@@ -207,6 +209,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
     const parameters = event?.parameters;
     const questionsUrl = event?.parameters?.url?.value;
     const userAgent = event?.parameters?.userAgent?.value;
+    const issuer = event?.parameters?.issuer?.value;
     const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently
 
     const personIdentityItem = event?.personIdentityItem;
@@ -231,6 +234,10 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
     if (!userAgent) {
       throw new Error("userAgent was not provided");
+    }
+
+    if (!issuer) {
+      throw new Error("issuer was not provided");
     }
 
     if (!bearerToken) {
@@ -265,6 +272,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       sessionTtl: Number(sessionTtl),
       questionsUrl: questionsUrl,
       userAgent: userAgent,
+      issuer: issuer,
       bearerToken: bearerToken,
       nino: nino,
       sessionItem: sessionItem,
@@ -339,18 +347,18 @@ export class FetchQuestionsHandler implements LambdaInterface {
 // Handler Export
 const metricProbe = new MetricsProbe();
 const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
-const issuer = "verifiable-credential/issuer";
 const criAuditConfig: CriAuditConfig = {
   queueUrl,
-  issuer,
 };
 
 const auditService: AuditService = new AuditService(
-  () => criAuditConfig,
-  new SQSClient({
-    region: "eu-west-2",
-    credentials: fromEnv(),
-  })
+  new SqsAuditClient(
+    () => criAuditConfig,
+    new SQSClient({
+      region: "eu-west-2",
+      credentials: fromEnv(),
+    })
+  )
 );
 const handlerClass = new FetchQuestionsHandler(
   metricProbe,

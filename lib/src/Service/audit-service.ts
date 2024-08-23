@@ -1,4 +1,3 @@
-import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import {
   AuditEvent,
   AuditEventRestricted,
@@ -8,17 +7,12 @@ import {
   HmrcIvqResponse,
   SocialSecurityRecord,
 } from "../types/audit-event";
-import { CriAuditConfig } from "../types/cri-audit-config";
+import { SqsAuditClient } from "./sqs-audit-client";
+
 import { Evidence } from "../../../lambdas/issue-credential/src/utils/evidence-builder";
 
-const COMPONENT_ID = "https://review-hk.build.account.gov.uk";
-
 export class AuditService {
-  private auditConfig: CriAuditConfig | undefined;
-  constructor(
-    private readonly getAuditConfig: () => CriAuditConfig,
-    private readonly sqsClient: SQSClient
-  ) {}
+  constructor(private readonly sqsAuditClient: SqsAuditClient) {}
 
   public async sendAuditEvent(
     eventType: AuditEventType,
@@ -29,9 +23,6 @@ export class AuditService {
     iss?: string | undefined,
     evidence?: Array<Evidence> | undefined
   ) {
-    if (!this.auditConfig) {
-      this.auditConfig = this.getAuditConfig();
-    }
     const auditEvent = this.createAuditEvent(
       eventType,
       sessionItem,
@@ -56,43 +47,60 @@ export class AuditService {
     const auditEventUser: AuditEventUser =
       this.createAuditEventUser(sessionItem);
 
-    let restricted: AuditEventRestricted | undefined;
-    if (nino !== undefined) {
-      restricted = nino ? this.createRestricted(nino) : undefined;
-    }
+    const timestamp_ms = Date.now();
+    const timestamp = Math.floor(timestamp_ms / 1000);
 
-    const createVCExtension: boolean = iss && evidence ? true : false;
-
-    let extensions: AuditEventExtensions | undefined;
-    if (hmrcIvqResponse !== undefined) {
-      extensions = createVCExtension
-        ? this.createExtensions(hmrcIvqResponse, iss, evidence)
-        : this.createExtensions(hmrcIvqResponse);
-    }
-
-    const timestamp = Date.now();
-    return {
-      timestamp: Math.floor(timestamp / 1000),
-      event_timestamp_ms: timestamp,
+    const auditEvent = {
+      component_id: iss,
       event_name: eventType,
-      component_id: COMPONENT_ID,
-      endpoint: endpoint ?? undefined,
-      restricted: restricted ?? undefined,
+      event_timestamp_ms: timestamp_ms,
+      timestamp: timestamp,
       user: auditEventUser,
-      extensions: extensions ?? undefined,
     } as AuditEvent;
+
+    if (nino !== undefined) {
+      auditEvent.restricted = this.createRestricted(nino);
+    }
+
+    if (eventType === AuditEventType.VC_ISSUED) {
+      auditEvent.extensions = this.createExtensions(
+        hmrcIvqResponse,
+        undefined,
+        iss,
+        evidence
+      );
+    }
+    if (
+      eventType === AuditEventType.REQUEST_SENT ||
+      eventType === AuditEventType.RESPONSE_RECEIVED ||
+      eventType === AuditEventType.THIN_FILE_ENCOUNTERED
+    ) {
+      auditEvent.extensions = this.createExtensions(hmrcIvqResponse, endpoint);
+    }
+
+    return auditEvent;
   }
 
   private createExtensions(
-    hmrcIvqResponse: HmrcIvqResponse,
+    hmrcIvqResponse?: HmrcIvqResponse,
+    endpoint?: string,
     iss?: string,
     evidence?: Array<Evidence>
   ): AuditEventExtensions {
-    return {
-      hmrcIvqResponse: hmrcIvqResponse,
-      iss: iss ?? undefined,
-      evidence: evidence ?? undefined,
-    };
+    const extensions: AuditEventExtensions = {};
+    if (hmrcIvqResponse !== undefined) {
+      extensions.hmrcIvqResponse = hmrcIvqResponse;
+    }
+    if (endpoint !== undefined) {
+      extensions.endpoint = endpoint;
+    }
+    if (iss !== undefined) {
+      extensions.iss = iss;
+    }
+    if (evidence !== undefined) {
+      extensions.evidence = evidence;
+    }
+    return extensions;
   }
 
   private createRestricted(nino: string): AuditEventRestricted {
@@ -117,10 +125,6 @@ export class AuditService {
   }
 
   private async sendAuditEventToQueue(auditEvent: AuditEvent) {
-    const sendMsgCommand = new SendMessageCommand({
-      MessageBody: JSON.stringify(auditEvent),
-      QueueUrl: this.auditConfig?.queueUrl as string,
-    });
-    await this.sqsClient.send(sendMsgCommand);
+    await this.sqsAuditClient.send(auditEvent);
   }
 }

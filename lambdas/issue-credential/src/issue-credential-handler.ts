@@ -34,16 +34,12 @@ import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
+import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
 
 const logger = new Logger({ serviceName: "IssueCredentialHandler" });
 const credentialSubjectBuilder = new CredentialSubjectBuilder();
 const evidenceBuilder = new EvidenceBuilder();
 const checkDetailsBuilder = new CheckDetailsBuilder();
-
-const sqsClient = new SQSClient({
-  region: "eu-west-2",
-  credentials: fromEnv(),
-});
 
 export class IssueCredentialHandler implements LambdaInterface {
   metricsProbe: MetricsProbe;
@@ -86,11 +82,18 @@ export class IssueCredentialHandler implements LambdaInterface {
       const iss = event.vcIssuer;
       const jti = "urn:uuid:" + uuidv4().toString();
 
-      const checkDetailsCount = answerResults.Item.checkDetailsCount;
-      const failedCheckDetailsCount =
-        answerResults.Item.failedCheckDetailsCount;
+      const checkDetailsCount: number =
+        answerResults.Item.checkDetailsCount ?? 0;
+      const failedCheckDetailsCount: number =
+        answerResults.Item?.failedCheckDetailsCount ?? 0;
+
       const totalQuestionsAsked = checkDetailsCount + failedCheckDetailsCount;
-      const outcome = "Not Authenticated";
+
+      let outcome = "Not Authenticated";
+
+      if (answerResults.Item.verificationScore > 0) {
+        outcome = "Authenticated";
+      }
 
       const credentialSubject: CredentialSubject = credentialSubjectBuilder
         .setSocialSecurityRecord(
@@ -153,7 +156,14 @@ export class IssueCredentialHandler implements LambdaInterface {
       );
 
       logger.info("Sending CRI_END Audit Event");
-      await this.auditService.sendAuditEvent(AuditEventType.END, sessionItem);
+      await this.auditService.sendAuditEvent(
+        AuditEventType.END,
+        sessionItem,
+        undefined,
+        undefined,
+        undefined,
+        iss
+      );
 
       return verifiableCredential;
     } catch (error: any) {
@@ -198,15 +208,21 @@ export class IssueCredentialHandler implements LambdaInterface {
 // Handler Export
 const metricProbe = new MetricsProbe();
 const queueUrl = process.env.SQS_AUDIT_EVENT_QUEUE_URL;
-const issuer = "verifiable-credential/issuer";
 const criAuditConfig: CriAuditConfig = {
   queueUrl,
-  issuer,
 };
 const handlerClass = new IssueCredentialHandler(
   metricProbe,
   new ResultsRetrievalService(createDynamoDbClient()),
-  new AuditService(() => criAuditConfig, sqsClient),
+  new AuditService(
+    new SqsAuditClient(
+      () => criAuditConfig,
+      new SQSClient({
+        region: "eu-west-2",
+        credentials: fromEnv(),
+      })
+    )
+  ),
   queueUrl
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);

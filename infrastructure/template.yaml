@@ -410,6 +410,7 @@ Resources:
           - !Sub "/${ParameterPrefix}/QuestionsUrl"
           - !Sub "/${AWS::StackName}/QuestionsUrl"
         UserAgent: !Ref UserAgent
+        Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
         OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         BearerTokenName: !Ref BearerTokenName
@@ -456,6 +457,7 @@ Resources:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTtl"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
               - !Sub
                 - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/QuestionsUrl"
                 - PREFIX:
@@ -673,6 +675,7 @@ Resources:
             Resource:
               - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
               - !Sub
                 - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/AnswersUrl"
                 - PREFIX:
@@ -701,6 +704,7 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
       DefinitionSubstitutions:
+        Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
         OtgApiUrl: !If
           - UseParameterPrefix
           - !Sub "/${ParameterPrefix}/OtgApiUrl"
