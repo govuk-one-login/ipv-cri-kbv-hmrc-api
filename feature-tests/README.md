@@ -24,8 +24,16 @@ npm install && npm build
 
 To run all API tests locally in Jest via Jest.
 
+API Feature-Tests
+
 ```shell
 tagFilter=@pre-merge npm test
+```
+
+FE Feature-Tests
+
+```shell
+npm test:browser
 ```
 
 To run all API tests locally as the Test Container would do.
