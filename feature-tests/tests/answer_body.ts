@@ -1,0 +1,16 @@
+export const questionKeyResponse: { [key: string]: string } = {
+  "rti-payslip-national-insurance": "400.94",
+  "rti-payslip-income-tax": "400.94",
+  "rti-p60-employee-ni-contributions": "400.94",
+  "rti-p60-earnings-above-pt": "400",
+  "rti-p60-postgraduate-loan-deductions": "400",
+  "rti-p60-statutory-shared-parental-pay": "400.94",
+  "rti-p60-statutory-adoption-pay": "400.94",
+  "rti-p60-statutory-maternity-pay": "400.94",
+  "rti-p60-student-loan-deductions": "400",
+  "tc-amount": "400.94",
+  "ita-bankaccount": "400.94",
+  "rti-p60-payment-for-year": "400.94",
+  "sa-payment-details": '{"amount": 300.00,"paymentDate":"2010-01-01"}',
+  "sa-income-from-pensions": "163",
+};
