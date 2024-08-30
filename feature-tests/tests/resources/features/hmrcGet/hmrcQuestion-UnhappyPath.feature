@@ -8,7 +8,7 @@ Feature: HMRC-KBV-GET-Question-UnhappyPath.feature
         Then I should receive the appropriate response with statusCode <statusCode>
         Examples:
             | contentType      | accept           | statusCode | selectedNino | session_id                           |
-            | application/json | application/json | 500        | KE000000C    | 44443939-4cf4-41e9-9fee-231e16e9f382 |
+            | application/json | application/json | 403        | KE000000C    | 44443939-4cf4-41e9-9fee-231e16e9f382 |
 
     @pre-merge @hmrc-Question
     Scenario Outline: Unhappy Path - Get request to /question Endpoint - Invalid Header Values - contentType and accept

@@ -15,5 +15,11 @@
     "noImplicitAny": true
   },
   "exclude": ["node_modules", "build", "coverage"],
-  "include": ["src", "tests"]
+  "include": [
+    "src",
+    "tests",
+    "../../lib/src/Service/metrics-probe.ts",
+    "tests/jest.custom.ts",
+    "../../lib/src/Service/audit-service.ts"
+  ]
 }

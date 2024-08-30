@@ -9,7 +9,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
         Then I should receive the appropriate response for the invalid header value with statusCode <statusCode>
         Examples:
             | contentType      | accept           | statusCode | selectedNino | session_id                           |
-            | application/json | application/json | 500        | AA000002A    | 44443939-4cf4-41e9-9fee-231e16e9f382 |
+            | application/json | application/json | 403        | AA000002A    | 44443939-4cf4-41e9-9fee-231e16e9f382 |
 
     @failing-regression @hmrc-answer
     # Confirm with Dev the expected outcome for invalid contentType headers
@@ -54,7 +54,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
         Then I should receive the appropriate response for the incorrect post body with statusCode <statusCode>
         Examples:
             | statusCode | selectedNino |
-            | 200        | AA000002A    |
+            | 204        | AA000002A    |
 
     @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Incorrect Question Key Value

@@ -33,9 +33,18 @@ The command to run is:
 
 ## Running Unit Tests
 
+`npm run test`
+
 ## Running Integration Tests
 
-`AWS_REGION="eu-west-2" STACK_NAME="<unique-stack-name>" aws-vault exec hmrc-kbv-dev npm run unit:aws`
+From with the `integration-tests` directory
+`AWS_REGION="eu-west-2" PARAMETER_PREFIX="kbv-hmrc-cri-api" STACK_NAME="<unique-stack-name>" aws-vault exec hmrc-kbv-dev npm run unit:aws`
+
+## Run Pre-merge Test
+
+From with the `feature-tests` directory
+Configure the `.env` file as required for your stack
+`tagFilter=@pre-merge npm test`
 
 ## Pre-Commit Checking / Verification
 

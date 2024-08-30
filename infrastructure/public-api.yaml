@@ -155,12 +155,51 @@ paths:
               }
         responses:
           default:
-            statusCode: 500
+            statusCode: 400
             responseTemplates:
               application/jwt: |
-                #set($context.responseOverride.header.Content-Type = "application/jwt")
-                #set($context.responseOverride.status = 200)
-                $input.path('$').output.replace('"',"")
+                #set($inputRoot = $input.path('$'))
+                #set($status = $inputRoot.status)
+                #if($status == "SUCCEEDED")
+                  #set($context.responseOverride.header.Content-Type = "application/jwt")
+                  #set($context.responseOverride.status = 200)
+                  #set($output = $util.parseJson($input.path('$.output')))
+                  #set($jwt = $output.Payload.jwt)
+                  $jwt
+                #else
+                  #set($context.responseOverride.header.Content-Type = "application/json")
+                  #set($errMsg = $inputRoot.get("error"))
+                  #if( ($errMsg == "Bearer Token missing") ||
+                  ($errMsg == "Invalid Bearer Token") ||
+                  ($errMsg == "SessionItem not found")||
+                  ($errMsg == "SessionItem not valid") )
+                    #set($context.responseOverride.status = 400)
+                    {
+                      "oauth_error": {
+                        "error": "access_denied",
+                        "error_description": "Access denied"
+                        }
+                    }
+                  #elseif($errMsg == "PersonIdentityItem not found" ||
+                  ($errMsg == "Issuecredential Lambda responded unexpectedly")||
+                  ($errMsg == "JwtSignerFunction Lambda responded unexpectedly"))
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #else
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #end
+                #end
 
 components:
   schemas:

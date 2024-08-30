@@ -1,41 +1,34 @@
-type Name = {
-  nameParts: Array<NamePart>;
-};
-
-export type BirthDate = {
-  value: string;
-};
-
-export type NamePart = {
-  type: string;
-  value: string;
-};
-
-export type SocialSecurityRecord = {
-  personalNumber: string;
-};
+import {
+  PersonIdentityDateOfBirth,
+  PersonIdentityName,
+  PersonIdentitySocialSecurityRecord,
+} from "../../../../lib/src/types/common-types";
 
 export type CredentialSubject = {
-  socialSecurityRecord: Array<SocialSecurityRecord>;
-  name: Array<Name>;
-  birthDate: Array<BirthDate>;
+  socialSecurityRecord: Array<PersonIdentitySocialSecurityRecord> | undefined;
+  name: Array<PersonIdentityName>;
+  birthDate: Array<PersonIdentityDateOfBirth>;
 };
 
 export class CredentialSubjectBuilder {
-  private socialSecurityRecord: Array<SocialSecurityRecord> = [];
-  private name: Array<NamePart> = [];
-  private birthDate: Array<BirthDate> = [];
+  private socialSecurityRecord:
+    | Array<PersonIdentitySocialSecurityRecord>
+    | undefined;
+  private name: Array<PersonIdentityName> = [];
+  private birthDate: Array<PersonIdentityDateOfBirth> = [];
 
-  setSocialSecurityRecord(socialSecurityRecord: SocialSecurityRecord[]) {
+  setSocialSecurityRecord(
+    socialSecurityRecord: PersonIdentitySocialSecurityRecord[] | undefined
+  ) {
     this.socialSecurityRecord = socialSecurityRecord;
     return this;
   }
 
-  addNames(names: Array<NamePart>) {
+  addNames(names: Array<PersonIdentityName>) {
     this.name = names;
     return this;
   }
-  setBirthDate(birthDate: BirthDate[]): this {
+  setBirthDate(birthDate: PersonIdentityDateOfBirth[]): this {
     this.birthDate = birthDate;
     return this;
   }
@@ -44,8 +37,7 @@ export class CredentialSubjectBuilder {
     const credentialSubject = {} as CredentialSubject;
     credentialSubject.socialSecurityRecord = this.socialSecurityRecord;
 
-    if (this.name.length != 0)
-      credentialSubject.name = [{ nameParts: this.name } as Name];
+    if (this.name.length != 0) credentialSubject.name = this.name;
 
     credentialSubject.birthDate = this.birthDate;
 

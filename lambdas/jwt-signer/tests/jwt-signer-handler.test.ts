@@ -12,12 +12,24 @@ import {
   largeClaimsSet,
   publicVerifyingJwk,
 } from "./test-data";
+import { MetricsProbe } from "../../../lib/src/Service/metrics-probe";
 
+jest.mock("@aws-lambda-powertools/metrics");
+jest.mock("../src/../../../lib/src/Service/metrics-probe");
+
+const mockMetricsProbe = jest.mocked(MetricsProbe).prototype;
 const kmsClient = jest.mocked(KMSClient).prototype;
-const jwtSignerHandler = new JwtSignerHandler(kmsClient);
+const jwtSignerHandler: JwtSignerHandler = new JwtSignerHandler(
+  mockMetricsProbe,
+  kmsClient
+);
 const mockGovJourneyId = "test-government-journey-id";
 
 jest.spyOn(kmsClient, "send");
+
+const mockInputContext = {
+  invokedFunctionArn: "test",
+};
 
 describe("Successfully signs a JWT", () => {
   const event: SignerPayLoad = {
@@ -34,10 +46,13 @@ describe("Successfully signs a JWT", () => {
         })
       );
 
-      const signedJwt = await jwtSignerHandler.handler(event);
+      const signedJwt = (await jwtSignerHandler.handler(
+        event,
+        mockInputContext
+      )) as { jwt: string };
 
       const { payload } = await jwtVerify(
-        signedJwt,
+        signedJwt.jwt,
         await importJWK(publicVerifyingJwk, "ES256"),
         {
           algorithms: ["ES256"],
@@ -75,10 +90,13 @@ describe("Successfully signs a JWT", () => {
         })
       );
 
-      const signedJwt = await jwtSignerHandler.handler(event);
+      const signedJwt = (await jwtSignerHandler.handler(
+        event,
+        mockInputContext
+      )) as { jwt: string };
 
       const { payload } = await jwtVerify(
-        signedJwt,
+        signedJwt.jwt,
         await importJWK(publicVerifyingJwk, "ES256"),
         {
           algorithms: ["ES256"],
@@ -115,9 +133,18 @@ describe("Fails to sign a JWT", () => {
       })
     );
 
-    await expect(jwtSignerHandler.handler(event)).rejects.toThrow(
-      "KMS signing error: Error: KMS response does not contain a valid Signature."
+    const lambdaResponse = await jwtSignerHandler.handler(
+      event as SignerPayLoad,
+      mockInputContext
     );
+
+    const lambdaName = JwtSignerHandler.name;
+    const errorText: string =
+      "KMS signing error: Error: KMS response does not contain a valid Signature.";
+    const errorMessage = `${lambdaName} : ${errorText}`;
+    const expectedResponse = { error: errorMessage };
+
+    expect(lambdaResponse).toEqual(expectedResponse);
   });
 
   it("Should fail when key ID is missing", async () => {
@@ -135,11 +162,18 @@ describe("Fails to sign a JWT", () => {
       )
     );
 
-    await expect(
-      jwtSignerHandler.handler(event as SignerPayLoad)
-    ).rejects.toThrow(
-      "KMS signing error: Error: ValidationException: 1 validation error detected: Value null at 'keyId' failed to satisfy constraint: Member must not be null"
+    const lambdaResponse = await jwtSignerHandler.handler(
+      event as SignerPayLoad,
+      mockInputContext
     );
+
+    const lambdaName = JwtSignerHandler.name;
+    const errorText: string =
+      "KMS signing error: Error: ValidationException: 1 validation error detected: Value null at 'keyId' failed to satisfy constraint: Member must not be null";
+    const errorMessage = `${lambdaName} : ${errorText}`;
+    const expectedResponse = { error: errorMessage };
+
+    expect(lambdaResponse).toEqual(expectedResponse);
   });
 
   it("Should throw an error if KMS response is not in JSON format", async () => {
@@ -153,11 +187,18 @@ describe("Fails to sign a JWT", () => {
       Promise.reject(new SyntaxError("Unknown error"))
     );
 
-    await expect(
-      jwtSignerHandler.handler(event as SignerPayLoad)
-    ).rejects.toThrow(
-      "KMS response is not in JSON format. SyntaxError: Unknown error"
+    const lambdaResponse = await jwtSignerHandler.handler(
+      event as SignerPayLoad,
+      mockInputContext
     );
+
+    const lambdaName = JwtSignerHandler.name;
+    const errorText: string =
+      "KMS response is not in JSON format. SyntaxError: Unknown error";
+    const errorMessage = `${lambdaName} : ${errorText}`;
+    const expectedResponse = { error: errorMessage };
+
+    expect(lambdaResponse).toEqual(expectedResponse);
   });
 
   it("Should throw an error for an unknown error during signing with KMS", async () => {
@@ -171,10 +212,17 @@ describe("Fails to sign a JWT", () => {
       Promise.reject({ Signature: "invalid-response" })
     );
 
-    await expect(
-      jwtSignerHandler.handler(event as SignerPayLoad)
-    ).rejects.toThrow(
-      "An unknown error occurred while signing with KMS: [object Object]"
+    const lambdaResponse = await jwtSignerHandler.handler(
+      event as SignerPayLoad,
+      mockInputContext
     );
+
+    const lambdaName = JwtSignerHandler.name;
+    const errorText: string =
+      "An unknown error occurred while signing with KMS: [object Object]";
+    const errorMessage = `${lambdaName} : ${errorText}`;
+    const expectedResponse = { error: errorMessage };
+
+    expect(lambdaResponse).toEqual(expectedResponse);
   });
 });

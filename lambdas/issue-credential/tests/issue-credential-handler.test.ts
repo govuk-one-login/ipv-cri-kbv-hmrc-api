@@ -1,11 +1,7 @@
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { IssueCredentialHandler } from "../src/issue-credential-handler";
 import { ResultsRetrievalService } from "../src/services/results-retrieval-service";
-import {
-  Evidence,
-  NamePart,
-  EvidenceBuilder,
-} from "../src/utils/evidence-builder";
+import { Evidence, EvidenceBuilder } from "../src/utils/evidence-builder";
 import {
   CredentialSubject,
   CredentialSubjectBuilder,
@@ -21,73 +17,66 @@ import {
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { AuditService } from "../../../lib/src/Service/audit-service";
+import { PersonIdentityAddress } from "../../../lib/src/types/common-types";
 import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
+import {
+  PersonIdentityItem,
+  SessionItem,
+} from "../../../lib/src/types/common-types";
 
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
 jest.mock("../src/../../../lib/src/Service/audit-service");
 
-const mockInputEvent = {
-  vcIssuer: "testIssuer",
-  sessionItem: {
-    Item: {
-      expiryDate: {
-        N: "1234",
-      },
-      clientIpAddress: {
-        S: "51.149.8.131",
-      },
-      subject: {
-        S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-      },
-      persistentSessionId: {
-        S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-      },
-      sessionId: {
-        S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-      },
-      clientSessionId: {
-        S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
-      },
+const mockSessionItem: SessionItem = {
+  expiryDate: 1234,
+  clientIpAddress: "127.0.0.1",
+  redirectUri: "http://localhost:8085/callback",
+  clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+  createdDate: 1722954983024,
+  clientId: "unit-test-clientid",
+  subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+  persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+  attemptCount: 0,
+  sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+  state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+};
+
+const mockPersonIdentityItem: PersonIdentityItem = {
+  sessionId: "testSessionId",
+  socialSecurityRecord: [
+    {
+      personalNumber: "123456789",
     },
+  ],
+  names: [
+    {
+      nameParts: [
+        { type: "GivenName", value: "Rishi" },
+        { type: "FamilyName", value: "Johnson" },
+      ],
+    },
+  ],
+  birthDates: [
+    {
+      value: "2000-11-05",
+    },
+  ],
+  expiryDate: 1234,
+};
+
+const mockInputEvent = {
+  bearerToken: "TEST_TOKEN",
+  parameters: {
+    maxJwtTtl: { value: 600 },
+    jwtTtlUnit: { value: "HOURS" },
+    verifiableCredentialssuer: { value: "TEST_ISSUER" },
+    kmsSigningKeyId: { value: "TEST_KID" },
   },
-  userInfoEvent: {
-    Items: [
-      {
-        sessionId: { S: "testSessionId" },
-        socialSecurityRecord: {
-          L: [
-            {
-              M: {
-                personalNumber: { S: "123456789" },
-              },
-            },
-          ],
-        },
-        names: {
-          L: [
-            {
-              M: {
-                nameParts: {
-                  L: [
-                    { M: { type: { S: "GivenName" }, value: { S: "Rishi" } } },
-                    {
-                      M: { type: { S: "FamilyName" }, value: { S: "Johnson" } },
-                    },
-                  ],
-                },
-              },
-            },
-          ],
-        },
-        birthDates: {
-          L: [{ M: { value: { S: "2000-11-05" } } }],
-        },
-      },
-    ],
-  },
+  sessionItem: mockSessionItem,
+  personIdentityItem: mockPersonIdentityItem,
 };
 
 const testAnswerResultHappy = {
@@ -224,26 +213,15 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.vcIssuer;
+    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
       .setSocialSecurityRecord(
-        mockInputEvent.userInfoEvent.Items[0].socialSecurityRecord.L.map(
-          (part: any) => ({ personalNumber: part.M.personalNumber.S })
-        )
+        mockInputEvent.personIdentityItem.socialSecurityRecord
       )
-      .addNames(
-        mockInputEvent.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
-          (part: any) =>
-            ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
-        )
-      )
-      .setBirthDate(
-        mockInputEvent.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
-          value: part.M.value.S,
-        }))
-      )
+      .addNames(mockInputEvent.personIdentityItem.names)
+      .setBirthDate(mockInputEvent.personIdentityItem.birthDates)
       .build();
 
     const evidence: Array<Evidence> = evidenceBuilder
@@ -268,18 +246,19 @@ describe("IssueCredentialHandler", () => {
     ];
 
     const vc = new Vc(evidence, credentialSubject, type);
-    const expectedResponse = new VerifiableCredential(sub, nbf, iss, vc, jti);
+    const expectedResponse = {
+      vcBody: new VerifiableCredential(sub, nbf, iss, vc, jti),
+    };
 
-    const lambdaResponse: VerifiableCredential =
-      (await issueCredentialHandler.handler(
-        mockInputEvent,
-        mockInputContext
-      )) as VerifiableCredential;
+    const lambdaResponse = (await issueCredentialHandler.handler(
+      mockInputEvent,
+      mockInputContext
+    )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.sub = sub;
-    lambdaResponse.nbf = nbf;
-    lambdaResponse.jti = jti;
+    lambdaResponse.vcBody.sub = sub;
+    lambdaResponse.vcBody.nbf = nbf;
+    lambdaResponse.vcBody.jti = jti;
 
     expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
       HandlerMetric.CompletionStatus,
@@ -344,26 +323,15 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.vcIssuer;
+    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
       .setSocialSecurityRecord(
-        mockInputEvent.userInfoEvent.Items[0].socialSecurityRecord.L.map(
-          (part: any) => ({ personalNumber: part.M.personalNumber.S })
-        )
+        mockInputEvent.personIdentityItem.socialSecurityRecord
       )
-      .addNames(
-        mockInputEvent.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
-          (part: any) =>
-            ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
-        )
-      )
-      .setBirthDate(
-        mockInputEvent.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
-          value: part.M.value.S,
-        }))
-      )
+      .addNames(mockInputEvent.personIdentityItem.names)
+      .setBirthDate(mockInputEvent.personIdentityItem.birthDates)
       .build();
 
     const evidence: Array<Evidence> = evidenceBuilder
@@ -390,18 +358,19 @@ describe("IssueCredentialHandler", () => {
     ];
 
     const vc = new Vc(evidence, credentialSubject, type);
-    const expectedResponse = new VerifiableCredential(sub, nbf, iss, vc, jti);
+    const expectedResponse = {
+      vcBody: new VerifiableCredential(sub, nbf, iss, vc, jti),
+    };
 
-    const lambdaResponse: VerifiableCredential =
-      (await issueCredentialHandler.handler(
-        mockInputEvent,
-        mockInputContext
-      )) as VerifiableCredential;
+    const lambdaResponse = (await issueCredentialHandler.handler(
+      mockInputEvent,
+      mockInputContext
+    )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.sub = sub;
-    lambdaResponse.nbf = nbf;
-    lambdaResponse.jti = jti;
+    lambdaResponse.vcBody.sub = sub;
+    lambdaResponse.vcBody.nbf = nbf;
+    lambdaResponse.vcBody.jti = jti;
 
     const hmrcIvqResponse: HmrcIvqResponse = {
       totalQuestionsAnsweredCorrect:
@@ -457,26 +426,15 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.vcIssuer;
+    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
       .setSocialSecurityRecord(
-        mockInputEvent.userInfoEvent.Items[0].socialSecurityRecord.L.map(
-          (part: any) => ({ personalNumber: part.M.personalNumber.S })
-        )
+        mockInputEvent.personIdentityItem.socialSecurityRecord
       )
-      .addNames(
-        mockInputEvent.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
-          (part: any) =>
-            ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
-        )
-      )
-      .setBirthDate(
-        mockInputEvent.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
-          value: part.M.value.S,
-        }))
-      )
+      .addNames(mockInputEvent.personIdentityItem.names)
+      .setBirthDate(mockInputEvent.personIdentityItem.birthDates)
       .build();
 
     const evidence: Array<Evidence> = evidenceBuilder
@@ -503,18 +461,19 @@ describe("IssueCredentialHandler", () => {
     ];
 
     const vc = new Vc(evidence, credentialSubject, type);
-    const expectedResponse = new VerifiableCredential(sub, nbf, iss, vc, jti);
+    const expectedResponse = {
+      vcBody: new VerifiableCredential(sub, nbf, iss, vc, jti),
+    };
 
-    const lambdaResponse: VerifiableCredential =
-      (await issueCredentialHandler.handler(
-        mockInputEvent,
-        mockInputContext
-      )) as VerifiableCredential;
+    const lambdaResponse = (await issueCredentialHandler.handler(
+      mockInputEvent,
+      mockInputContext
+    )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.sub = sub;
-    lambdaResponse.nbf = nbf;
-    lambdaResponse.jti = jti;
+    lambdaResponse.vcBody.sub = sub;
+    lambdaResponse.vcBody.nbf = nbf;
+    lambdaResponse.vcBody.jti = jti;
 
     const hmrcIvqResponse: HmrcIvqResponse = {
       totalQuestionsAnsweredCorrect:
@@ -547,5 +506,464 @@ describe("IssueCredentialHandler", () => {
     );
 
     expect(lambdaResponse).toEqual(expectedResponse);
+  });
+
+  describe("Failure Scenarios", () => {
+    // The following tests test the lambda being called missing requried inputs
+    // and checks the assoicated error is thrown
+    it.each([
+      [undefined, "input event is empty"],
+      [
+        {
+          bearerToken: undefined,
+        },
+        "bearerToken was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: undefined,
+        },
+        "event parameters not found",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: undefined,
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "maxJwtTtl was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: undefined,
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "jwtTtlUnit was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: undefined,
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "verifiableCredentialssuer was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: undefined,
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "verifiableCredentialssuer was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: undefined,
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "kmsSigningKeyId was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: undefined,
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: mockSessionItem,
+          personIdentityItem: undefined,
+        },
+        "personIdentityItem not found",
+      ],
+    ])(
+      "should return an error event is missing required values 'testInputEvent: %s, expectedError: %s'",
+      async (testInputEvent: any, expectedError: string) => {
+        const lambdaResponse = await issueCredentialHandler.handler(
+          testInputEvent,
+          mockInputContext
+        );
+
+        expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+          HandlerMetric.CompletionStatus,
+          MetricUnit.Count,
+          CompletionStatus.ERROR
+        );
+
+        const lambdaName = IssueCredentialHandler.name;
+        const errorMessage = `${lambdaName} : ${expectedError}`;
+        const expectedResponse = { error: errorMessage };
+
+        expect(lambdaResponse).toEqual(expectedResponse);
+      }
+    );
+
+    // The following tests test the lambda being called missing requried inputs
+    // and checks the assoicated error is thrown
+    it.each([
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was not provided",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          personIdentityItem: mockPersonIdentityItem,
+          sessionItem: {},
+        },
+        "Session item was malformed : Session item is empty",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing sessionId",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing expiryDate",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing clientIpAddress",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing redirectUri",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing clientSessionId",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing createdDate",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing clientId",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing subject",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing persistentSessionId",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing attemptCount",
+      ],
+      [
+        {
+          bearerToken: "TEST_TOKEN",
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            verifiableCredentialssuer: { value: "TEST_ISSUER" },
+            kmsSigningKeyId: { value: "TEST_KID" },
+          },
+          sessionItem: {
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+          },
+          personIdentityItem: mockPersonIdentityItem,
+        },
+        "Session item was malformed : Session item missing state",
+      ],
+    ])(
+      "should return an error sessionItem is missing required values 'testInputEvent: %s, expectedError: %s'",
+      async (testInputEvent: any, expectedError: string) => {
+        const lambdaResponse = await issueCredentialHandler.handler(
+          testInputEvent,
+          mockInputContext
+        );
+
+        expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+          HandlerMetric.CompletionStatus,
+          MetricUnit.Count,
+          CompletionStatus.ERROR
+        );
+
+        const lambdaName = IssueCredentialHandler.name;
+        const errorMessage = `${lambdaName} : ${expectedError}`;
+        const expectedResponse = { error: errorMessage };
+
+        expect(lambdaResponse).toEqual(expectedResponse);
+      }
+    );
   });
 });

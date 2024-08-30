@@ -49,12 +49,6 @@ Parameters:
     Type: String
     Default: "true"
     Description: Value used to indicate if the public api should be protected by a api key.
-  BearerTokenName:
-    Type: String
-    Default: HMRCBearerToken
-    Description: >-
-      The name of the bearer token parameter.
-      Temporary solution to be changed once cross account behaviour implemented.
   TxmaStackName:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
@@ -367,26 +361,6 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
 
-  ExecuteStateMachineFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Timeout: 60
-      Handler: lambdas/execute-state-machine/src/execute-state-machine-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-      Policies:
-        - Statement:
-            Effect: Allow
-            Action:
-              - states:StartSyncExecution
-              - states:StartExecution
-            Resource:
-              - !Ref FetchQuestionsStateMachine
-
   ####################################################################
   #                                                                  #
   # FetchQuestionsStateMachine                                       #
@@ -409,11 +383,14 @@ Resources:
           - UseParameterPrefix
           - !Sub "/${ParameterPrefix}/QuestionsUrl"
           - !Sub "/${AWS::StackName}/QuestionsUrl"
-        UserAgent: !Ref UserAgent
+        UserAgent: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/UserAgent"
+          - !Sub "/${AWS::StackName}/UserAgent"
         Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
         OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
         FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
-        BearerTokenName: !Ref BearerTokenName
+        DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
         SessionTtl: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTtl}}"
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
@@ -442,12 +419,12 @@ Resources:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
         - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref FetchQuestionsFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DynamoUnmarshallFunction
         - Statement:
             Effect: Allow
             Action:
@@ -474,7 +451,14 @@ Resources:
                       !Ref ParameterPrefix,
                       !Ref AWS::StackName,
                     ]
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/UserAgent"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -497,65 +481,6 @@ Resources:
       DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
       FilterPattern: ""
       LogGroupName: !Ref FetchQuestionsStateMachineLogGroup
-
-  ####################################################################
-  #                                                                  #
-  # CheckSessionStateMachine                                         #
-  #                                                                  #
-  ####################################################################
-
-  CheckSessionStateMachine:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      Type: EXPRESS
-      Name: !Sub ${AWS::StackName}-CheckSession
-      DefinitionUri: ../step-functions/check_session.asl.json
-      DefinitionSubstitutions:
-        CurrentTimeFunctionArn: !GetAtt CurrentTimeFunction.Arn
-        CommonStackName: !Ref CommonStackName
-      Logging:
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt CheckSessionStateMachineLogGroup.Arn
-        IncludeExecutionData:
-          !FindInMap [
-            EnvironmentConfiguration,
-            !Ref Environment,
-            StateMachineLoggingIncludeExecutionData,
-          ]
-        Level:
-          !FindInMap [
-            EnvironmentConfiguration,
-            !Ref Environment,
-            StateMachineLoggingLevel,
-          ]
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref CurrentTimeFunction
-        - DynamoDBReadPolicy:
-            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        - Statement:
-            Effect: Allow
-            Action: logs:*
-            Resource: "*"
-      PermissionsBoundary: !If
-        - UsePermissionsBoundary
-        - !Ref PermissionsBoundary
-        - !Ref AWS::NoValue
-
-  CheckSessionStateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-CheckSession-state-machine-logs
-      RetentionInDays: 30
-
-  CheckSessionStateMachineLogGroupSubscriptionFilterCsls:
-    Type: AWS::Logs::SubscriptionFilter
-    Condition: LogSendingEnabled
-    Properties:
-      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
-      FilterPattern: ""
-      LogGroupName: !Ref CheckSessionStateMachineLogGroup
 
   ####################################################################
   #                                                                  #
@@ -692,9 +617,14 @@ Resources:
                       !Ref ParameterPrefix,
                       !Ref AWS::StackName,
                     ]
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UserAgent}
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${BearerTokenName}-??????
+              - !Sub
+                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/UserAgent"
+                - PREFIX:
+                    !If [
+                      UseParameterPrefix,
+                      !Ref ParameterPrefix,
+                      !Ref AWS::StackName,
+                    ]
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -719,8 +649,10 @@ Resources:
           - UseParameterPrefix
           - !Sub "/${ParameterPrefix}/AnswersUrl"
           - !Sub "/${AWS::StackName}/AnswersUrl"
-        UserAgent: !Ref UserAgent
-        BearerTokenName: !Ref BearerTokenName
+        UserAgent: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/UserAgent"
+          - !Sub "/${AWS::StackName}/UserAgent"
         SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
         AnswerValidationArn: !GetAtt AnswerValidationFunction.Arn
 
@@ -788,17 +720,15 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref ResultsTable
         - LambdaInvokePolicy:
-            FunctionName: !Ref TimeFunction
-        - LambdaInvokePolicy:
             FunctionName: !Ref IssueCredentialFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref JwtSignerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DynamoUnmarshallFunction
         - Statement:
             Effect: Allow
             Action: kms:Sign
             Resource: !ImportValue core-infrastructure-CriVcSigningKey1Arn
-        - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt FetchQuestionsStateMachine.Name
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -811,8 +741,9 @@ Resources:
         QuestionsTableName: !Ref QuestionsTable
         MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
         JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
-        TimeFunctionArn: !GetAtt TimeFunction.Arn
+        DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         IssueCredentialArn: !GetAtt IssueCredentialFunction.Arn
         JwtSignerFunction: !GetAtt JwtSignerFunction.Arn
         CommonStackName: !Ref CommonStackName
@@ -869,7 +800,7 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${OTGTokenFunction}"
       RetentionInDays: 30
 
-  OTGTokenFunctionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
+  OTGTokenFunctionLogGroupLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
     Condition: LogSendingEnabled
     Properties:
@@ -943,68 +874,6 @@ Resources:
       DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
       FilterPattern: ""
       LogGroupName: !Ref FetchQuestionsFunctionLogGroup
-
-  ####################################################################
-  #                                                                  #
-  # TimeFunction                                                     #
-  #                                                                  #
-  ####################################################################
-
-  TimeFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/issue-credential/src/time-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  TimeFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${TimeFunction}"
-      RetentionInDays: 30
-
-  TimeFunctionLogGroupSubscriptionFilterCsls:
-    Type: AWS::Logs::SubscriptionFilter
-    Condition: LogSendingEnabled
-    Properties:
-      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
-      FilterPattern: ""
-      LogGroupName: !Ref TimeFunctionLogGroup
-
-  ####################################################################
-  #                                                                  #
-  # CurrentTimeFunction                                              #
-  #                                                                  #
-  ####################################################################
-
-  CurrentTimeFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Sourcemap: true
-    Properties:
-      Handler: lambdas/time/src/current-time-handler.lambdaHandler
-      CodeSigningConfigArn:
-        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
-
-  CurrentTimeFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CurrentTimeFunction}"
-      RetentionInDays: 30
-
-  CurrentTimeFunctionLogGroupSubscriptionFilterCsls:
-    Type: AWS::Logs::SubscriptionFilter
-    Condition: LogSendingEnabled
-    Properties:
-      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
-      FilterPattern: ""
-      LogGroupName: !Ref CurrentTimeFunctionLogGroup
 
   ####################################################################
   #                                                                  #
@@ -1285,6 +1154,52 @@ Resources:
 
   ####################################################################
   #                                                                  #
+  # DynamoDB Unmarshalling Lambda                                    #
+  #                                                                  #
+  ####################################################################
+
+  DynamoUnmarshallFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/dynamo-unmarshall/src/dynamo-unmarshall-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-dynamo-unmarshall"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-dynamo-unmarshall"
+      Timeout: 15
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
+        SubnetIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdA"
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdB"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+
+  DynamoUnmarshallFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DynamoUnmarshallFunction}"
+      RetentionInDays: 30
+
+  DynamoUnmarshallFunctionLogGroupLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref DynamoUnmarshallFunctionLogGroup
+
+  ####################################################################
+  #                                                                  #
   # Database Tables                                                  #
   #                                                                  #
   ####################################################################
@@ -1425,30 +1340,6 @@ Resources:
           VerifiableCredentialJwtTtlUnit,
         ]
       Description: The unit for the time-to-live for an JWT e.g. (MONTHS)
-
-  UserAgent:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/UserAgent
-      Value: govuk-one-login
-      Description: User agent for HMRC requests
-
-  QuestionsUrl:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/QuestionsUrl
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/questions
-      Description: URL for HMRC /questions endpoint
-
-  AnswersUrl:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AWS::StackName}/AnswersUrl
-      Value: https://test-api.service.hmrc.gov.uk/individuals/verification/identity-verification-questions/answers
-      Description: URL for HMRC /answers endpoint
 
   LoggingKmsKey:
     Type: AWS::KMS::Key
@@ -1916,6 +1807,9 @@ Outputs:
   PostAnswerStateMachineArn:
     Description: Exported for integration test
     Value: !Ref PostAnswerStateMachine
+  IssueCredentialStateMachineArn:
+    Description: Exported for integration test
+    Value: !Ref IssueCredentialStateMachine
   CommonAPISessionTableName:
     Description: Exported for integration test (Common API session table name)
     Value: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"

@@ -19,7 +19,11 @@
           "Next": "DynamoDB Get SessionItem"
         }
       ],
-      "Default": "Err: Fail SessionId missing"
+      "Default": "Err: SessionId missing"
+    },
+    "Err: SessionId missing": {
+      "Type": "Fail",
+      "Error": "SessionId missing or not found"
     },
     "DynamoDB Get SessionItem": {
       "Type": "Task",
@@ -32,11 +36,29 @@
           }
         }
       },
-      "Next": "Is there a sessionItem for the sessionId",
+      "Next": "Was a SessionItem found",
       "TimeoutSeconds": 5,
-      "ResultPath": "$.sessionItem"
+      "ResultPath": "$.sessionItem",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Comment": "Error getting sessionItem",
+          "Next": "Err: SessionItem not found"
+        }
+      ]
     },
-    "Is there a sessionItem for the sessionId": {
+    "Was a SessionItem found": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.sessionItem.Item",
+          "IsPresent": true,
+          "Next": "Is there a valid sessionItem for the sessionId"
+        }
+      ],
+      "Default": "Err: SessionItem not found"
+    },
+    "Is there a valid sessionItem for the sessionId": {
       "Type": "Choice",
       "Choices": [
         {
@@ -46,18 +68,50 @@
               "IsPresent": true
             },
             {
-              "Variable": "$.sessionItem.Item.sessionId.S",
-              "IsString": true
+              "Variable": "$.sessionItem.Item.expiryDate.N",
+              "IsPresent": true
             },
             {
-              "Variable": "$.sessionItem.Item.sessionId.S",
-              "StringEqualsPath": "$.sessionId"
+              "Variable": "$.sessionItem.Item.clientIpAddress.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.redirectUri.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.createdDate.N",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.clientId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.subject.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.persistentSessionId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.attemptCount.N",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.state.S",
+              "IsPresent": true
             }
           ],
           "Next": "Invoke Validating Answers Lambda"
         }
       ],
-      "Default": "Err: SessionItem not found"
+      "Default": "Err: SessionItem not valid"
+    },
+    "Err: SessionItem not valid": {
+      "Type": "Fail",
+      "Error": "SessionItem not valid"
     },
     "Invoke Validating Answers Lambda": {
       "Type": "Task",
@@ -66,37 +120,44 @@
         "Payload.$": "$",
         "FunctionName": "${AnswerValidationArn}"
       },
-      "Next": "Parse input",
+      "Next": "Has the answer passed validation",
       "ResultSelector": {
         "validated.$": "$.Payload.validated"
       },
       "ResultPath": "$.result"
     },
-    "Parse input": {
+    "Has the answer passed validation": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.result.validated",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.result.validated",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "Remap Input Data (answeredQuestionKey and inputAnswer)"
+        }
+      ],
+      "Default": "Err: Answers failed validation"
+    },
+    "Err: Answers failed validation": {
+      "Type": "Fail",
+      "Error": "Answers failed validation"
+    },
+    "Remap Input Data (answeredQuestionKey and inputAnswer)": {
       "Type": "Pass",
-      "Next": "Validation Outcome",
+      "Next": "Query database for the users questions",
       "Parameters": {
         "sessionId.$": "$.sessionId",
         "sessionItem.$": "$.sessionItem",
         "inputAnswer.$": "$.value",
-        "answeredQuestionKey.$": "$.key",
-        "validated.$": "$.result.validated"
+        "answeredQuestionKey.$": "$.key"
       }
-    },
-    "Validation Outcome": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Variable": "$.validated",
-          "BooleanEquals": true,
-          "Next": "Query database for the users questions"
-        }
-      ],
-      "Default": "Err: Invalid Answers State"
-    },
-    "Err: Invalid Answers State": {
-      "Type": "Fail",
-      "Error": "Answers in wrong format"
     },
     "Query database for the users questions": {
       "Type": "Task",
@@ -316,33 +377,32 @@
     },
     "Calculate array lengths": {
       "Type": "Pass",
-      "Next": "Check to see if there are any more unanswered questions",
+      "Next": "Has the user already answered all questions",
       "Parameters": {
         "answeredQuestionsLength.$": "States.ArrayLength($.answeredQuestionsMap[?(@.M.answered.BOOL==true)])",
         "totalQuestionsLength.$": "States.ArrayLength($.usersQuestions.Items[0].questions.L)"
       },
       "ResultPath": "$.arrayLengths"
     },
-    "Check to see if there are any more unanswered questions": {
+    "Has the user already answered all questions": {
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.arrayLengths.answeredQuestionsLength ",
-          "NumericEqualsPath": "$.arrayLengths.totalQuestionsLength ",
-          "Next": "Create Parameters State Location"
+          "Not": {
+            "Variable": "$.arrayLengths.answeredQuestionsLength ",
+            "NumericEqualsPath": "$.arrayLengths.totalQuestionsLength "
+          },
+          "Next": "Return Question State as Done"
         }
       ],
-      "Default": "Response Filter"
+      "Default": "GetParameter OtgApiUrl"
     },
-    "Create Parameters State Location": {
+    "Return Question State as Done": {
       "Type": "Pass",
-      "Next": "GetParameter OtgApiUrl",
+      "Next": "Success",
       "Result": {
-        "otgApiUrl": "NOT_SET",
-        "url": "NOT_SET",
-        "userAgent": "NOT_SET"
-      },
-      "ResultPath": "$.parameters"
+        "questionState": "Done"
+      }
     },
     "GetParameter OtgApiUrl": {
       "Type": "Task",
@@ -383,7 +443,7 @@
           "Next": "Relocate bearerToken"
         }
       ],
-      "Default": "Err: Lambda responded unexpectedly"
+      "Default": "Err: OTG Token Lambda responded unexpectedly"
     },
     "Relocate bearerToken": {
       "Type": "Pass",
@@ -437,7 +497,30 @@
         "Payload.$": "$",
         "FunctionName": "${SubmitAnswersArn}"
       },
-      "Next": "Fetch Auth Code Expiry"
+      "Next": "Was the answer saved sucessfully"
+    },
+    "Was the answer saved sucessfully": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.Payload.messsage",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.Payload.messsage",
+              "StringEquals": "AnswerResults Saved"
+            }
+          ],
+          "Next": "Fetch Auth Code Expiry"
+        }
+      ],
+      "Default": "Err: Submit Answers Lambda responded unexpectedly"
+    },
+    "Err: Submit Answers Lambda responded unexpectedly": {
+      "Type": "Fail",
+      "Error": "Submit Answers Lambda responded unexpectedly"
     },
     "Fetch Auth Code Expiry": {
       "Type": "Task",
@@ -459,8 +542,30 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Set Auth Code for Session",
-      "ResultPath": "$.expiry"
+      "Next": "is authCodeExpiry present"
+    },
+    "is authCodeExpiry present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.Payload.authCodeExpiry",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.Payload.authCodeExpiry",
+              "IsNumeric": true
+            }
+          ],
+          "Next": "Set Auth Code for Session"
+        }
+      ],
+      "Default": "Err: CreateAuthCodeFunction responded unexpectedly"
+    },
+    "Err: CreateAuthCodeFunction responded unexpectedly": {
+      "Type": "Fail",
+      "Error": "CreateAuthCodeFunction responded unexpectedly"
     },
     "Set Auth Code for Session": {
       "Type": "Task",
@@ -478,24 +583,22 @@
             "S.$": "States.UUID()"
           },
           ":expiry": {
-            "N.$": "States.Format('{}',$.expiry.Payload.authCodeExpiry)"
+            "N.$": "States.Format('{}',$.Payload.authCodeExpiry)"
           }
         }
       },
-      "Next": "Response Filter"
+      "Next": "Return Question State as Saved"
     },
-    "Response Filter": {
+    "Return Question State as Saved": {
       "Type": "Pass",
       "Next": "Success",
-      "Result": {}
+      "Result": {
+        "questionState": "Saved"
+      }
     },
-    "Err: Lambda responded unexpectedly": {
+    "Err: OTG Token Lambda responded unexpectedly": {
       "Type": "Fail",
-      "Error": "Lambda responded unexpectedly"
-    },
-    "Err: Fail SessionId missing": {
-      "Type": "Fail",
-      "Error": "SessionId missing or not found"
+      "Error": "OTG Token Lambda responded unexpectedly"
     },
     "Err: SessionItem not found": {
       "Type": "Fail",

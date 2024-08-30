@@ -47,4 +47,5 @@ jobs:
         env:
           AWS_REGION: ${{ inputs.aws-region }}
           STACK_NAME: ${{ inputs.stack-name }}
+          PARAMETER_PREFIX: "kbv-hmrc-cri-api"
         run: npm run test:aws -- --config jest.config.ci.ts --runInBand

@@ -41,7 +41,8 @@ export class QuestionsRetrievalService {
   ): Promise<QuestionsResult> {
     const questionsResult = await this.performAPIRequest(inputs);
     const sessionItem = inputs.sessionItem;
-    const nino = inputs.nino;
+    const nino =
+      inputs?.personIdentityItem?.socialSecurityRecord?.[0].personalNumber;
     const endpoint: string = "GetQuestions";
     const issuer = inputs.issuer;
     const questionResultCount: number = questionsResult.getQuestionCount();
@@ -89,7 +90,8 @@ export class QuestionsRetrievalService {
         Authorization: "Bearer " + inputs.bearerToken,
       },
       body: JSON.stringify({
-        nino: inputs.nino,
+        nino: inputs?.personIdentityItem?.socialSecurityRecord?.[0]
+          .personalNumber,
       }),
     })
       .then(async (response) => {

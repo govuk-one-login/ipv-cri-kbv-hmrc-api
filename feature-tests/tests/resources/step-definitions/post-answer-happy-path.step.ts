@@ -85,21 +85,25 @@ defineFeature(feature, (test) => {
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "GET Request Question Endpoint - QuestionKey Response = " +
-            JSON.stringify(
-              getRequestToQuestionEndpoint.body.questionKey,
-              undefined,
-              2
-            )
+          "Question Endpoint Response = " +
+            JSON.stringify(getRequestToQuestionEndpoint.body)
         );
         questionKeyFromGetResponse =
           await getRequestToQuestionEndpoint.body.questionKey;
+        console.log("Preparing answer Payload");
         const postPayload = await findObjectContainingValue(
           questionKeyResponse,
           questionKeyFromGetResponse
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
+
+        console.log(
+          "Sending Answer : ",
+          JSON.stringify(postQuestionKey),
+          "To ",
+          EndPoints.PRIVATE_API_GATEWAY_URL + EndPoints.ANSWER_ENDPOINT
+        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -108,7 +112,10 @@ defineFeature(feature, (test) => {
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
       }
     );
 
@@ -123,28 +130,25 @@ defineFeature(feature, (test) => {
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "GET Request Question Endpoint - QuestionKey Response = " +
-            JSON.stringify(
-              getRequestToQuestionEndpoint.body.questionKey,
-              undefined,
-              2
-            )
+          "Question Endpoint Response = " +
+            JSON.stringify(getRequestToQuestionEndpoint.body)
         );
         questionKeyFromGetResponse =
           await getRequestToQuestionEndpoint.body.questionKey;
+        console.log("Preparing answer Payload");
         const postPayload = await findObjectContainingValue(
           questionKeyResponse,
           questionKeyFromGetResponse
         );
-
-        console.log(
-          JSON.stringify(
-            `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
-          )
-        );
-
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
+
+        console.log(
+          "Sending Answer : ",
+          JSON.stringify(postQuestionKey),
+          "To ",
+          EndPoints.PRIVATE_API_GATEWAY_URL + EndPoints.ANSWER_ENDPOINT
+        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -153,7 +157,10 @@ defineFeature(feature, (test) => {
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
       }
     );
 
@@ -168,34 +175,25 @@ defineFeature(feature, (test) => {
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
         console.log(
-          "GET Request Question Endpoint - QuestionKey Response = " +
-            JSON.stringify(
-              getRequestToQuestionEndpoint.body.questionKey,
-              undefined,
-              2
-            )
+          "Question Endpoint Response = " +
+            JSON.stringify(getRequestToQuestionEndpoint.body)
         );
         questionKeyFromGetResponse =
           await getRequestToQuestionEndpoint.body.questionKey;
-
-        console.log(
-          JSON.stringify(
-            `QUESTION_ENDPOINT statusCode ${getRequestToQuestionEndpoint.statusCode}`
-          )
-        );
-
-        console.log(
-          JSON.stringify(
-            `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
-          )
-        );
-
+        console.log("Preparing answer Payload");
         const postPayload = await findObjectContainingValue(
           questionKeyResponse,
           questionKeyFromGetResponse
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
+
+        console.log(
+          "Sending Answer : ",
+          JSON.stringify(postQuestionKey),
+          "To ",
+          EndPoints.PRIVATE_API_GATEWAY_URL + EndPoints.ANSWER_ENDPOINT
+        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -204,7 +202,10 @@ defineFeature(feature, (test) => {
           .set("Content-Type", "application/json")
           .set("Accept", "application/json")
           .set("session-id", getValidSessionId);
-        console.log("ReturnedAnswer = ", postPayload);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
       }
     );
 
