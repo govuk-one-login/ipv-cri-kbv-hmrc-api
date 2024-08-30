@@ -67,7 +67,7 @@ defineFeature(feature, (test) => {
             "&client_id=" +
             encodedClaims.client_id
         );
-        console.log("FRONTEND URL PASSED", contextPage )
+        console.log("FRONTEND URL PASSED", contextPage );
       }
     );
 
