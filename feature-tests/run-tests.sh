@@ -55,7 +55,7 @@ if [[ -z "${tagFilter}" ]]; then
 fi
 echo "TAG ${tagFilter}"
 
-npm run test
+npm run test:browser:ci
 test_run_result=$?
 
 # store report to dir where pipeline will export from
