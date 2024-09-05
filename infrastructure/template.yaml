@@ -244,7 +244,7 @@ Resources:
   PublicKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PublicKbvHmrcApi}-public-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-public-AccessLogs
       RetentionInDays: 30
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
@@ -323,7 +323,7 @@ Resources:
   PrivateKbvHmrcApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-${PrivateKbvHmrcApi}-private-AccessLogs
+      LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-private-AccessLogs
       RetentionInDays: 30
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
@@ -1378,7 +1378,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub "${AWS::StackName}-${Environment} - OTG Token Request Failed Alarm"
-      AlarmDescription: !Sub ${Environment} HMRC KBV Cri failed to retrieve a token from the OTG Service"
+      AlarmDescription: !Sub "${Environment} HMRC KBV Cri failed to retrieve a token from the OTG Service"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1404,7 +1404,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub "${AWS::StackName}-${Environment} - HMRC KBV lambda Error Alarm"
-      AlarmDescription: !Sub HMRC KBV ${Environment} lambda errors
+      AlarmDescription: !Sub "HMRC KBV ${Environment} lambda errors"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1425,7 +1425,8 @@ Resources:
   HMRCKBVAPIGW5XXErrors:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} API Gateway 5XX errors
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - API Gateway 5XX errors Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} API Gateway 5XX errors"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1468,7 +1469,8 @@ Resources:
   HMRCKBVAPIGW5XXErrorsPrivatePercentage:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} Private API Gateway Percentage 5XX Errors
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Private API Gateway Percentage 5XX Errors Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} Private API Gateway Percentage 5XX Errors"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1511,7 +1513,8 @@ Resources:
   AnswerValidationLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Answer Validation Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Answer Validation Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Answer Validation Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1534,7 +1537,8 @@ Resources:
   EvidenceCheckDetailsLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Evidence Check Details Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Evidence Check Details Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Evidence Check Details Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1557,7 +1561,8 @@ Resources:
   FetchQuestionsLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Fetch Questions Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Fetch Questions Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Fetch Questions Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1580,7 +1585,8 @@ Resources:
   IssueCredentialLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Issue Credential Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Issue Credential Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Issue Credential Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1603,7 +1609,8 @@ Resources:
   JwtSignerLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - JWT Signer Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - JWT Signer Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - JWT Signer Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1626,7 +1633,8 @@ Resources:
   OtgTokenLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - OTG Token Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - OTG Token Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - OTG Token Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1649,7 +1657,8 @@ Resources:
   SubmitAnswerLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Submit Answer Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Submit Answer Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Submit Answer Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1672,7 +1681,8 @@ Resources:
   CommonAPISessionLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API Session Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Common API Session Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Common API Session Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1695,7 +1705,8 @@ Resources:
   CommonAPIAuthorizationLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API Authorization Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Common API Authorization Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Common API Authorization Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
@@ -1718,7 +1729,8 @@ Resources:
   CommonAPIAccessTokenLambdaConcurrencyThresholdReached:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub HMRC KBV ${Environment} - Common API AccessToken Lambda concurrency threshold reached
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - Common API AccessToken Lambda concurrency Alarm"
+      AlarmDescription: !Sub "HMRC KBV ${Environment} - Common API AccessToken Lambda concurrency threshold reached"
       ActionsEnabled: true
       AlarmActions:
         - !Ref AlarmTopicHmrcKbv
