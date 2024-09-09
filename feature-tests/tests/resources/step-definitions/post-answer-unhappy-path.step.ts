@@ -6,6 +6,10 @@ import {
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
+  getRequestAuthorisationCode,
+  getAccessTokenRequest,
+  postRequestToAccessTokenEndpoint,
+  postRequestHmrcKbvCriVc,
 } from "../../../utils/create-session";
 import { App } from "supertest/types";
 import { questionKeyResponse } from "../../../utils/answer_body";
@@ -21,6 +25,7 @@ defineFeature(feature, (test) => {
   let postRequestToHmrcKbvEndpoint: any;
   let getValidSessionId: string;
   let questionKeyFromGetResponse: string;
+  let decrypedVcResponse: any;
 
   beforeEach(async () => {});
 
@@ -31,10 +36,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -142,10 +147,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a valid request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a valid request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -260,10 +265,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a valid request to the core stub with the selected nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a valid request to the core stub with the selected nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -370,10 +375,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a request to the core stub with a nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a request to the core stub with a nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -475,10 +480,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a new request to the core stub with a nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new request to the core stub with a nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -580,10 +585,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a new valid request to the core stub with a nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new valid request to the core stub with a nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -672,6 +677,201 @@ defineFeature(feature, (test) => {
         );
         console.log(
           "StatusCode from Questions Endpoint = " +
+            postRequestToAnswerEndpoint.statusCode
+        );
+      }
+    );
+  });
+
+  test("Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - Malformed Response", ({
+    given,
+    then,
+    when,
+    and,
+  }) => {
+    given(
+      /^I send a answer request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
+        await postRequestToSessionEndpoint();
+        getValidSessionId = getSessionId();
+      }
+    );
+    given(
+      /^I send a new valid POST request with (.*) and (.*) to the fetchQuestions endpoint with status code (.*)$/,
+      async (contentType: string, accept: string, statusCode: string) => {
+        postRequestToHmrcKbvEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
+          .send({})
+          .set("Content-Type", contentType)
+          .set("Accept", accept)
+          .set("session-id", getValidSessionId)
+          .buffer(true)
+          .parse((res, cb) => {
+            let data = Buffer.from("");
+            res.on("data", function (chunk) {
+              data = Buffer.concat([data, chunk]);
+            });
+            res.on("end", function () {
+              cb(null, data.toString());
+            });
+          });
+        expect(postRequestToHmrcKbvEndpoint.statusCode).toEqual(
+          Number(statusCode)
+        );
+        console.log(
+          "HMRC KBV fetchquestions endpoint Status Code =",
+          postRequestToHmrcKbvEndpoint.statusCode
+        );
+      }
+    );
+    when(
+      /^I send the first GET request to the question endpoint followed by a POST request to the answer endpoint with the correct answerKey$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(postQuestionKey)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
+      }
+    );
+
+    and(
+      /^I send the second GET request to the question endpoint followed by a POST request to the answer endpoint$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(postQuestionKey)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
+      }
+    );
+    and(
+      /^I send the third GET request to the question endpoint followed by a POST request to the answer endpoint$/,
+      async () => {
+        getRequestToQuestionEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .get(EndPoints.QUESTION_ENDPOINT)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "GET Request Question Endpoint - QuestionKey Response = " +
+            JSON.stringify(
+              getRequestToQuestionEndpoint.body.questionKey,
+              undefined,
+              2
+            )
+        );
+        questionKeyFromGetResponse =
+          await getRequestToQuestionEndpoint.body.questionKey;
+
+        console.log(
+          JSON.stringify(
+            `QUESTION_ENDPOINT statusCode ${getRequestToQuestionEndpoint.statusCode}`
+          )
+        );
+
+        console.log(
+          JSON.stringify(
+            `questionKeyFromGetResponse ${questionKeyFromGetResponse}`
+          )
+        );
+
+        const postPayload = await findObjectContainingValue(
+          questionKeyResponse,
+          questionKeyFromGetResponse
+        );
+        const objectProprty = Object.keys(postPayload!)[0];
+        const postQuestionKey = postPayload![objectProprty];
+        postRequestToAnswerEndpoint = await request(
+          EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
+        )
+          .post(EndPoints.ANSWER_ENDPOINT)
+          .send(postQuestionKey)
+          .set("Content-Type", "application/json")
+          .set("Accept", "application/json")
+          .set("session-id", getValidSessionId);
+        console.log(
+          "Answer Endpoint Status Response " +
+            JSON.stringify(postRequestToAnswerEndpoint.status)
+        );
+      }
+    );
+    then(
+      /^I should receive the valid response with statusCode (.*) from the answers endpoint$/,
+      async (intermediateStatusCode: string) => {
+        expect(postRequestToAnswerEndpoint.statusCode).toEqual(
+          Number(intermediateStatusCode)
+        );
+        expect(postRequestToAnswerEndpoint.body).toBeTruthy();
+        console.log(
+          "Final statusCode from Answers Endpoint = " +
             postRequestToAnswerEndpoint.statusCode
         );
       }

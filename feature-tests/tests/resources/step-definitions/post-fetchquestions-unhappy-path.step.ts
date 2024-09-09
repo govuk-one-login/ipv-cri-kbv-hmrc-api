@@ -25,10 +25,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a valid fetchquestions request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a valid fetchquestions request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -82,10 +82,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new valid fetchquestions request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new valid fetchquestions request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -155,10 +155,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new valid fetchquestions request to the core stub with the selected nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new valid fetchquestions request to the core stub with the selected nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -215,10 +215,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new fetchquestions request to the core stub with Invalid nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new fetchquestions request to the core stub with Invalid nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -267,10 +267,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new fetchquestions request to the core stub with a nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new fetchquestions request to the core stub with a nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -319,10 +319,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new fetchquestions request to the core stub with a no questions nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new fetchquestions request to the core stub with a no questions nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -371,10 +371,10 @@ defineFeature(feature, (test) => {
     then,
   }) => {
     given(
-      /^I send a new fetchquestions request to the core stub with a low confidence nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new fetchquestions request to the core stub with a low confidence nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
