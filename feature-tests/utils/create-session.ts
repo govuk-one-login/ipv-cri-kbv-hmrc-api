@@ -145,6 +145,7 @@ export async function postRequestHmrcKbvCriVc() {
     });
   expect(postHmrcKbvVCEndpoint.statusCode).toEqual(Number(200));
   const returnedVcData = postHmrcKbvVCEndpoint.body;
+  console.log("Raw VC Response", returnedVcData);
   console.log("HTTP Headers", postHmrcKbvVCEndpoint.headers);
   const vc = decode(getJWTPayload(returnedVcData));
   const signature = getJwtSignature(returnedVcData);

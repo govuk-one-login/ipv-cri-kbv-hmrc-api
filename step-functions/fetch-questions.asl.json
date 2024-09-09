@@ -19,7 +19,7 @@
           "Next": "DynamoDB Get SessionItem"
         }
       ],
-      "Default": "Err: Fail SessionId missing"
+      "Default": "Err: SessionId missing"
     },
     "DynamoDB Get SessionItem": {
       "Type": "Task",
@@ -32,11 +32,29 @@
           }
         }
       },
-      "Next": "Is there a sessionItem for the sessionId",
+      "Next": "Was a SessionItem found",
       "TimeoutSeconds": 5,
-      "ResultPath": "$.sessionItem"
+      "ResultPath": "$.sessionItem",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Comment": "Error getting sessionItem",
+          "Next": "Err: SessionItem not found"
+        }
+      ]
     },
-    "Is there a sessionItem for the sessionId": {
+    "Was a SessionItem found": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.sessionItem.Item",
+          "IsPresent": true,
+          "Next": "Is there a valid sessionItem for the sessionId"
+        }
+      ],
+      "Default": "Err: SessionItem not found"
+    },
+    "Is there a valid sessionItem for the sessionId": {
       "Type": "Choice",
       "Choices": [
         {
@@ -46,18 +64,81 @@
               "IsPresent": true
             },
             {
-              "Variable": "$.sessionItem.Item.sessionId.S",
-              "IsString": true
+              "Variable": "$.sessionItem.Item.expiryDate.N",
+              "IsPresent": true
             },
             {
-              "Variable": "$.sessionItem.Item.sessionId.S",
-              "StringEqualsPath": "$.sessionId"
+              "Variable": "$.sessionItem.Item.clientIpAddress.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.redirectUri.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.createdDate.N",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.clientId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.subject.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.persistentSessionId.S",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.attemptCount.N",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionItem.Item.state.S",
+              "IsPresent": true
             }
           ],
-          "Next": "DynamoDB Get PersonIdentityItem"
+          "Next": "Unmarshall SessionItem (Step1)"
         }
       ],
-      "Default": "Err: SessionItem not found"
+      "Default": "Err: SessionItem not valid"
+    },
+    "Err: SessionItem not valid": {
+      "Type": "Fail",
+      "Error": "SessionItem not valid"
+    },
+    "Unmarshall SessionItem (Step1)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DynamoUnmarshallArn}",
+        "Payload": {
+          "marshalledPayload.$": "$.sessionItem.Item"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Unmarshall SessionItem (Step 2)",
+      "ResultPath": "$.sessionItem"
+    },
+    "Unmarshall SessionItem (Step 2)": {
+      "Type": "Pass",
+      "Next": "DynamoDB Get PersonIdentityItem",
+      "ResultPath": "$.sessionItem",
+      "InputPath": "$.sessionItem.Payload"
     },
     "Err: SessionItem not found": {
       "Type": "Fail",
@@ -84,7 +165,7 @@
         {
           "Variable": "$.personIdentityItem.Item",
           "IsPresent": true,
-          "Next": "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present"
+          "Next": "Unmarshall PersonIdentityItem (Step1)"
         }
       ],
       "Default": "Err: PersonIdentityItem not found"
@@ -93,9 +174,9 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.personIdentityItem.Item.socialSecurityRecord.L[0].M.personalNumber.S",
+          "Variable": "$.personIdentityItem.socialSecurityRecord[0].personalNumber",
           "IsPresent": true,
-          "Next": "Filter all data but NINO from PersonIdentity"
+          "Next": "GetParameter OtgApiUrl"
         }
       ],
       "Default": "Err: NINO was not present in shared claims"
@@ -104,55 +185,44 @@
       "Type": "Fail",
       "Error": "PersonIdentityItem not found"
     },
-    "Filter all data but NINO from PersonIdentity": {
-      "Type": "Pass",
-      "Next": "Check PersonIdentityItem NINO Is now present",
-      "ResultPath": "$.personIdentityItem",
+    "Unmarshall PersonIdentityItem (Step1)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "nino.$": "$.personIdentityItem.Item.socialSecurityRecord.L[0].M.personalNumber.S"
-      }
-    },
-    "Check PersonIdentityItem NINO Is now present": {
-      "Type": "Choice",
-      "Choices": [
+        "FunctionName": "${DynamoUnmarshallArn}",
+        "Payload": {
+          "marshalledPayload.$": "$.personIdentityItem.Item"
+        }
+      },
+      "Retry": [
         {
-          "And": [
-            {
-              "Variable": "$.personIdentityItem.nino",
-              "IsPresent": true
-            },
-            {
-              "Variable": "$.personIdentityItem.nino",
-              "IsString": true
-            }
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
           ],
-          "Next": "Create Parameters State Location"
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
         }
       ],
-      "Default": "Err: Failed to reduce PersonIdentityItem"
+      "Next": "Unmarshall PersonIdentityItem (Step2)",
+      "ResultPath": "$.personIdentityItem"
     },
-    "Err: Failed to reduce PersonIdentityItem": {
-      "Type": "Fail",
-      "Error": "Failed to reduce PersonIdentityItem"
+    "Unmarshall PersonIdentityItem (Step2)": {
+      "Type": "Pass",
+      "InputPath": "$.personIdentityItem.Payload",
+      "ResultPath": "$.personIdentityItem",
+      "Next": "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present"
     },
     "Err: NINO was not present in shared claims": {
       "Type": "Fail",
       "Error": "NINO was not present in shared claims"
     },
-    "Err: Fail SessionId missing": {
+    "Err: SessionId missing": {
       "Type": "Fail",
       "Error": "SessionId missing or not found"
-    },
-    "Create Parameters State Location": {
-      "Type": "Pass",
-      "Next": "GetParameter OtgApiUrl",
-      "Result": {
-        "otgApiUrl": "NOT_SET",
-        "url": "NOT_SET",
-        "userAgent": "NOT_SET",
-        "issuer": "NOT_SET"
-      },
-      "ResultPath": "$.parameters"
     },
     "GetParameter OtgApiUrl": {
       "Type": "Task",
@@ -193,7 +263,11 @@
           "Next": "Relocate bearerToken"
         }
       ],
-      "Default": "Err: Lambda responded unexpectedly"
+      "Default": "Err: OTG Token Lambda responded unexpectedly"
+    },
+    "Err: OTG Token Lambda responded unexpectedly": {
+      "Type": "Fail",
+      "Error": "OTG Token Lambda responded unexpectedly"
     },
     "Relocate bearerToken": {
       "Type": "Pass",
@@ -258,11 +332,11 @@
           "Next": "Success FetchQuestionsState returned"
         }
       ],
-      "Default": "Err: Lambda responded unexpectedly"
+      "Default": "Err: FetchQuestions Lambda responded unexpectedly"
     },
-    "Err: Lambda responded unexpectedly": {
+    "Err: FetchQuestions Lambda responded unexpectedly": {
       "Type": "Fail",
-      "Error": "Lambda responded unexpectedly"
+      "Error": "FetchQuestions Lambda responded unexpectedly"
     },
     "Success FetchQuestionsState returned": {
       "Type": "Succeed",

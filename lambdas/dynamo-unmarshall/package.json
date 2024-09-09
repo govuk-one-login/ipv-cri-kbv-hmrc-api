@@ -1,17 +1,14 @@
 {
-  "name": "execute-state-machine",
+  "name": "dynamo-unmarshall",
   "description": "",
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "unit": "jest --silent",
+    "unit": "jest --verbose",
     "test": "npm run unit --",
     "test:coverage": "npm run unit -- --coverage",
     "deploy": "../../deploy.sh",
     "compile": "tsc"
   },
-  "dependencies": {
-    "@aws-sdk/client-sfn": "^3.395.0",
-    "@aws-sdk/credential-providers": "^3.397.0"
-  }
+  "dependencies": {}
 }

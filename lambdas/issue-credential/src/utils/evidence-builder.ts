@@ -1,14 +1,5 @@
 import { Check } from "./check-details-builder";
 
-export type BirthDate = {
-  value: string;
-};
-
-export type NamePart = {
-  type: string;
-  value: string;
-};
-
 export type Evidence = {
   checkDetails?: Array<Check>;
   failedCheckDetails?: Array<Check>;

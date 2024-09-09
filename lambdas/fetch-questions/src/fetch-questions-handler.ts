@@ -14,6 +14,11 @@ import {
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
+import {
+  PersonIdentityItem,
+  SessionItem,
+} from "../../../lib/src/types/common-types";
+
 import { QuestionsRetrievalService } from "./services/questions-retrieval-service";
 import { QuestionsResult, Question } from "./types/questions-result-types";
 import { SaveQuestionsService } from "./services/save-questions-service";
@@ -74,9 +79,11 @@ export class FetchQuestionsHandler implements LambdaInterface {
         this.safeRetrieveLambdaEventInputs(event);
 
       const sessionItem = inputs.sessionItem;
+      const nino =
+        inputs.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
 
       logger.debug(
-        `Event inputs - sessionId:${inputs.sessionId}, questionsUrl:${inputs.questionsUrl}, userAgent:${inputs.userAgent}, token:${inputs.bearerToken}, nino:${inputs.nino},`
+        `Event inputs - sessionId:${inputs.sessionId}, questionsUrl:${inputs.questionsUrl}, userAgent:${inputs.userAgent}, token:${inputs.bearerToken}, nino:${nino},`
       );
 
       let fetchQuestionsState: FetchQuestionsState =
@@ -103,7 +110,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
         );
 
         logger.debug(
-          `Retrieved Question keys returned for nino ${inputs.nino} / session ${
+          `Retrieved Question keys returned for nino ${nino} / session ${
             inputs.sessionId
           } - ${JSON.stringify(questionsResult.questions)}`
         );
@@ -114,7 +121,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
             questionsResult.questions
           );
         logger.debug(
-          `Filtered Question keys returned  for nino ${inputs.nino} / session ${
+          `Filtered Question keys returned  for nino ${nino} / session ${
             inputs.sessionId
           } - ${JSON.stringify(filteredQuestions)}`
         );
@@ -141,11 +148,13 @@ export class FetchQuestionsHandler implements LambdaInterface {
         }
 
         // Save question keys to DynamoDB only if they pass filtering - other wise save an empty questions result
-        const sessionTtl: number = inputs.sessionTtl;
-        logger.info(`Saving questions ${inputs.sessionId} - ${sessionTtl}`);
+        const sessionExpiryDate: number = inputs.sessionItem.expiryDate;
+        logger.info(
+          `Saving questions ${inputs.sessionId} - ${sessionExpiryDate}`
+        );
         const questionsSaved = await this.saveQuestionsService.saveQuestions(
           inputs.sessionId,
-          sessionTtl,
+          sessionExpiryDate,
           correlationId,
           filteredQuestions
         );
@@ -213,7 +222,8 @@ export class FetchQuestionsHandler implements LambdaInterface {
     const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently
 
     const personIdentityItem = event?.personIdentityItem;
-    const nino = event?.personIdentityItem?.nino;
+    const nino =
+      event?.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
     const sessionItem = event?.sessionItem;
 
     if (!event) {
@@ -244,101 +254,83 @@ export class FetchQuestionsHandler implements LambdaInterface {
       throw new Error("bearerToken was not provided");
     }
 
-    if (!personIdentityItem) {
-      throw new Error("personIdentityItem not found");
-    }
-
-    if (!nino) {
-      throw new Error("nino was not provided");
-    }
-
     if (!sessionItem) {
       throw new Error("Session item was not provided");
     } else {
       try {
-        this.validateSessionItem(sessionItem);
+        this.validateUnmarshalledSessionItem(sessionItem);
       } catch (error: any) {
         const errorText: string = error.message;
 
         throw new Error(`Session item was malformed : ${errorText}`);
       }
-    }
 
-    // Now save to use this
-    const sessionTtl = event.sessionItem.Item.expiryDate.N;
+      if (!personIdentityItem) {
+        throw new Error("personIdentityItem not found");
+      }
+
+      if (!nino) {
+        throw new Error("nino was not provided");
+      }
+    }
 
     return {
       sessionId: sessionId,
-      sessionTtl: Number(sessionTtl),
       questionsUrl: questionsUrl,
       userAgent: userAgent,
       issuer: issuer,
       bearerToken: bearerToken,
-      nino: nino,
-      sessionItem: sessionItem,
+      personIdentityItem: personIdentityItem as PersonIdentityItem,
+      sessionItem: sessionItem as SessionItem,
     } as FetchQuestionInputs;
   }
 
-  private validateSessionItem(sessionItem: any) {
-    const item = sessionItem?.Item;
-
-    const sessionId = item?.sessionId?.S;
-    const expiryDate = item?.expiryDate?.N;
-    const clientIpAddress = item?.clientIpAddress?.S;
-    const redirectUri = item?.redirectUri?.S;
-    const clientSessionId = item?.clientSessionId?.S;
-    const createdDate = item?.createdDate?.N;
-    const clientId = item?.clientId?.S;
-    const persistentSessionId = item?.persistentSessionId?.S;
-    const attemptCount = item?.attemptCount?.N;
-    const state = item?.state?.S;
-    const subject = item?.subject?.S;
-
-    if (!item) {
-      throw new Error("Session item missing Item");
+  private validateUnmarshalledSessionItem(sessionItem: any) {
+    if (Object.keys(sessionItem).length === 0) {
+      throw new Error("Session item is empty");
     }
 
-    if (!sessionId) {
+    if (!sessionItem.sessionId) {
       throw new Error("Session item missing sessionId");
     }
 
-    if (!expiryDate) {
+    if (!sessionItem.expiryDate) {
       throw new Error("Session item missing expiryDate");
     }
 
-    if (!clientIpAddress) {
+    if (!sessionItem.clientIpAddress) {
       throw new Error("Session item missing clientIpAddress");
     }
 
-    if (!redirectUri) {
+    if (!sessionItem.redirectUri) {
       throw new Error("Session item missing redirectUri");
     }
 
-    if (!clientSessionId) {
+    if (!sessionItem.clientSessionId) {
       throw new Error("Session item missing clientSessionId");
     }
 
-    if (!createdDate) {
+    if (!sessionItem.createdDate) {
       throw new Error("Session item missing createdDate");
     }
 
-    if (!clientId) {
+    if (!sessionItem.clientId) {
       throw new Error("Session item missing clientId");
     }
 
-    if (!persistentSessionId) {
+    if (!sessionItem.persistentSessionId) {
       throw new Error("Session item missing persistentSessionId");
     }
 
-    if (!attemptCount) {
+    if (!sessionItem.attemptCount && sessionItem.attemptCount != 0) {
       throw new Error("Session item missing attemptCount");
     }
 
-    if (!state) {
+    if (!sessionItem.state) {
       throw new Error("Session item missing state");
     }
 
-    if (!subject) {
+    if (!sessionItem.subject) {
       throw new Error("Session item missing subject");
     }
   }

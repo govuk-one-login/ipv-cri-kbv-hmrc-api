@@ -96,7 +96,7 @@ paths:
           content:
             application/json: {}
         "400":
-          description: Insufficient questions for this NINO
+          description: Insufficient questions for this NINO or NINO not present in request
           content:
             application/json:
               schema:
@@ -116,21 +116,11 @@ paths:
                   error: "access_denied"
                   error_description: "Access denied"
         "500":
-          description: Server error
+          description: Server error - Statemachine failure, a lambda failure or unhandled statemachine output
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
-        "504":
-          description: Server error caused by a network issue with the remote api (Timeout/Unexpected Status Codes)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
-              example:
-                oauth_error:
-                  error: "server_error"
-                  error_description: "Unexpected server error"
       x-amazon-apigateway-integration:
         httpMethod: "POST"
         passthroughBehavior: "when_no_templates"
@@ -148,7 +138,7 @@ paths:
               }
         responses:
           default:
-            statusCode: 200
+            statusCode: 500
             responseTemplates:
               application/json: |
                 #set($inputRoot = $input.path('$'))
@@ -180,7 +170,9 @@ paths:
                   #end
                 #else
                   #set($errMsg = $inputRoot.get("error"))
-                  #if(($errMsg == "Fail SessionId missing") || ($errMsg == "SessionItem not found"))
+                  #if( ($errMsg == "SessionId missing") ||
+                  ($errMsg == "SessionItem not found") ||
+                  ($errMsg == "SessionItem not valid") )
                     #set($context.responseOverride.status = 403)
                     {
                       "oauth_error": {
@@ -188,7 +180,17 @@ paths:
                         "error_description": "Access denied"
                         }
                     }
-                  #elseif($errMsg == "Lambda responded unexpectedly")
+                  #elseif(($errMsg == "PersonIdentityItem not found") ||
+                  ($errMsg == "NINO was not present in shared claims"))
+                    #set($context.responseOverride.status = 400)
+                    {
+                      "oauth_error": {
+                        "error": "invalid_request",
+                        "error_description": "Invalid request"
+                      }
+                    }
+                  #elseif($errMsg == "OTG Token Lambda responded unexpectedly" ||
+                   $errMsg == "FetchQuestions Lambda responded unexpectedly")
                     #set($context.responseOverride.status = 500)
                     {
                       "oauth_error": {
@@ -271,25 +273,72 @@ paths:
               }
         responses:
           default:
-            statusCode: 200
+            statusCode: 500
             responseTemplates:
               application/json: |
-                #set($resp = $util.parseJson($input.body))
-                #set($params = $util.parseJson($resp.output))
-                #foreach($paramName in $params.keySet())
-                #if($paramName == 'error')
-                #set($err = true)
+                #set($inputRoot = $input.path('$'))
+                #set($status = $inputRoot.status)
+                #if($status == "SUCCEEDED")
+                    #set($output = $util.parseJson($input.path('$.output')))
+                    #set($getQuestionState = $output.getQuestionState)
+                    #set($info = $output.info)
+                    #if($getQuestionState == "Question")
+                        #set($context.responseOverride.status = 200)
+                        {
+                          "questionKey": "$output.questionKey",
+                          #if($info != "")
+                            "info": {
+                              #if($info.currentTaxYear != "")
+                              "currentTaxYear" : "$info.currentTaxYear",
+                              #end
+                              #if($info.previousTaxYear != "")
+                                "previousTaxYear" : "$info.previousTaxYear"
+                              #end
+                            }
+                          #end
+                        }
+                    #elseif($getQuestionState == "NoMoreQuestions")
+                        #set($context.responseOverride.status = 204)
+                    #else
+                        #set($context.responseOverride.status = 500)
+                        {
+                          "oauth_error": {
+                            "error": "server_error",
+                            "error_description": "Unexpected server error"
+                            }
+                        }
+                    #end
+                #else
+                  #set($errMsg = $inputRoot.get("error"))
+                  #if( ($errMsg == "SessionId missing") ||
+                  ($errMsg == "SessionItem not found") )
+                    #set($context.responseOverride.status = 403)
+                    {
+                      "oauth_error": {
+                        "error": "access_denied",
+                        "error_description": "Access denied"
+                        }
+                    }
+                  #elseif(($errMsg == "PersonIdentityItem not found") ||
+                  ($errMsg == "NINO was not present in shared claims"))
+                    #set($context.responseOverride.status = 400)
+                    {
+                      "oauth_error": {
+                        "error": "invalid_request",
+                        "error_description": "Invalid request"
+                      }
+                    }
+                  #else
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #end
                 #end
-                #end
-                #if($err == true)
-                #set($context.responseOverride.status = 400)
-                #elseif($resp.status == "FAILED")
-                #set($context.responseOverride.status = 500)
-                $resp.cause
-                #elseif($resp.output == "204")
-                #set($context.responseOverride.status = 204)
-                #end
-                $resp.output
+
   /answer:
     post:
       description: >
@@ -361,16 +410,6 @@ paths:
                 oauth_error:
                   error: "server_error"
                   error_description: "Unexpected server error"
-        "504":
-          description: Server error caused by a network issue with the remote api (Timeout/Unexpected Status Codes)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CommmonExpressOauthAxiosError"
-              example:
-                oauth_error:
-                  error: "server_error"
-                  error_description: "Unexpected server error"
       x-amazon-apigateway-request-validator: "Validate both"
       x-amazon-apigateway-integration:
         httpMethod: "POST"
@@ -389,25 +428,61 @@ paths:
               }
         responses:
           default:
-            statusCode: 200
+            statusCode: 500
             responseTemplates:
               application/json: |
-                #set($resp = $util.parseJson($input.body))
-                #set($params = $util.parseJson($resp.output))
-                #foreach($paramName in $params.keySet())
-                #if($paramName == 'error')
-                #set($err = true)
+                #set($inputRoot = $input.path('$'))
+                #set($status = $inputRoot.status)
+                #if($status == "SUCCEEDED")
+                    #set($output = $util.parseJson($input.path('$.output')))
+                    #set($questionState = $output.questionState)
+                    #if($questionState == "Saved")
+                        #set($context.responseOverride.status = 202)
+                        { "message": "Submitted answer saved"}
+                    #elseif($questionState == "Done")
+                        #set($context.responseOverride.status = 204)
+                    #else
+                        #set($context.responseOverride.status = 500)
+                        {
+                          "oauth_error": {
+                            "error": "server_error",
+                            "error_description": "Unexpected server error"
+                            }
+                        }
+                    #end
+                #else
+                  #set($errMsg = $inputRoot.get("error"))
+                  #if( ($errMsg == "SessionId missing") ||
+                  ($errMsg == "SessionItem not found") ||
+                  ($errMsg == "SessionItem not valid") )
+                    #set($context.responseOverride.status = 403)
+                    {
+                      "oauth_error": {
+                        "error": "access_denied",
+                        "error_description": "Access denied"
+                        }
+                    }
+                  #elseif(($errMsg == "Answers failed validation") ||
+                    ($errMsg == "OTG Token Lambda responded unexpectedly") ||
+                    ($errMsg == "Submit Answers Lambda responded unexpectedly") ||
+                    ($errMsg == "CreateAuthCodeFunction responded unexpectedly") )
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #else
+                    #set($context.responseOverride.status = 500)
+                    {
+                      "oauth_error": {
+                        "error": "server_error",
+                        "error_description": "Unexpected server error"
+                        }
+                    }
+                  #end
                 #end
-                #end
-                #if($err == true)
-                #set($context.responseOverride.status = 400)
-                #elseif($resp.status == "FAILED")
-                #set($context.responseOverride.status = 500)
-                $resp.cause
-                #elseif($resp.output == "204")
-                #set($context.responseOverride.status = 204)
-                #end
-                $resp.output
 
   /authorization:
     get:

@@ -1,4 +1,5 @@
 import { Evidence } from "../../../lambdas/issue-credential/src/utils/evidence-builder";
+import { PersonIdentitySocialSecurityRecord } from "./common-types";
 
 export enum AuditEventType {
   START = "IPV_HMRC_KBV_CRI_START", // Before a session is written to the Session table
@@ -35,7 +36,7 @@ export interface AuditEventExtensions {
 }
 
 export interface AuditEventRestricted {
-  socialSecurityRecord: SocialSecurityRecord[];
+  socialSecurityRecord: PersonIdentitySocialSecurityRecord[];
 }
 
 export interface HmrcIvqResponse {
@@ -44,8 +45,4 @@ export interface HmrcIvqResponse {
   totalQuestionsAsked?: number;
   totalQuestionsAnsweredIncorrect?: number;
   outcome?: string;
-}
-
-export interface SocialSecurityRecord {
-  personalNumber: string;
 }

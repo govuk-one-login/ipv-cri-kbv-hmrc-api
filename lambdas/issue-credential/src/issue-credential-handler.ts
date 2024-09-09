@@ -14,12 +14,12 @@ import {
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
-import { Evidence, NamePart, EvidenceBuilder } from "./utils/evidence-builder";
+import { IssueCredentialInputs } from "./types/issue-credential-types";
+
+import { Evidence, EvidenceBuilder } from "./utils/evidence-builder";
 import {
-  BirthDate,
   CredentialSubject,
   CredentialSubjectBuilder,
-  SocialSecurityRecord,
 } from "./utils/credential-subject-builder";
 import { Vc, VerifiableCredential } from "./types/vc-types";
 import { createDynamoDbClient } from "../../utils/DynamoDBFactory";
@@ -35,6 +35,10 @@ import {
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
 import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
+import {
+  SessionItem,
+  PersonIdentityItem,
+} from "../../../lib/src/types/common-types";
 
 const logger = new Logger({ serviceName: "IssueCredentialHandler" });
 const credentialSubjectBuilder = new CredentialSubjectBuilder();
@@ -65,21 +69,22 @@ export class IssueCredentialHandler implements LambdaInterface {
     captureColdStartMetric: true,
   })
   public async handler(event: any, _context: unknown): Promise<object> {
-    logger.info("Issue Credential Handler called successfully");
-
-    const sessionItem = event.sessionItem;
-
-    const sessionId = event.userInfoEvent.Items[0].sessionId.S;
-    let answerResults;
-
     try {
-      answerResults = await this.resultsRetrievalService.getResults(sessionId);
+      logger.info("handler start");
+
+      // Safely retrieve lambda inputs
+      const inputs: IssueCredentialInputs =
+        this.safeRetrieveLambdaEventInputs(event);
+
+      const answerResults = await this.resultsRetrievalService.getResults(
+        inputs.sessionItem.sessionId
+      );
 
       const correlationId = answerResults.Item.correlationId;
 
       const sub = "urn:uuid:" + uuidv4().toString();
       const nbf = Date.now();
-      const iss = event.vcIssuer;
+      const iss = inputs.verifiableCredentialssuer;
       const jti = "urn:uuid:" + uuidv4().toString();
 
       const checkDetailsCount: number =
@@ -96,11 +101,9 @@ export class IssueCredentialHandler implements LambdaInterface {
       }
 
       const credentialSubject: CredentialSubject = credentialSubjectBuilder
-        .setSocialSecurityRecord(
-          this.extractSocialSecurityRecordFromEvent(event)
-        )
-        .addNames(this.extractNamePartFromEvent(event))
-        .setBirthDate(this.extractBirthDateFromEvent(event))
+        .setSocialSecurityRecord(inputs.personIdentityItem.socialSecurityRecord)
+        .addNames(inputs.personIdentityItem.names)
+        .setBirthDate(inputs.personIdentityItem.birthDates)
         .build();
 
       const evidence: Array<Evidence> = evidenceBuilder
@@ -147,7 +150,7 @@ export class IssueCredentialHandler implements LambdaInterface {
       logger.info("Sending VC_ISSUED Audit Event");
       await this.auditService.sendAuditEvent(
         AuditEventType.VC_ISSUED,
-        sessionItem,
+        inputs.sessionItem,
         undefined,
         undefined,
         hmrcIvqResponse,
@@ -158,14 +161,14 @@ export class IssueCredentialHandler implements LambdaInterface {
       logger.info("Sending CRI_END Audit Event");
       await this.auditService.sendAuditEvent(
         AuditEventType.END,
-        sessionItem,
+        inputs.sessionItem,
         undefined,
         undefined,
         undefined,
         iss
       );
 
-      return verifiableCredential;
+      return { vcBody: verifiableCredential };
     } catch (error: any) {
       const lambdaName = IssueCredentialHandler.name;
       const errorText: string = error.message;
@@ -184,26 +187,123 @@ export class IssueCredentialHandler implements LambdaInterface {
     }
   }
 
-  private extractNamePartFromEvent = (event: any): Array<NamePart> => {
-    return event.userInfoEvent.Items[0].names.L[0].M.nameParts.L.map(
-      (part: any) =>
-        ({ type: part.M.type.S, value: part.M.value.S }) as NamePart
-    );
-  };
+  private safeRetrieveLambdaEventInputs(event: any): IssueCredentialInputs {
+    const parameters = event?.parameters;
+    const maxJwtTtl = event?.parameters?.maxJwtTtl?.value;
+    const jwtTtlUnit = event?.parameters?.jwtTtlUnit?.value;
+    const verifiableCredentialssuer =
+      event?.parameters?.verifiableCredentialssuer?.value;
+    const kmsSigningKeyId = event?.parameters?.kmsSigningKeyId?.value;
 
-  private extractSocialSecurityRecordFromEvent = (
-    event: any
-  ): Array<SocialSecurityRecord> => {
-    return event.userInfoEvent.Items[0].socialSecurityRecord.L.map(
-      (part: any) => ({ personalNumber: part.M.personalNumber.S })
-    );
-  };
+    const bearerToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
 
-  private extractBirthDateFromEvent = (event: any): Array<BirthDate> => {
-    return event.userInfoEvent.Items[0].birthDates.L.map((part: any) => ({
-      value: part.M.value.S,
-    }));
-  };
+    const personIdentityItem = event?.personIdentityItem;
+    const sessionItem = event?.sessionItem;
+
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    if (!bearerToken) {
+      throw new Error("bearerToken was not provided");
+    }
+
+    if (!parameters) {
+      throw new Error("event parameters not found");
+    }
+
+    if (!maxJwtTtl) {
+      throw new Error("maxJwtTtl was not provided");
+    }
+
+    if (!jwtTtlUnit) {
+      throw new Error("jwtTtlUnit was not provided");
+    }
+
+    if (!verifiableCredentialssuer) {
+      throw new Error("verifiableCredentialssuer was not provided");
+    }
+
+    if (!kmsSigningKeyId) {
+      throw new Error("kmsSigningKeyId was not provided");
+    }
+
+    if (!personIdentityItem) {
+      throw new Error("personIdentityItem not found");
+    }
+
+    if (!sessionItem) {
+      throw new Error("Session item was not provided");
+    } else {
+      try {
+        this.validateUnmarshalledSessionItem(sessionItem);
+      } catch (error: any) {
+        const errorText: string = error.message;
+
+        throw new Error(`Session item was malformed : ${errorText}`);
+      }
+    }
+
+    return {
+      bearerToken: bearerToken,
+      sessionItem: sessionItem as SessionItem,
+      personIdentityItem: personIdentityItem as PersonIdentityItem,
+      maxJwtTtl: maxJwtTtl,
+      jwtTtlUnit: jwtTtlUnit,
+      verifiableCredentialssuer: verifiableCredentialssuer,
+      kmsSigningKeyId: kmsSigningKeyId,
+    } as IssueCredentialInputs;
+  }
+
+  private validateUnmarshalledSessionItem(sessionItem: any) {
+    if (Object.keys(sessionItem).length === 0) {
+      throw new Error("Session item is empty");
+    }
+
+    if (!sessionItem.sessionId) {
+      throw new Error("Session item missing sessionId");
+    }
+
+    if (!sessionItem.expiryDate) {
+      throw new Error("Session item missing expiryDate");
+    }
+
+    if (!sessionItem.clientIpAddress) {
+      throw new Error("Session item missing clientIpAddress");
+    }
+
+    if (!sessionItem.redirectUri) {
+      throw new Error("Session item missing redirectUri");
+    }
+
+    if (!sessionItem.clientSessionId) {
+      throw new Error("Session item missing clientSessionId");
+    }
+
+    if (!sessionItem.createdDate) {
+      throw new Error("Session item missing createdDate");
+    }
+
+    if (!sessionItem.clientId) {
+      throw new Error("Session item missing clientId");
+    }
+
+    if (!sessionItem.persistentSessionId) {
+      throw new Error("Session item missing persistentSessionId");
+    }
+
+    if (!sessionItem.attemptCount && sessionItem.attemptCount != 0) {
+      throw new Error("Session item missing attemptCount");
+    }
+
+    if (!sessionItem.state) {
+      throw new Error("Session item missing state");
+    }
+
+    if (!sessionItem.subject) {
+      throw new Error("Session item missing subject");
+    }
+  }
 }
 // Handler Export
 const metricProbe = new MetricsProbe();

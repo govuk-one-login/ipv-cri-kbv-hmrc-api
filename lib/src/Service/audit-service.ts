@@ -5,18 +5,21 @@ import {
   AuditEventUser,
   AuditEventExtensions,
   HmrcIvqResponse,
-  SocialSecurityRecord,
 } from "../types/audit-event";
 import { SqsAuditClient } from "./sqs-audit-client";
 
 import { Evidence } from "../../../lambdas/issue-credential/src/utils/evidence-builder";
+import {
+  SessionItem,
+  PersonIdentitySocialSecurityRecord,
+} from "../types/common-types";
 
 export class AuditService {
   constructor(private readonly sqsAuditClient: SqsAuditClient) {}
 
   public async sendAuditEvent(
     eventType: AuditEventType,
-    sessionItem: any,
+    sessionItem: SessionItem,
     nino?: string | undefined,
     endpoint?: string | undefined,
     hmrcIvqResponse?: HmrcIvqResponse | undefined,
@@ -37,7 +40,7 @@ export class AuditService {
 
   private createAuditEvent(
     eventType: AuditEventType,
-    sessionItem: any,
+    sessionItem: SessionItem,
     nino?: string | undefined,
     endpoint?: string | undefined,
     hmrcIvqResponse?: HmrcIvqResponse | undefined,
@@ -104,7 +107,7 @@ export class AuditService {
   }
 
   private createRestricted(nino: string): AuditEventRestricted {
-    const socialSecurityRecord: SocialSecurityRecord[] = [
+    const socialSecurityRecord: PersonIdentitySocialSecurityRecord[] = [
       { personalNumber: nino },
     ];
     const restricted: AuditEventRestricted = {
@@ -113,14 +116,15 @@ export class AuditService {
     return restricted;
   }
 
-  private createAuditEventUser(sessionItem: any | undefined): AuditEventUser {
+  private createAuditEventUser(
+    sessionItem: SessionItem | undefined
+  ): AuditEventUser {
     return {
-      user_id: sessionItem.Item.subject.S ?? undefined,
-      ip_address: sessionItem.Item.clientIpAddress.S ?? undefined,
-      session_id: sessionItem.Item.sessionId.S ?? undefined,
-      persistent_session_id:
-        sessionItem?.Item.persistentSessionId.S ?? undefined,
-      govuk_signin_journey_id: sessionItem?.Item.clientSessionId.S ?? undefined,
+      user_id: sessionItem?.subject ?? undefined,
+      ip_address: sessionItem?.clientIpAddress ?? undefined,
+      session_id: sessionItem?.sessionId ?? undefined,
+      persistent_session_id: sessionItem?.persistentSessionId ?? undefined,
+      govuk_signin_journey_id: sessionItem?.clientSessionId ?? undefined,
     };
   }
 

@@ -3,34 +3,32 @@ import { mock } from "jest-mock-extended";
 import { AuditEventType, HmrcIvqResponse } from "../../src/types/audit-event";
 import { SqsAuditClient } from "../../src/Service/sqs-audit-client";
 import { Evidence } from "../../../lambdas/issue-credential/src/utils/evidence-builder";
+import { SessionItem } from "../../src/types/common-types";
 
-const mockInputEvent = {
-  vcIssuer: "testIssuer",
-  sessionItem: {
-    Item: {
-      expiryDate: {
-        N: "1234",
-      },
-      clientIpAddress: {
-        S: "51.149.8.131",
-      },
-      subject: {
-        S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-      },
-      persistentSessionId: {
-        S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-      },
-      sessionId: {
-        S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-      },
-      clientSessionId: {
-        S: "b8c1fb22-7fd2-4935-ab8b-a70d6cf18949",
-      },
-    },
-  },
-};
+const mockSessionItem: SessionItem = {
+  expiryDate: 1234,
+  clientIpAddress: "127.0.0.1",
+  redirectUri: "http://localhost:8085/callback",
+  clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+  createdDate: 1722954983024,
+  clientId: "unit-test-clientid",
+  subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+  persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+  attemptCount: 0,
+  sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+  state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+} as SessionItem;
 
 const issuer = "https://issuer.gov.uk";
+const mockInputEvent = {
+  sessionId: "SESSION_ID",
+  questionsUrl: "dummyUrl",
+  userAgent: "dummyUserAgent",
+  issuer: issuer,
+  bearerToken: "dummyBearerToken",
+  nino: "dummyNino",
+  sessionItem: mockSessionItem,
+};
 
 describe(AuditService, () => {
   process.env.RESULTS_TABLE_NAME = "RESULTS_TABLE_NAME";

@@ -50,7 +50,7 @@ describe("fetch-questions-unhappy", () => {
     stackOutputValues = await stackOutputs(process.env.STACK_NAME);
   });
 
-  it("should fail request if sessionId is missing with Err: Fail SessionId missing", async () => {
+  it("should fail request if sessionId is missing with Err: SessionId missing", async () => {
     const startExecutionResult = (await executeStepFunction(
       {
         // No sessionId
@@ -61,6 +61,27 @@ describe("fetch-questions-unhappy", () => {
     expect(startExecutionResult.status).toEqual("FAILED");
     expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
       "SessionId missing or not found"
+    );
+  });
+
+  it("should fail request if SessionItem is invalid with Err: SessionItem not valid", async () => {
+    await populateTable(
+      {
+        sessionId: sessionId,
+      },
+      stackOutputValues.CommonAPISessionTableName
+    );
+
+    const startExecutionResult = (await executeStepFunction(
+      {
+        sessionId: sessionId,
+      },
+      stackOutputValues.FetchQuestionsStateMachineArn
+    )) as any;
+
+    expect(startExecutionResult.status).toEqual("FAILED");
+    expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
+      "SessionItem not valid"
     );
   });
 
@@ -121,7 +142,7 @@ describe("fetch-questions-unhappy", () => {
     );
   });
 
-  it("should fail request if FetchQuestions Lambda cannot use QuestionURL and returns with Err: Lambda responded unexpectedly", async () => {
+  it("should fail request if OTG Lambda cannot use OTGURL and returns with Err: Lambda responded unexpectedly", async () => {
     await populateTable(
       sessionItem,
       stackOutputValues.CommonAPISessionTableName
@@ -132,14 +153,14 @@ describe("fetch-questions-unhappy", () => {
       stackOutputValues.CommonAPIPersonIdentityTableName
     );
 
-    const urlParameterName = `/${process.env.STACK_NAME}/QuestionsUrl`;
+    const otgApiUrlParam = `/${process.env.PARAMETER_PREFIX}/OtgApiUrl`;
 
     const currentURL = (await getSSMParamter({
-      Name: urlParameterName,
+      Name: otgApiUrlParam,
     })) as any;
 
     await ssmParamterUpdate({
-      Name: urlParameterName,
+      Name: otgApiUrlParam,
       Value: "bad-url",
       Type: "String",
       Overwrite: true,
@@ -154,7 +175,7 @@ describe("fetch-questions-unhappy", () => {
 
     // Restore URL before the expect so a test failure wont leave stack in an unusable state
     await ssmParamterUpdate({
-      Name: urlParameterName,
+      Name: otgApiUrlParam,
       Value: currentURL.Parameter.Value,
       Type: "String",
       Overwrite: true,
@@ -162,7 +183,52 @@ describe("fetch-questions-unhappy", () => {
 
     expect(startExecutionResult.status).toEqual("FAILED");
     expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
-      "Lambda responded unexpectedly"
+      "OTG Token Lambda responded unexpectedly"
+    );
+  });
+
+  it("should fail request if FetchQuestions Lambda cannot use QuestionURL and returns with Err: Lambda responded unexpectedly", async () => {
+    await populateTable(
+      sessionItem,
+      stackOutputValues.CommonAPISessionTableName
+    );
+
+    await populateTable(
+      personIdentityWithBadNINOFormat,
+      stackOutputValues.CommonAPIPersonIdentityTableName
+    );
+
+    const questionsUrlParameter = `/${process.env.PARAMETER_PREFIX}/QuestionsUrl`;
+
+    const currentURL = (await getSSMParamter({
+      Name: questionsUrlParameter,
+    })) as any;
+
+    await ssmParamterUpdate({
+      Name: questionsUrlParameter,
+      Value: "bad-url",
+      Type: "String",
+      Overwrite: true,
+    });
+
+    const startExecutionResult = (await executeStepFunction(
+      {
+        sessionId: sessionItem.sessionId,
+      },
+      stackOutputValues.FetchQuestionsStateMachineArn
+    )) as any;
+
+    // Restore URL before the expect so a test failure wont leave stack in an unusable state
+    await ssmParamterUpdate({
+      Name: questionsUrlParameter,
+      Value: currentURL.Parameter.Value,
+      Type: "String",
+      Overwrite: true,
+    });
+
+    expect(startExecutionResult.status).toEqual("FAILED");
+    expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
+      "FetchQuestions Lambda responded unexpectedly"
     );
   });
 
@@ -186,7 +252,7 @@ describe("fetch-questions-unhappy", () => {
 
     expect(startExecutionResult.status).toEqual("FAILED");
     expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
-      "Lambda responded unexpectedly"
+      "FetchQuestions Lambda responded unexpectedly"
     );
   });
 });

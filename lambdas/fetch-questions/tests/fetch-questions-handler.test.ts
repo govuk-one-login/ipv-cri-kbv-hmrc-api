@@ -16,6 +16,10 @@ import {
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { FetchQuestionInputs } from "../src/types/fetch-question-types";
+import {
+  PersonIdentityItem,
+  SessionItem,
+} from "../../../lib/src/types/common-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/services/questions-retrieval-service");
@@ -49,45 +53,46 @@ describe("FetchQuestionsHandler", () => {
   let filterQuestionsServiceSpy: jest.SpyInstance;
   let mockAuditServiceSpy: jest.SpyInstance;
 
+  const mockSessionItem: SessionItem = {
+    expiryDate: 1234,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
+    clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+    createdDate: 1722954983024,
+    clientId: "unit-test-clientid",
+    subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+    persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+    attemptCount: 0,
+    sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+    state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+  };
+
+  const mockPersonIdentityItem: PersonIdentityItem = {
+    sessionId: "testSessionId",
+    socialSecurityRecord: [
+      {
+        personalNumber: "123456789",
+      },
+    ],
+    names: [
+      {
+        nameParts: [
+          { type: "GivenName", value: "Rishi" },
+          { type: "FamilyName", value: "Johnson" },
+        ],
+      },
+    ],
+    birthDates: [
+      {
+        value: "2000-11-05",
+      },
+    ],
+    expiryDate: 1234,
+  };
+
   const mockInputEvent = {
     sessionId: "sessionId",
-    sessionItem: {
-      Item: {
-        expiryDate: {
-          N: "1234",
-        },
-        clientIpAddress: {
-          S: "127.0.0.1",
-        },
-        redirectUri: {
-          S: "http://localhost:8085/callback",
-        },
-        clientSessionId: {
-          S: "2d35a412-125e-423e-835e-ca66111a38a1",
-        },
-        createdDate: {
-          N: "1722954983024",
-        },
-        clientId: {
-          S: "unit-test-clientid",
-        },
-        subject: {
-          S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-        },
-        persistentSessionId: {
-          S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-        },
-        attemptCount: {
-          N: "0",
-        },
-        sessionId: {
-          S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-        },
-        state: {
-          S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-        },
-      },
-    },
+    sessionItem: mockSessionItem,
     parameters: {
       url: { value: "TEST_URL" },
       userAgent: { value: "TEST_USER_AGENT" },
@@ -97,9 +102,7 @@ describe("FetchQuestionsHandler", () => {
       expiry: Date.now() + 7200 * 1000,
       value: "TEST_TOKEN_VALUE",
     },
-    personIdentityItem: {
-      nino: "TEST_NINO",
-    },
+    personIdentityItem: mockPersonIdentityItem,
   };
 
   const mockInputContext = {
@@ -204,12 +207,11 @@ describe("FetchQuestionsHandler", () => {
 
         const mockFetchQuestionInputs = {
           sessionId: mockInputEvent.sessionId,
-          sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
           questionsUrl: mockInputEvent.parameters.url.value,
           userAgent: mockInputEvent.parameters.userAgent.value,
           issuer: mockInputEvent.parameters.issuer.value,
           bearerToken: mockInputEvent.bearerToken.value,
-          nino: mockInputEvent.personIdentityItem.nino,
+          personIdentityItem: mockInputEvent.personIdentityItem,
           sessionItem: mockInputEvent.sessionItem,
         } as FetchQuestionInputs;
 
@@ -331,13 +333,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: undefined,
         },
         "event parameters not found",
@@ -345,13 +341,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: {
             url: undefined,
           },
@@ -361,13 +351,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: undefined,
@@ -379,13 +363,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
@@ -400,13 +378,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
@@ -423,13 +395,7 @@ describe("FetchQuestionsHandler", () => {
       [
         {
           sessionId: "sessionId",
-          sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-            },
-          },
+          sessionItem: mockSessionItem,
           parameters: {
             url: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
@@ -440,13 +406,61 @@ describe("FetchQuestionsHandler", () => {
             value: "TEST_TOKEN_VALUE",
           },
           personIdentityItem: {
-            nino: undefined,
+            sessionId: "testSessionId",
+            names: [
+              {
+                nameParts: [
+                  { type: "GivenName", value: "Rishi" },
+                  { type: "FamilyName", value: "Johnson" },
+                ],
+              },
+            ],
+            birthDates: [
+              {
+                value: "2000-11-05",
+              },
+            ],
+            expiryDate: 1234,
+          },
+        },
+        "nino was not provided",
+      ],
+      [
+        {
+          sessionId: "sessionId",
+          sessionItem: mockSessionItem,
+          parameters: {
+            url: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          personIdentityItem: {
+            sessionId: "testSessionId",
+            socialSecurityRecord: undefined,
+            names: [
+              {
+                nameParts: [
+                  { type: "GivenName", value: "Rishi" },
+                  { type: "FamilyName", value: "Johnson" },
+                ],
+              },
+            ],
+            birthDates: [
+              {
+                value: "2000-11-05",
+              },
+            ],
+            expiryDate: 1234,
           },
         },
         "nino was not provided",
       ],
     ])(
-      "should return an error event is missing required values",
+      "should return an error event is missing required values 'testInputEvent: %s, expectedError: %s'",
       async (testInputEvent: any, expectedError: string) => {
         const lambdaResponse = await fetchQuestionsHandler.handler(
           testInputEvent,
@@ -505,44 +519,22 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing Item",
+        "Session item was malformed : Session item is empty",
       ],
       [
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -563,38 +555,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -615,38 +585,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -667,38 +615,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -719,38 +645,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -771,38 +675,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -823,38 +705,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -875,38 +735,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -927,38 +765,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -979,38 +795,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-              state: {
-                S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -1031,38 +825,16 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           sessionItem: {
-            Item: {
-              expiryDate: {
-                N: "1234",
-              },
-              clientIpAddress: {
-                S: "127.0.0.1",
-              },
-              redirectUri: {
-                S: "http://localhost:8085/callback",
-              },
-              clientSessionId: {
-                S: "2d35a412-125e-423e-835e-ca66111a38a1",
-              },
-              createdDate: {
-                N: "1722954983024",
-              },
-              clientId: {
-                S: "unit-test-clientid",
-              },
-              subject: {
-                S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-              },
-              persistentSessionId: {
-                S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-              },
-              attemptCount: {
-                N: "0",
-              },
-              sessionId: {
-                S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-              },
-            },
+            expiryDate: "1234",
+            clientIpAddress: "127.0.0.1",
+            redirectUri: "http://localhost:8085/callback",
+            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+            createdDate: "1722954983024",
+            clientId: "unit-test-clientid",
+            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+            persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+            attemptCount: "0",
+            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
           },
           parameters: {
             url: { value: "TEST_URL" },
@@ -1080,7 +852,7 @@ describe("FetchQuestionsHandler", () => {
         "Session item was malformed : Session item missing state",
       ],
     ])(
-      "should return an error sessionItem is missing required values",
+      "should return an error sessionItem is missing required values 'testInputEvent: %s, expectedError: %s'",
       async (testInputEvent: any, expectedError: string) => {
         const lambdaResponse = await fetchQuestionsHandler.handler(
           testInputEvent,
@@ -1117,12 +889,11 @@ describe("FetchQuestionsHandler", () => {
 
       const mockFetchQuestionInputs = {
         sessionId: mockInputEvent.sessionId,
-        sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
         questionsUrl: mockInputEvent.parameters.url.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
-        nino: mockInputEvent.personIdentityItem.nino,
+        personIdentityItem: mockInputEvent.personIdentityItem,
         sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
@@ -1175,12 +946,11 @@ describe("FetchQuestionsHandler", () => {
 
       const mockFetchQuestionInputs = {
         sessionId: mockInputEvent.sessionId,
-        sessionTtl: Number(mockInputEvent.sessionItem.Item.expiryDate.N),
         questionsUrl: mockInputEvent.parameters.url.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
-        nino: mockInputEvent.personIdentityItem.nino,
+        personIdentityItem: mockInputEvent.personIdentityItem,
         sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
@@ -1189,7 +959,7 @@ describe("FetchQuestionsHandler", () => {
       );
       expect(saveQuestionsServiceSaveQuestionsSpy).toHaveBeenCalledWith(
         mockInputEvent.sessionId,
-        Number(mockInputEvent.sessionItem.Item.expiryDate.N),
+        mockInputEvent.sessionItem.expiryDate,
         correlationId,
         mockQuestionsRetrievalServiceResponse.questions
       );
