@@ -146,15 +146,15 @@
             "Type": "Pass",
             "Parameters": {
               "questionKey.$": "$.questionKey.S",
-              "info.$": "$[?(@.info)].info.M",
+              "info.$": "$.info.M",
               "order.$": "$.order.N",
               "answered.$": "$.answered.Bool",
               "infoCount.$": "States.ArrayLength($[?(@.info)].info.M)",
               "infoIsEmpty.$": "States.ArrayContains($[?(@.info)].info.M, '{}')"
             },
-            "Next": "Choice"
+            "Next": "Is Info Present"
           },
-          "Choice": {
+          "Is Info Present": {
             "Type": "Choice",
             "Choices": [
               {
@@ -168,33 +168,54 @@
                     "BooleanEquals": false
                   }
                 ],
-                "Next": "Sanitise Info Array"
+                "Next": "$.info.currentTaxYear.S is present"
               }
             ],
-            "Default": "Remove Info Object"
+            "Default": "Add questionKey, order, answered"
           },
-          "Sanitise Info Array": {
+          "$.info.currentTaxYear.S is present": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.info.currentTaxYear.S",
+                "IsPresent": true,
+                "Next": "Add currentTaxYear value"
+              }
+            ],
+            "Default": "Add questionKey, order, answered"
+          },
+          "Add questionKey, order, answered": {
             "Type": "Pass",
             "End": true,
             "Parameters": {
               "questionKey.$": "$.questionKey",
-              "info": {
-                "currentTaxYear.$": "States.ArrayGetItem($[?(@.info[0].currentTaxYear)].info[0].currentTaxYear.S,0)",
-                "previousTaxYear.$": "States.ArrayGetItem($[?(@.info[0].previousTaxYear)].info[0].previousTaxYear.S,0)"
-              },
+              "info.$": "$.info",
               "order.$": "$.order",
               "answered.$": "$.answered"
             }
           },
-          "Remove Info Object": {
+          "Add currentTaxYear value": {
             "Type": "Pass",
-            "End": true,
-            "Parameters": {
-              "questionKey.$": "$.questionKey",
-              "info": [],
-              "order.$": "$.order",
-              "answered.$": "$.answered"
-            }
+            "Next": "$.info.previousTaxYear.S is present",
+            "ResultPath": "$.info.currentTaxYear",
+            "InputPath": "$.info.currentTaxYear.S"
+          },
+          "$.info.previousTaxYear.S is present": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.info.previousTaxYear.S",
+                "IsPresent": true,
+                "Next": "Add previousTaxYear value"
+              }
+            ],
+            "Default": "Add questionKey, order, answered"
+          },
+          "Add previousTaxYear value": {
+            "Type": "Pass",
+            "Next": "Add questionKey, order, answered",
+            "ResultPath": "$.info.previousTaxYear",
+            "InputPath": "$.info.previousTaxYear.S"
           }
         }
       },
