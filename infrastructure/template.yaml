@@ -53,6 +53,12 @@ Parameters:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
     Default: txma-infrastructure
+  LambdaCanaryDeployment:
+    Description: >
+      Canary strategy to be used with your Lambda applications please refer to documentation for configurations -
+      https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/automating-updates-to-serverless-apps.html
+    Type: String
+    Default: "AllAtOnce"
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -147,6 +153,14 @@ Globals:
               !Ref Environment,
               dynatraceSecretArn,
             ]
+    AutoPublishAlias: live
+    DeploymentPreference:
+      Enabled: true
+      Type: !Ref LambdaCanaryDeployment
+      Role: !GetAtt LambdaDeployRole.Arn
+      Alarms:
+        - !Ref HMRCKBVLambdaErrors
+        - !Ref HMRCKBVAPIGW5XXErrors
 
 Mappings:
   EnvironmentConfiguration:
@@ -360,6 +374,26 @@ Resources:
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
+
+  LambdaDeployRole:
+    Type: AWS::IAM::Role
+    # checkov:skip=CKV_AWS_111: "Ensure IAM policies does not allow write access without constraints
+    # The network interface permissions can only be applied at the '*' resource level
+    Properties:
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.eu-west-2.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRoleForLambda"
 
   ####################################################################
   #                                                                  #
