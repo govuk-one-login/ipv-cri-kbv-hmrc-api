@@ -289,10 +289,11 @@ paths:
                           #if($info != "")
                             "info": {
                               #if($info.currentTaxYear != "")
-                              "currentTaxYear" : "$info.currentTaxYear",
+                              "currentTaxYear" : "$info.currentTaxYear"
                               #end
                               #if($info.previousTaxYear != "")
-                                "previousTaxYear" : "$info.previousTaxYear"
+                              ,
+                              "previousTaxYear" : "$info.previousTaxYear"
                               #end
                             }
                           #end
