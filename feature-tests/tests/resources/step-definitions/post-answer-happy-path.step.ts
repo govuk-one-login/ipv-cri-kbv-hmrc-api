@@ -10,6 +10,7 @@ import {
   getAccessTokenRequest,
   postRequestToAccessTokenEndpoint,
   postRequestHmrcKbvCriVc,
+  updateClaimsUrl,
 } from "../../../utils/create-session";
 import { App } from "supertest/types";
 import { questionKeyResponse } from "../../../utils/answer_body";
@@ -36,10 +37,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a new answer request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new answer request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -97,7 +98,6 @@ defineFeature(feature, (test) => {
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
-
         console.log(
           "Sending Answer : ",
           JSON.stringify(postQuestionKey),
@@ -142,7 +142,6 @@ defineFeature(feature, (test) => {
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
-
         console.log(
           "Sending Answer : ",
           JSON.stringify(postQuestionKey),
@@ -187,7 +186,6 @@ defineFeature(feature, (test) => {
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
-
         console.log(
           "Sending Answer : ",
           JSON.stringify(postQuestionKey),
@@ -211,9 +209,9 @@ defineFeature(feature, (test) => {
 
     then(
       /^I should receive a valid response with statusCode (.*) from the answers endpoint$/,
-      async (statusCode: string) => {
+      async (intermediateStatusCode: string) => {
         expect(postRequestToAnswerEndpoint.statusCode).toEqual(
-          Number(statusCode)
+          Number(intermediateStatusCode)
         );
         expect(postRequestToAnswerEndpoint.body).toBeTruthy();
       }
@@ -260,10 +258,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a new request to the core stub with nino value (.*) for a user with 2 questions$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new request to the core stub with nino value (.*) for a user (.*) with 2 questions$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -324,6 +322,12 @@ defineFeature(feature, (test) => {
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
+        console.log(
+          "Sending Answer : ",
+          JSON.stringify(postQuestionKey),
+          "To ",
+          EndPoints.PRIVATE_API_GATEWAY_URL + EndPoints.ANSWER_ENDPOINT
+        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -362,6 +366,12 @@ defineFeature(feature, (test) => {
         );
         const objectProprty = Object.keys(postPayload!)[0];
         const postQuestionKey = postPayload![objectProprty];
+        console.log(
+          "Sending Answer : ",
+          JSON.stringify(postQuestionKey),
+          "To ",
+          EndPoints.PRIVATE_API_GATEWAY_URL + EndPoints.ANSWER_ENDPOINT
+        );
         postRequestToAnswerEndpoint = await request(
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
@@ -416,10 +426,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a new request to the core stub with nino value (.*) for a user with 3 questions including 1 low confidence question$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new request to the core stub with nino value (.*) for a user (.*) with 3 questions including 1 low confidence question$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }

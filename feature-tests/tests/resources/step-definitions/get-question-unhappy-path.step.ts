@@ -26,10 +26,10 @@ defineFeature(feature, (test) => {
     when,
   }) => {
     given(
-      /^I send a new questions request to the core stub with a nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new questions request to the core stub with a nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -107,10 +107,10 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given(
-      /^I send a valid questions request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a valid questions request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }
@@ -189,10 +189,10 @@ defineFeature(feature, (test) => {
     when,
   }) => {
     given(
-      /^I send a valid questions request to the core stub with selected nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a valid questions request to the core stub with selected nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }

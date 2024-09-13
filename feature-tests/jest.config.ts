@@ -17,6 +17,13 @@ const config: Config = {
   reporters: [
     "default",
     ["jest-junit", { outputDirectory: "results", outputName: "report.xml" }],
+    [
+      "./node_modules/jest-html-reporter",
+      {
+        pageTitle: "HMRC KBV CRI - Test Report",
+        outputPath: "results/test-report.html",
+      },
+    ],
   ],
   testTimeout: 100_000,
 };

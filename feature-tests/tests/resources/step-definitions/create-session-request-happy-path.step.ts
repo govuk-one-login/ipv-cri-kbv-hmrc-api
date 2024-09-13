@@ -4,6 +4,7 @@ import {
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
+  updateClaimsUrl,
 } from "../../../utils/create-session";
 
 const feature = loadFeature(
@@ -19,10 +20,10 @@ defineFeature(feature, (test) => {
     given,
   }) => {
     given(
-      /^I send a new core stub request to the core stub with nino value (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        await postUpdatedClaimsUrl();
+      /^I send a new core stub request to the core stub with nino value (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        await postUpdatedClaimsUrl(false);
         await postRequestToSessionEndpoint();
         getValidSessionId = getSessionId();
       }

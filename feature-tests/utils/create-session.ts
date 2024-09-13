@@ -10,12 +10,17 @@ let postAccessTokenEndpoint: any;
 let getReqAuthCode: any;
 let getTokenRequest: any;
 let postHmrcKbvVCEndpoint: any;
+let updatedClaimSet: any;
 
-export async function generateClaimsUrl(selectedNino: string) {
-  const rowNumber = "&rowNumber=197";
+export async function generateClaimsUrl(selectedNino: string, userId: string) {
+  const rowNumber = userId;
   const ninoValue = "&nino=" + selectedNino;
   const claimsForUserUrl =
-    EndPoints.PATH_GET_CLAIMS + EndPoints.CRI_ID + rowNumber + ninoValue;
+    EndPoints.PATH_GET_CLAIMS +
+    EndPoints.CRI_ID +
+    "&rowNumber=" +
+    rowNumber +
+    ninoValue;
   getClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .get(claimsForUserUrl)
     .set(
@@ -34,11 +39,38 @@ export async function generateClaimsUrl(selectedNino: string) {
   expect(getClaimsUrl.statusCode).toEqual(Number(200));
 }
 
-export async function postUpdatedClaimsUrl() {
+export async function updateClaimsUrl(firstName: string, familyName: string) {
+  const originalClaimSet = getClaimsUrl.text;
+  const newClaimSet = JSON.parse(originalClaimSet);
+
+  const updatedGivenName = firstName;
+  const updatedFamilyName = familyName;
+
+  newClaimSet.shared_claims.name[0].nameParts.forEach(
+    (part: { type: string; value: string }) => {
+      if (part.type === "GivenName") {
+        part.value = updatedGivenName;
+      } else if (part.type === "FamilyName") {
+        part.value = updatedFamilyName;
+      }
+    }
+  );
+  updatedClaimSet = newClaimSet;
+  console.log(
+    "Updated Claimset Body: ",
+    JSON.stringify(updatedClaimSet.shared_claims.name, undefined, 2)
+  );
+}
+
+export async function postUpdatedClaimsUrl(useUpdatedBody: boolean) {
   const claimSetBody = getClaimsUrl.text;
+  const claimSetBodyNew = updatedClaimSet;
+
+  const bodyToSend = useUpdatedBody ? claimSetBodyNew : claimSetBody;
+
   postClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .post(EndPoints.PATH_POST_CLAIMS + EndPoints.CRI_ID)
-    .send(claimSetBody)
+    .send(bodyToSend)
     .set(
       "Authorization",
       getBasicAuthenticationHeader(
@@ -125,7 +157,7 @@ export async function postRequestToAccessTokenEndpoint() {
 }
 
 export async function postRequestHmrcKbvCriVc() {
-  console.log("Requesting HMRC KBV Verifiable Credential");
+  console.log("Requesting HMRC KBV Verifiable Credential:");
   const bearerToken = postAccessTokenEndpoint.body.access_token;
   postHmrcKbvVCEndpoint = await request(EndPoints.PUBLIC_API_GATEWAY_URL)
     .post(EndPoints.PATH_CREDENTIAL_ISSUE)

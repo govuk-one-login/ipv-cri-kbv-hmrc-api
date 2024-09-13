@@ -1,16 +1,16 @@
 export const questionKeyResponse = {
   ANSWER_POST_PAYLOAD_RTI_PAYSLIP_NI: {
     questionKey: "rti-payslip-national-insurance",
-    value: "400.94",
+    value: "100.02",
   },
 
   ANSWER_POST_PAYLOAD_RTI_PAYSLIP_IT: {
     questionKey: "rti-payslip-income-tax",
-    value: "400.94",
+    value: "155.02",
   },
   ANSWER_POST_PAYLOAD_P60_E_NI_C: {
     questionKey: "rti-p60-employee-ni-contributions",
-    value: "400.94",
+    value: "130.99",
   },
   ANSWER_POST_PAYLOAD_P60_E_A_PT: {
     questionKey: "rti-p60-earnings-above-pt",
@@ -38,7 +38,7 @@ export const questionKeyResponse = {
   },
   ANSWER_POST_PAYLOAD_TC_A: {
     questionKey: "tc-amount",
-    value: "400.94",
+    value: "379.30",
   },
   ANSWER_POST_PAYLOAD_ITA_BANK: {
     questionKey: "ita-bankaccount",
@@ -46,7 +46,7 @@ export const questionKeyResponse = {
   },
   ANSWER_POST_PAYLOAD_P_F_Y: {
     questionKey: "rti-p60-payment-for-year",
-    value: "400.94",
+    value: "3000.00",
   },
   ANSWER_POST_PAYLOAD_SA_P_D: {
     questionKey: "sa-payment-details",
@@ -54,7 +54,7 @@ export const questionKeyResponse = {
   },
   ANSWER_POST_PAYLOAD_2_SA_I_F_P: {
     questionKey: "sa-income-from-pensions",
-    value: "163",
+    value: "2023",
   },
   ANSWER_POST_PAYLOAD_INVALID_QUESTION_KEY: {
     questionKey: "test-test-test",

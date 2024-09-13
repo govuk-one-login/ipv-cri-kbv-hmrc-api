@@ -5,7 +5,7 @@ import {
   postUpdatedClaimsUrl,
 } from "../../../../utils/create-session";
 import { ContextPage } from "../../page/context-page";
-import { Builder, Capabilities, WebDriver } from "selenium-webdriver";
+import { Builder, WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
 
 const feature = loadFeature(
@@ -47,10 +47,10 @@ defineFeature(feature, (test) => {
     when,
   }) => {
     given(
-      /^I start the journey with the backend stub and nino (.*)$/,
-      async (selectedNino) => {
-        await generateClaimsUrl(selectedNino);
-        let encodedClaims = await postUpdatedClaimsUrl();
+      /^I start the journey with the backend stub and nino (.*) for user (.*)$/,
+      async (selectedNino, userId) => {
+        await generateClaimsUrl(selectedNino, userId);
+        let encodedClaims = await postUpdatedClaimsUrl(false);
         let contextPage: ContextPage = new ContextPage(driver);
         await contextPage.goTo(
           EndPoints.FRONTEND +
@@ -62,7 +62,7 @@ defineFeature(feature, (test) => {
       }
     );
 
-    given(
+    when(
       /^I select continue on the context page triggering fetch questions Request$/,
       async () => {
         let contextPage: ContextPage = new ContextPage(driver);
@@ -70,7 +70,7 @@ defineFeature(feature, (test) => {
       }
     );
 
-    given(/^I see a question page$/, async () => {
+    then(/^I see a question page$/, async () => {
       let pageTitle = await driver.getTitle();
       let isQuestionPage =
         pageTitle.includes("Enter the") ||
