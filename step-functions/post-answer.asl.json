@@ -395,7 +395,7 @@
           "Next": "Return Question State as Done"
         }
       ],
-      "Default": "GetParameter OtgApiUrl"
+      "Default": "Fetch Parameters via SSM Lambda"
     },
     "Return Question State as Done": {
       "Type": "Pass",
@@ -404,17 +404,57 @@
         "questionState": "Done"
       }
     },
-    "GetParameter OtgApiUrl": {
+    "Fetch Parameters via SSM Lambda": {
       "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "Name": "${OtgApiUrl}"
+        "FunctionName": "${SSMParametersFunctionArn}",
+        "Payload": {
+          "requestedParameters": [
+            "${OtgApiUrl}",
+            "${AnswersUrl}",
+            "${UserAgent}",
+            "${Issuer}"
+          ],
+          "sessionItem.$": "$.sessionItem"
+        }
       },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Is ssmParametersResult.result present",
+      "ResultPath": "$.ssmParametersResult"
+    },
+    "Is ssmParametersResult.result present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ssmParametersResult.Payload.result",
+          "IsPresent": true,
+          "Next": "Relocate Parameters result to parameters"
+        }
+      ],
+      "Default": "Err: Failed to Retrieve SSM Parameters"
+    },
+    "Err: Failed to Retrieve SSM Parameters": {
+      "Type": "Fail",
+      "Error": "Failed to Retrieve SSM Parameters"
+    },
+    "Relocate Parameters result to parameters": {
+      "Type": "Pass",
       "Next": "Invoke OTG Token Lambda",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      },
-      "ResultPath": "$.parameters.otgApiUrl"
+      "InputPath": "$.ssmParametersResult.Payload.result",
+      "ResultPath": "$.parameters"
     },
     "Invoke OTG Token Lambda": {
       "Type": "Task",
@@ -447,47 +487,11 @@
     },
     "Relocate bearerToken": {
       "Type": "Pass",
-      "Next": "GetParameter AnswersUrl",
+      "Next": "Invoke Submit Answers Lambda",
       "ResultPath": "$.bearerToken",
       "Parameters": {
         "value.$": "$.otgLambdaResult.Payload.token",
         "expiry.$": "$.otgLambdaResult.Payload.expiry"
-      }
-    },
-    "GetParameter AnswersUrl": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${AnswersUrl}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "GetParameter User Agent",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      },
-      "ResultPath": "$.parameters.url"
-    },
-    "GetParameter User Agent": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${UserAgent}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "GetParameter Issuer",
-      "ResultPath": "$.parameters.userAgent",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      }
-    },
-    "GetParameter Issuer": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${Issuer}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "Invoke Submit Answers Lambda",
-      "ResultPath": "$.parameters.issuer",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
       }
     },
     "Invoke Submit Answers Lambda": {

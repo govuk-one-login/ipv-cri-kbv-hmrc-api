@@ -10,7 +10,7 @@ const config: Config = {
   verbose: true,
   forceExit: true,
   setupFiles: ["./jest-cucumber-config"],
-  //coverageReporters: ["html","text"],
+  coverageReporters: ["html", "text"],
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },

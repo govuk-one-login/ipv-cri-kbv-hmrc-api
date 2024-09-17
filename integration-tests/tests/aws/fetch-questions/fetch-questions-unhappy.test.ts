@@ -7,6 +7,8 @@ import {
   ssmParamterUpdate,
 } from "../resources/ssm-param-helper";
 
+jest.setTimeout(20_000);
+
 describe("fetch-questions-unhappy", () => {
   // UUID used to link up all the items
   const sessionId = uuidv4();
@@ -142,95 +144,99 @@ describe("fetch-questions-unhappy", () => {
     );
   });
 
-  it("should fail request if OTG Lambda cannot use OTGURL and returns with Err: Lambda responded unexpectedly", async () => {
-    await populateTable(
-      sessionItem,
-      stackOutputValues.CommonAPISessionTableName
-    );
+  // Test Disabled as the correct value of OtgApiUrl will be cached during the tests (or pre-merge checks) in the SSMParamterFunction
+  // so changing has no effect
+  // it("should fail request if OTG Lambda cannot use OTGURL and returns with Err: Lambda responded unexpectedly", async () => {
+  //   await populateTable(
+  //     sessionItem,
+  //     stackOutputValues.CommonAPISessionTableName
+  //   );
 
-    await populateTable(
-      personIdentityWithBadNINOFormat,
-      stackOutputValues.CommonAPIPersonIdentityTableName
-    );
+  //   await populateTable(
+  //     personIdentityWithBadNINOFormat,
+  //     stackOutputValues.CommonAPIPersonIdentityTableName
+  //   );
 
-    const otgApiUrlParam = `/${process.env.PARAMETER_PREFIX}/OtgApiUrl`;
+  //   const otgApiUrlParam = `/${process.env.PARAMETER_PREFIX}/OtgApiUrl`;
 
-    const currentURL = (await getSSMParamter({
-      Name: otgApiUrlParam,
-    })) as any;
+  //   const currentURL = (await getSSMParamter({
+  //     Name: otgApiUrlParam,
+  //   })) as any;
 
-    await ssmParamterUpdate({
-      Name: otgApiUrlParam,
-      Value: "bad-url",
-      Type: "String",
-      Overwrite: true,
-    });
+  //   await ssmParamterUpdate({
+  //     Name: otgApiUrlParam,
+  //     Value: "bad-url",
+  //     Type: "String",
+  //     Overwrite: true,
+  //   });
 
-    const startExecutionResult = (await executeStepFunction(
-      {
-        sessionId: sessionItem.sessionId,
-      },
-      stackOutputValues.FetchQuestionsStateMachineArn
-    )) as any;
+  //   const startExecutionResult = (await executeStepFunction(
+  //     {
+  //       sessionId: sessionItem.sessionId,
+  //     },
+  //     stackOutputValues.FetchQuestionsStateMachineArn
+  //   )) as any;
 
-    // Restore URL before the expect so a test failure wont leave stack in an unusable state
-    await ssmParamterUpdate({
-      Name: otgApiUrlParam,
-      Value: currentURL.Parameter.Value,
-      Type: "String",
-      Overwrite: true,
-    });
+  //   // Restore URL before the expect so a test failure wont leave stack in an unusable state
+  //   await ssmParamterUpdate({
+  //     Name: otgApiUrlParam,
+  //     Value: currentURL.Parameter.Value,
+  //     Type: "String",
+  //     Overwrite: true,
+  //   });
 
-    expect(startExecutionResult.status).toEqual("FAILED");
-    expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
-      "OTG Token Lambda responded unexpectedly"
-    );
-  });
+  //   expect(startExecutionResult.status).toEqual("FAILED");
+  //   expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
+  //     "OTG Token Lambda responded unexpectedly"
+  //   );
+  // });
 
-  it("should fail request if FetchQuestions Lambda cannot use QuestionURL and returns with Err: Lambda responded unexpectedly", async () => {
-    await populateTable(
-      sessionItem,
-      stackOutputValues.CommonAPISessionTableName
-    );
+  // Test Disabled as the correct value of QuestionURL will be cached during the tests (or pre-merge checks) in the SSMParamterFunction
+  // so changing has no effect
+  // it("should fail request if FetchQuestions Lambda cannot use QuestionURL and returns with Err: Lambda responded unexpectedly", async () => {
+  //   await populateTable(
+  //     sessionItem,
+  //     stackOutputValues.CommonAPISessionTableName
+  //   );
 
-    await populateTable(
-      personIdentityWithBadNINOFormat,
-      stackOutputValues.CommonAPIPersonIdentityTableName
-    );
+  //   await populateTable(
+  //     personIdentityWithBadNINOFormat,
+  //     stackOutputValues.CommonAPIPersonIdentityTableName
+  //   );
 
-    const questionsUrlParameter = `/${process.env.PARAMETER_PREFIX}/QuestionsUrl`;
+  //   const questionsUrlParameter = `/${process.env.PARAMETER_PREFIX}/QuestionsUrl`;
 
-    const currentURL = (await getSSMParamter({
-      Name: questionsUrlParameter,
-    })) as any;
+  //   const currentURL = (await getSSMParamter({
+  //     Name: questionsUrlParameter,
+  //   })) as any;
 
-    await ssmParamterUpdate({
-      Name: questionsUrlParameter,
-      Value: "bad-url",
-      Type: "String",
-      Overwrite: true,
-    });
+  //   await ssmParamterUpdate({
+  //     Name: questionsUrlParameter,
+  //     Value: "bad-url",
+  //     Type: "String",
+  //     Overwrite: true,
+  //   });
 
-    const startExecutionResult = (await executeStepFunction(
-      {
-        sessionId: sessionItem.sessionId,
-      },
-      stackOutputValues.FetchQuestionsStateMachineArn
-    )) as any;
+  //   const startExecutionResult = (await executeStepFunction(
+  //     {
+  //       sessionId: sessionItem.sessionId,
+  //     },
+  //     stackOutputValues.FetchQuestionsStateMachineArn
+  //   )) as any;
 
-    // Restore URL before the expect so a test failure wont leave stack in an unusable state
-    await ssmParamterUpdate({
-      Name: questionsUrlParameter,
-      Value: currentURL.Parameter.Value,
-      Type: "String",
-      Overwrite: true,
-    });
+  //   // Restore URL before the expect so a test failure wont leave stack in an unusable state
+  //   await ssmParamterUpdate({
+  //     Name: questionsUrlParameter,
+  //     Value: currentURL.Parameter.Value,
+  //     Type: "String",
+  //     Overwrite: true,
+  //   });
 
-    expect(startExecutionResult.status).toEqual("FAILED");
-    expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
-      "FetchQuestions Lambda responded unexpectedly"
-    );
-  });
+  //   expect(startExecutionResult.status).toEqual("FAILED");
+  //   expect(new Map(Object.entries(startExecutionResult)).get("error")).toEqual(
+  //     "FetchQuestions Lambda responded unexpectedly"
+  //   );
+  // });
 
   it("should fail request if FetchQuestions Lambda gets an ERROR from 3rd Party API returns with Err: Lambda responded unexpectedly", async () => {
     await populateTable(
