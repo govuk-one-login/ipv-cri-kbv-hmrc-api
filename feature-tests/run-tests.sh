@@ -59,7 +59,7 @@ npm run test:browser:ci
 test_run_result=$?
 
 # store report to dir where pipeline will export from
-reportDir=${TEST_REPORT_ABSOLUTE_DIR:-./results}
+reportDir=${TEST_REPORT_ABSOLUTE_DIR:-/results}
 cp -rf results/ "$reportDir" 2>/dev/null || :
 
 # exit with the exit code return npm test
