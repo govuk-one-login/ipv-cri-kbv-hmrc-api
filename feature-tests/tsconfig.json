@@ -11,7 +11,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["jest", "node"],
-    "outDir": "./build/"
+    "outDir": "./build/",
+    "typeRoots": ["./node_modules/@types", "./@types"]
   },
   "exclude": ["build", "coverage", "node_modules"],
   "include": ["src", "tests", "apiEndpoints", "utils"]

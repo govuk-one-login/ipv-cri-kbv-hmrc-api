@@ -1,6 +1,6 @@
 Feature: HMRC-KBV-POST-Answer-HappyPath.feature
 
-    @post-merge @test
+    @post-merge
     Scenario Outline: Happy Path - Post request to /answer Endpoint for userId with >=3 questions over 2 questionKeys
         Given I start the journey with the backend stub and nino <selectedNino> for user <userId>
         When I select continue on the context page triggering fetch questions Request

@@ -39,6 +39,7 @@ defineFeature(feature, (test) => {
 
   afterAll(async () => {
     driver.close();
+    await driver.quit();
   });
 
   test("Happy Path - Get request to /question Endpoint for userId", ({

@@ -25,6 +25,7 @@ const config: Config = {
       },
     ],
   ],
+  globalTeardown: './cucumber-report-setup.ts', // Adjust to the correct path
   testTimeout: 100_000,
 };
 export default config;
