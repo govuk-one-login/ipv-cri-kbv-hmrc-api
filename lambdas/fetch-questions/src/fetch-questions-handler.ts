@@ -216,7 +216,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
     const sessionId = event?.sessionId;
 
     const parameters = event?.parameters;
-    const questionsUrl = event?.parameters?.url?.value;
+    const questionsUrl = event?.parameters?.questionsUrl?.value;
     const userAgent = event?.parameters?.userAgent?.value;
     const issuer = event?.parameters?.issuer?.value;
     const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently

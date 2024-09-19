@@ -180,9 +180,10 @@ paths:
                         "error_description": "Access denied"
                         }
                     }
-                  #elseif($errMsg == "PersonIdentityItem not found" ||
-                  ($errMsg == "Issuecredential Lambda responded unexpectedly")||
-                  ($errMsg == "JwtSignerFunction Lambda responded unexpectedly"))
+                  #elseif( ($errMsg == "PersonIdentityItem not found") ||
+                  ($errMsg == "Issuecredential Lambda responded unexpectedly") ||
+                  ($errMsg == "JwtSignerFunction Lambda responded unexpectedly") ||
+                  ($errMsg == "Failed to Retrieve SSM Parameters") )
                     #set($context.responseOverride.status = 500)
                     {
                       "oauth_error": {

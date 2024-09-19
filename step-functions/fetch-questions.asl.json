@@ -176,10 +176,62 @@
         {
           "Variable": "$.personIdentityItem.socialSecurityRecord[0].personalNumber",
           "IsPresent": true,
-          "Next": "GetParameter OtgApiUrl"
+          "Next": "Fetch Parameters via SSM Lambda"
         }
       ],
       "Default": "Err: NINO was not present in shared claims"
+    },
+    "Fetch Parameters via SSM Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${SSMParametersFunctionArn}",
+        "Payload": {
+          "requestedParameters": [
+            "${OtgApiUrl}",
+            "${QuestionsUrl}",
+            "${UserAgent}",
+            "${Issuer}"
+          ],
+          "sessionItem.$": "$.sessionItem"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Is ssmParametersResult.result present",
+      "ResultPath": "$.ssmParametersResult"
+    },
+    "Is ssmParametersResult.result present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ssmParametersResult.Payload.result",
+          "IsPresent": true,
+          "Next": "Relocate Parameters result to parameters"
+        }
+      ],
+      "Default": "Err: Failed to Retrieve SSM Parameters"
+    },
+    "Err: Failed to Retrieve SSM Parameters": {
+      "Type": "Fail",
+      "Error": "Failed to Retrieve SSM Parameters"
+    },
+    "Relocate Parameters result to parameters": {
+      "Type": "Pass",
+      "Next": "Invoke OTG Token Lambda",
+      "InputPath": "$.ssmParametersResult.Payload.result",
+      "ResultPath": "$.parameters"
     },
     "Err: PersonIdentityItem not found": {
       "Type": "Fail",
@@ -224,18 +276,6 @@
       "Type": "Fail",
       "Error": "SessionId missing or not found"
     },
-    "GetParameter OtgApiUrl": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${OtgApiUrl}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "Invoke OTG Token Lambda",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      },
-      "ResultPath": "$.parameters.otgApiUrl"
-    },
     "Invoke OTG Token Lambda": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
@@ -271,47 +311,11 @@
     },
     "Relocate bearerToken": {
       "Type": "Pass",
-      "Next": "GetParameter QuestionsUrl",
+      "Next": "Invoke FetchQuestions Lambda",
       "ResultPath": "$.bearerToken",
       "Parameters": {
         "value.$": "$.otgLambdaResult.Payload.token",
         "expiry.$": "$.otgLambdaResult.Payload.expiry"
-      }
-    },
-    "GetParameter QuestionsUrl": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${QuestionsUrl}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "GetParameter User Agent",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      },
-      "ResultPath": "$.parameters.url"
-    },
-    "GetParameter User Agent": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${UserAgent}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "GetParameter Issuer",
-      "ResultPath": "$.parameters.userAgent",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
-      }
-    },
-    "GetParameter Issuer": {
-      "Type": "Task",
-      "Parameters": {
-        "Name": "${Issuer}"
-      },
-      "Resource": "arn:aws:states:::aws-sdk:ssm:getParameter",
-      "Next": "Invoke FetchQuestions Lambda",
-      "ResultPath": "$.parameters.issuer",
-      "ResultSelector": {
-        "value.$": "$.Parameter.Value"
       }
     },
     "Invoke FetchQuestions Lambda": {

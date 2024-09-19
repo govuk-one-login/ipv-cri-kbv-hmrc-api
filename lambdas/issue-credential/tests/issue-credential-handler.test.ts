@@ -72,8 +72,8 @@ const mockInputEvent = {
   parameters: {
     maxJwtTtl: { value: 600 },
     jwtTtlUnit: { value: "HOURS" },
-    verifiableCredentialssuer: { value: "TEST_ISSUER" },
-    kmsSigningKeyId: { value: "TEST_KID" },
+    issuer: { value: "TEST_ISSUER" },
+    verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
   },
   sessionItem: mockSessionItem,
   personIdentityItem: mockPersonIdentityItem,
@@ -213,7 +213,7 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
+    const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
@@ -323,7 +323,7 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
+    const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
@@ -426,7 +426,7 @@ describe("IssueCredentialHandler", () => {
 
     const sub = "urn:uuid:" + uuidv4().toString();
     const nbf = Date.now();
-    const iss = mockInputEvent.parameters.verifiableCredentialssuer.value;
+    const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
 
     const credentialSubject: CredentialSubject = credentialSubjectBuilder
@@ -555,12 +555,12 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: undefined,
+            issuer: undefined,
           },
           sessionItem: mockSessionItem,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "verifiableCredentialssuer was not provided",
+        "issuer was not provided",
       ],
       [
         {
@@ -568,12 +568,12 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: undefined,
+            issuer: undefined,
           },
           sessionItem: mockSessionItem,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "verifiableCredentialssuer was not provided",
+        "issuer was not provided",
       ],
       [
         {
@@ -581,13 +581,13 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: undefined,
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: undefined,
           },
           sessionItem: mockSessionItem,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "kmsSigningKeyId was not provided",
+        "verifiableCredentialKmsSigningKeyId was not provided",
       ],
       [
         {
@@ -595,8 +595,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: undefined,
           personIdentityItem: mockPersonIdentityItem,
@@ -609,8 +609,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: mockSessionItem,
           personIdentityItem: undefined,
@@ -648,8 +648,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           personIdentityItem: mockPersonIdentityItem,
         },
@@ -661,8 +661,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           personIdentityItem: mockPersonIdentityItem,
           sessionItem: {},
@@ -675,8 +675,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -700,8 +700,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             clientIpAddress: "127.0.0.1",
@@ -725,8 +725,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -750,8 +750,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -775,8 +775,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -800,8 +800,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -825,8 +825,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -850,8 +850,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -875,8 +875,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -900,8 +900,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",
@@ -925,8 +925,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: { value: "HOURS" },
-            verifiableCredentialssuer: { value: "TEST_ISSUER" },
-            kmsSigningKeyId: { value: "TEST_KID" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: {
             expiryDate: "1234",

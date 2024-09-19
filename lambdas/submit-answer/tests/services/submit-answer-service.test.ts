@@ -65,7 +65,7 @@ describe("SubmitAnswerService", () => {
       },
     },
     parameters: {
-      url: "dummyUrl",
+      answersUrl: "dummyUrl",
       userAgent: "dummyUserAgent",
       issuer: "https://issuer/gov.uk",
     },

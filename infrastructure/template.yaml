@@ -388,10 +388,10 @@ Resources:
           - !Sub "/${ParameterPrefix}/UserAgent"
           - !Sub "/${AWS::StackName}/UserAgent"
         Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
+        SSMParametersFunctionArn: !GetAtt SSMParametersFunction.Arn
         OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
-        FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
-        SessionTtl: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTtl}}"
+        FetchQuestionsArn: !GetAtt FetchQuestionsFunction.Arn
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
       Logging:
@@ -420,45 +420,13 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - LambdaInvokePolicy:
+            FunctionName: !Ref SSMParametersFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DynamoUnmarshallFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref FetchQuestionsFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref DynamoUnmarshallFunction
-        - Statement:
-            Effect: Allow
-            Action:
-              - ssm:GetParameters
-              - ssm:GetParameter
-            Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTtl"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/QuestionsUrl"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/OtgApiUrl"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/UserAgent"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -555,6 +523,28 @@ Resources:
       Type: EXPRESS
       Name: !Sub ${AWS::StackName}-PostAnswer
       DefinitionUri: ../step-functions/post-answer.asl.json
+      DefinitionSubstitutions:
+        OtgApiUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/OtgApiUrl"
+          - !Sub "/${AWS::StackName}/OtgApiUrl"
+        AnswersUrl: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/AnswersUrl"
+          - !Sub "/${AWS::StackName}/AnswersUrl"
+        UserAgent: !If
+          - UseParameterPrefix
+          - !Sub "/${ParameterPrefix}/UserAgent"
+          - !Sub "/${AWS::StackName}/UserAgent"
+        Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
+        AnswersTableName: !Ref AnswersTable
+        QuestionsTableName: !Ref QuestionsTable
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        SSMParametersFunctionArn: !GetAtt SSMParametersFunction.Arn
+        OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
+        AnswerValidationArn: !GetAtt AnswerValidationFunction.Arn
+        SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
+        CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -573,13 +563,15 @@ Resources:
           ]
       Policies:
         - LambdaInvokePolicy:
+            FunctionName: !Ref SSMParametersFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref CreateAuthCodeFunction
+            FunctionName: !Ref AnswerValidationFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref SubmitAnswerFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref AnswerValidationFunction
+            FunctionName: !Ref CreateAuthCodeFunction
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBReadPolicy:
@@ -592,39 +584,6 @@ Resources:
             TableName: !Ref QuestionsTable
         - DynamoDBWritePolicy:
             TableName: !Ref AnswersTable
-        - Statement:
-            Effect: Allow
-            Action:
-              - ssm:GetParameters
-              - ssm:GetParameter
-            Resource:
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer"
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/AnswersUrl"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/OtgApiUrl"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
-              - !Sub
-                - "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PREFIX}/UserAgent"
-                - PREFIX:
-                    !If [
-                      UseParameterPrefix,
-                      !Ref ParameterPrefix,
-                      !Ref AWS::StackName,
-                    ]
         - Statement:
             Effect: Allow
             Action: logs:*
@@ -633,28 +592,6 @@ Resources:
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
-      DefinitionSubstitutions:
-        Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
-        OtgApiUrl: !If
-          - UseParameterPrefix
-          - !Sub "/${ParameterPrefix}/OtgApiUrl"
-          - !Sub "/${AWS::StackName}/OtgApiUrl"
-        OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
-        CommonStackName: !Ref CommonStackName
-        CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
-        AnswersTableName: !Ref AnswersTable
-        QuestionsTableName: !Ref QuestionsTable
-        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        AnswersUrl: !If
-          - UseParameterPrefix
-          - !Sub "/${ParameterPrefix}/AnswersUrl"
-          - !Sub "/${AWS::StackName}/AnswersUrl"
-        UserAgent: !If
-          - UseParameterPrefix
-          - !Sub "/${ParameterPrefix}/UserAgent"
-          - !Sub "/${AWS::StackName}/UserAgent"
-        SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
-        AnswerValidationArn: !GetAtt AnswerValidationFunction.Arn
 
   PostAnswerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -682,6 +619,19 @@ Resources:
       Type: EXPRESS
       Name: !Sub ${AWS::StackName}-IssueCredential
       DefinitionUri: ../step-functions/issue-credential.asl.json
+      DefinitionSubstitutions:
+        QuestionsTableName: !Ref QuestionsTable
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+        CommonStackName: !Ref CommonStackName
+        SSMParametersFunctionArn: !GetAtt SSMParametersFunction.Arn
+        DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
+        IssueCredentialArn: !GetAtt IssueCredentialFunction.Arn
+        JwtSignerFunction: !GetAtt JwtSignerFunction.Arn
+        MaxJwtTtl: !Sub "/${AWS::StackName}/MaxJwtTtl"
+        JwtTtlUnit: !Sub "/${AWS::StackName}/JwtTtlUnit"
+        Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
+        VerifiableCredentialKmsSigningKeyId: !Sub "/${CommonStackName}/verifiableCredentialKmsSigningKeyId"
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -699,18 +649,6 @@ Resources:
             StateMachineLoggingLevel,
           ]
       Policies:
-        - Statement:
-            Effect: Allow
-            Action:
-              - ssm:GetParameters
-              - ssm:GetParameter
-            Resource:
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MaxJwtTtlParameter}
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${JwtTtlUnitParameter}
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiableCredentialKmsSigningKeyId
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/SessionTableName
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/PersonIdentityTableName
-              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/verifiable-credential/issuer
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBReadPolicy:
@@ -720,11 +658,13 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref ResultsTable
         - LambdaInvokePolicy:
+            FunctionName: !Ref SSMParametersFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DynamoUnmarshallFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref IssueCredentialFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref JwtSignerFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref DynamoUnmarshallFunction
         - Statement:
             Effect: Allow
             Action: kms:Sign
@@ -737,16 +677,6 @@ Resources:
         - UsePermissionsBoundary
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
-      DefinitionSubstitutions:
-        QuestionsTableName: !Ref QuestionsTable
-        MaxJwtTtlParameter: !Ref MaxJwtTtlParameter
-        JwtTtlUnitParameter: !Ref JwtTtlUnitParameter
-        DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
-        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
-        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
-        IssueCredentialArn: !GetAtt IssueCredentialFunction.Arn
-        JwtSignerFunction: !GetAtt JwtSignerFunction.Arn
-        CommonStackName: !Ref CommonStackName
 
   IssueCredentialStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1200,6 +1130,61 @@ Resources:
 
   ####################################################################
   #                                                                  #
+  # SSM Parameters cache Lambda                                       #
+  #                                                                  #
+  ####################################################################
+
+  SSMParametersFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Sourcemap: true
+    Properties:
+      Handler: lambdas/ssm-parameters/src/ssm-parameters-handler.lambdaHandler
+      FunctionName: !Sub "${AWS::StackName}-ssm-parameters"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: !Sub "${CriIdentifier}-ssm-parameters"
+      Timeout: 15
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
+        SubnetIds:
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdA"
+          - Fn::ImportValue: !Sub "${VpcStackName}-ProtectedSubnetIdB"
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/*"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ParameterPrefix}/*"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackName}/*"
+
+  SSMParametersFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SSMParametersFunction}"
+      RetentionInDays: 30
+
+  SSMParametersFunctionLogGroupSubscriptionFilterCsls:
+    Type: AWS::Logs::SubscriptionFilter
+    Condition: LogSendingEnabled
+    Properties:
+      DestinationArn: "arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2"
+      FilterPattern: ""
+      LogGroupName: !Ref SSMParametersFunctionLogGroup
+
+  ####################################################################
+  #                                                                  #
   # Database Tables                                                  #
   #                                                                  #
   ####################################################################
@@ -1373,6 +1358,30 @@ Resources:
   # Alerts                                                           #
   #                                                                  #
   ####################################################################
+
+  SSMParameterRequestFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-${Environment} - SSM Parameters Retrieval Failed Alarm"
+      AlarmDescription: !Sub "${Environment} HMRC KBV Cri SSMParametersFunction failed to retrieve requested SSM Parameters"
+      ActionsEnabled: true
+      OKActions:
+        - !ImportValue platform-alarm-warning-alert-topic
+      AlarmActions:
+        - !ImportValue platform-alarm-warning-alert-topic
+      InsufficientDataActions: []
+      MetricName: CompletionStatus
+      Namespace: !Ref CriIdentifier
+      Statistic: Average
+      Dimensions:
+        - Name: service
+          Value: !Sub "${CriIdentifier}-ssm-parameters"
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: 0.95
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
 
   OTGTokenRequestFailureAlarm:
     Type: AWS::CloudWatch::Alarm

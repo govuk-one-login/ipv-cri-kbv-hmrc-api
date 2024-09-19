@@ -9,6 +9,6 @@ export interface IssueCredentialInputs {
   personIdentityItem: PersonIdentityItem;
   maxJwtTtl: string;
   jwtTtlUnit: string;
-  verifiableCredentialssuer: string;
-  kmsSigningKeyId: string;
+  issuer: string;
+  verifiableCredentialKmsSigningKeyId: string;
 }

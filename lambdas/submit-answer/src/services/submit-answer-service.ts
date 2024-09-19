@@ -113,7 +113,7 @@ export class SubmitAnswerService {
     // Response Latency (Start)
     this.stopWatch.start();
 
-    return await fetch(event.parameters.url.value, {
+    return await fetch(event.parameters.answersUrl.value, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

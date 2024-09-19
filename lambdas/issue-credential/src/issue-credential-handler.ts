@@ -84,7 +84,7 @@ export class IssueCredentialHandler implements LambdaInterface {
 
       const sub = "urn:uuid:" + uuidv4().toString();
       const nbf = Date.now();
-      const iss = inputs.verifiableCredentialssuer;
+      const iss = inputs.issuer;
       const jti = "urn:uuid:" + uuidv4().toString();
 
       const checkDetailsCount: number =
@@ -191,9 +191,9 @@ export class IssueCredentialHandler implements LambdaInterface {
     const parameters = event?.parameters;
     const maxJwtTtl = event?.parameters?.maxJwtTtl?.value;
     const jwtTtlUnit = event?.parameters?.jwtTtlUnit?.value;
-    const verifiableCredentialssuer =
-      event?.parameters?.verifiableCredentialssuer?.value;
-    const kmsSigningKeyId = event?.parameters?.kmsSigningKeyId?.value;
+    const issuer = event?.parameters?.issuer?.value;
+    const verifiableCredentialKmsSigningKeyId =
+      event?.parameters?.verifiableCredentialKmsSigningKeyId?.value;
 
     const bearerToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
 
@@ -220,12 +220,12 @@ export class IssueCredentialHandler implements LambdaInterface {
       throw new Error("jwtTtlUnit was not provided");
     }
 
-    if (!verifiableCredentialssuer) {
-      throw new Error("verifiableCredentialssuer was not provided");
+    if (!issuer) {
+      throw new Error("issuer was not provided");
     }
 
-    if (!kmsSigningKeyId) {
-      throw new Error("kmsSigningKeyId was not provided");
+    if (!verifiableCredentialKmsSigningKeyId) {
+      throw new Error("verifiableCredentialKmsSigningKeyId was not provided");
     }
 
     if (!personIdentityItem) {
@@ -250,8 +250,8 @@ export class IssueCredentialHandler implements LambdaInterface {
       personIdentityItem: personIdentityItem as PersonIdentityItem,
       maxJwtTtl: maxJwtTtl,
       jwtTtlUnit: jwtTtlUnit,
-      verifiableCredentialssuer: verifiableCredentialssuer,
-      kmsSigningKeyId: kmsSigningKeyId,
+      issuer: issuer,
+      verifiableCredentialKmsSigningKeyId: verifiableCredentialKmsSigningKeyId,
     } as IssueCredentialInputs;
   }
 

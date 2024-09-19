@@ -189,8 +189,9 @@ paths:
                         "error_description": "Invalid request"
                       }
                     }
-                  #elseif($errMsg == "OTG Token Lambda responded unexpectedly" ||
-                   $errMsg == "FetchQuestions Lambda responded unexpectedly")
+                  #elseif( ($errMsg == "OTG Token Lambda responded unexpectedly")||
+                   ($errMsg == "FetchQuestions Lambda responded unexpectedly") ||
+                   ($errMsg == "Failed to Retrieve SSM Parameters") )
                     #set($context.responseOverride.status = 500)
                     {
                       "oauth_error": {
@@ -463,10 +464,11 @@ paths:
                         "error_description": "Access denied"
                         }
                     }
-                  #elseif(($errMsg == "Answers failed validation") ||
+                  #elseif( ($errMsg == "Answers failed validation") ||
                     ($errMsg == "OTG Token Lambda responded unexpectedly") ||
                     ($errMsg == "Submit Answers Lambda responded unexpectedly") ||
-                    ($errMsg == "CreateAuthCodeFunction responded unexpectedly") )
+                    ($errMsg == "CreateAuthCodeFunction responded unexpectedly") ||
+                    ($errMsg == "Failed to Retrieve SSM Parameters") )
                     #set($context.responseOverride.status = 500)
                     {
                       "oauth_error": {

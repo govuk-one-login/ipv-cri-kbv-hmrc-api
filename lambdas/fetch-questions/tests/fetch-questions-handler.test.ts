@@ -94,7 +94,7 @@ describe("FetchQuestionsHandler", () => {
     sessionId: "sessionId",
     sessionItem: mockSessionItem,
     parameters: {
-      url: { value: "TEST_URL" },
+      questionsUrl: { value: "TEST_URL" },
       userAgent: { value: "TEST_USER_AGENT" },
       issuer: { value: "TEST_ISSUER" },
     },
@@ -207,7 +207,7 @@ describe("FetchQuestionsHandler", () => {
 
         const mockFetchQuestionInputs = {
           sessionId: mockInputEvent.sessionId,
-          questionsUrl: mockInputEvent.parameters.url.value,
+          questionsUrl: mockInputEvent.parameters.questionsUrl.value,
           userAgent: mockInputEvent.parameters.userAgent.value,
           issuer: mockInputEvent.parameters.issuer.value,
           bearerToken: mockInputEvent.bearerToken.value,
@@ -343,7 +343,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: undefined,
+            questionsUrl: undefined,
           },
         },
         "questionsUrl was not provided",
@@ -353,7 +353,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: undefined,
             issuer: { value: "TEST_ISSUER" },
           },
@@ -365,7 +365,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -380,7 +380,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -397,7 +397,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -430,7 +430,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: mockSessionItem,
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -488,7 +488,7 @@ describe("FetchQuestionsHandler", () => {
         {
           sessionId: "sessionId",
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -507,7 +507,7 @@ describe("FetchQuestionsHandler", () => {
           sessionId: "sessionId",
           sessionItem: {},
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -537,7 +537,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -567,7 +567,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -597,7 +597,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -627,7 +627,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -657,7 +657,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -687,7 +687,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -717,7 +717,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -747,7 +747,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -777,7 +777,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -807,7 +807,7 @@ describe("FetchQuestionsHandler", () => {
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
@@ -837,7 +837,7 @@ describe("FetchQuestionsHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
           },
           parameters: {
-            url: { value: "TEST_URL" },
+            questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "ISSUER" },
           },
@@ -889,7 +889,7 @@ describe("FetchQuestionsHandler", () => {
 
       const mockFetchQuestionInputs = {
         sessionId: mockInputEvent.sessionId,
-        questionsUrl: mockInputEvent.parameters.url.value,
+        questionsUrl: mockInputEvent.parameters.questionsUrl.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
@@ -946,7 +946,7 @@ describe("FetchQuestionsHandler", () => {
 
       const mockFetchQuestionInputs = {
         sessionId: mockInputEvent.sessionId,
-        questionsUrl: mockInputEvent.parameters.url.value,
+        questionsUrl: mockInputEvent.parameters.questionsUrl.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
         bearerToken: mockInputEvent.bearerToken.value,
