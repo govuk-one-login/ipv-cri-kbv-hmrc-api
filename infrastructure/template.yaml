@@ -53,6 +53,14 @@ Parameters:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
     Default: txma-infrastructure
+  StepFunctionsCanaryDeployment:
+    Description: Deployment configuration for your Step Functions
+    Type: String
+    Default: ALL_AT_ONCE
+    AllowedValues:
+      - CANARY
+      - LINEAR
+      - ALL_AT_ONCE
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -76,6 +84,11 @@ Conditions:
     Fn::Equals:
       - !Ref Environment
       - production
+  UseStepFunctionsCanaryDeployment: !Not
+    - !Equals [!Ref StepFunctionsCanaryDeployment, None]
+  UseStepFunctionsDeploymentAlarms: !And
+    - Condition: UseStepFunctionsCanaryDeployment
+    - !Not [!Equals [!Ref StepFunctionsCanaryDeployment, ALL_AT_ONCE]]
 
 Globals:
   Function:
@@ -394,6 +407,20 @@ Resources:
         SessionTtl: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTtl}}"
         SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !If
+          - UseStepFunctionsCanaryDeployment
+          - !Ref StepFunctionsCanaryDeployment
+          - ALL_AT_ONCE
+        Interval: 1
+        Percentage: 20
+        Alarms: !If
+          - UseStepFunctionsDeploymentAlarms
+          - - !Ref HMRCKBVAPIGW5XXErrors
+            - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+          - !Ref "AWS::NoValue"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${FetchQuestionsStateMachine}:live"
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -510,6 +537,20 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !If
+          - UseStepFunctionsCanaryDeployment
+          - !Ref StepFunctionsCanaryDeployment
+          - ALL_AT_ONCE
+        Interval: 1
+        Percentage: 20
+        Alarms: !If
+          - UseStepFunctionsDeploymentAlarms
+          - - !Ref HMRCKBVAPIGW5XXErrors
+            - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+          - !Ref "AWS::NoValue"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetQuestionStateMachine}:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
@@ -571,6 +612,20 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !If
+          - UseStepFunctionsCanaryDeployment
+          - !Ref StepFunctionsCanaryDeployment
+          - ALL_AT_ONCE
+        Interval: 1
+        Percentage: 20
+        Alarms: !If
+          - UseStepFunctionsDeploymentAlarms
+          - - !Ref HMRCKBVAPIGW5XXErrors
+            - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+          - !Ref "AWS::NoValue"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${PostAnswerStateMachine}:live"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
@@ -698,6 +753,20 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !If
+          - UseStepFunctionsCanaryDeployment
+          - !Ref StepFunctionsCanaryDeployment
+          - ALL_AT_ONCE
+        Interval: 1
+        Percentage: 20
+        Alarms: !If
+          - UseStepFunctionsDeploymentAlarms
+          - - !Ref HMRCKBVAPIGW5XXErrors
+            - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+          - !Ref "AWS::NoValue"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${IssueCredentialStateMachine}:live"
       Policies:
         - Statement:
             Effect: Allow
