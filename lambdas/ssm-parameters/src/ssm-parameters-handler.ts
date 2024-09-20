@@ -85,15 +85,19 @@ export class SsmParametersHandler implements LambdaInterface {
         throw new Error(errorMessage);
       }
 
-      logHelper.info("Returning Result");
+      logHelper.debug("Creating Result");
       const result = {};
-      event.requestedParameters.forEach(function (path: string) {
+      event.requestedParameters.forEach((path: string) => {
         // remove path from parameter
         const tkey = path.slice(path.lastIndexOf("/") + 1);
         // Convention is lower case first leter in all keys
         const key = tkey.charAt(0).toLowerCase() + tkey.slice(1);
         // value returned
-        const value = parameters[path];
+        const value = this.retrieveParameterValue(
+          key,
+          parameters[path],
+          strategy
+        );
 
         Object.assign(result, {
           [key]: { value: value },
@@ -105,6 +109,8 @@ export class SsmParametersHandler implements LambdaInterface {
         MetricUnit.Count,
         CompletionStatus.OK
       );
+
+      logHelper.info("Returning Result");
 
       return { result: result };
     } catch (error: any) {
@@ -123,6 +129,37 @@ export class SsmParametersHandler implements LambdaInterface {
       // Indicate to the statemachine a lambda error has occured
       return { error: errorMessage };
     }
+  }
+
+  private retrieveParameterValue(
+    key: string,
+    unprocessedValue: string,
+    strategy: Strategy
+  ): string {
+    if (this.unprocessedValueContainsStrategyConfig(unprocessedValue)) {
+      try {
+        const json = JSON.parse(unprocessedValue);
+
+        logHelper.debug(`${key} value contained strategy json`);
+        return json[strategy];
+      } catch (error: any) {
+        const errorText: string = `Failed to parse json for ${key}`;
+        throw new Error(errorText);
+      }
+    }
+
+    logHelper.debug(`${key} value contained string`);
+    return unprocessedValue;
+  }
+
+  private unprocessedValueContainsStrategyConfig(
+    unprocessedValue: string
+  ): boolean {
+    return (
+      unprocessedValue.includes(Strategy.STUB) &&
+      unprocessedValue.includes(Strategy.UAT) &&
+      unprocessedValue.includes(Strategy.LIVE)
+    );
   }
 }
 
