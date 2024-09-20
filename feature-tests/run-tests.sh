@@ -55,14 +55,17 @@ if [[ -z "${tagFilter}" ]]; then
 fi
 echo "TAG ${tagFilter}"
 
+# run tests and save the exit code
+# declare test_run_result
+echo 'Beginning Regression Tests'
 npm run test:browser:ci
 test_run_result=$?
 
 # store report to dir where pipeline will export from
-reportDir=${TEST_REPORT_ABSOLUTE_DIR:-/results}
-echo "Report directory is set to: $reportDir"
-cp -rf results/ "$reportDir" 2>/dev/null || :
-echo "Results folder content : $(ls -altr results)"
+# reportDir=${TEST_REPORT_ABSOLUTE_DIR:-/results}
+# echo "Report directory is set to: $reportDir"
+# cp -rf results/ "$reportDir" 2>/dev/null || :
+# echo "Results folder content : $(ls -altr results)"
 
 # exit with the exit code return npm test
 # shellcheck disable=SC2086
