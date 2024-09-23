@@ -1,7 +1,7 @@
 export enum Strategy {
-  STUB = "Stub",
-  UAT = "Uat",
-  LIVE = "Live",
+  STUB = "STUB",
+  UAT = "UAT",
+  LIVE = "LIVE",
 }
 
 export class StrategyUtil {

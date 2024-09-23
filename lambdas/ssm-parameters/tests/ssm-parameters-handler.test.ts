@@ -9,6 +9,7 @@ import {
   HandlerMetric,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
+import { Strategy } from "../src/types/strategy";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
@@ -34,6 +35,9 @@ describe("ssm-parameters-handler", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset due to test changing this
+    testSessionItem.clientId = "unit-test-clientid";
 
     mockMetricsProbe = jest.mocked(MetricsProbe).prototype;
     mockedSsmProvider = jest.mocked(SSMProvider).prototype;
@@ -89,8 +93,8 @@ describe("ssm-parameters-handler", () => {
       },
     ],
   ])(
-    "should return 1 object in the correct format when given list of parameters 'testInputEvent: %s'",
-    async (testRequestedParameters: string[], expectedoutput: any) => {
+    "should return 1 object in the correct format when given a list of non strategy parameters 'testInputEvent: %s'",
+    async (testRequestedParameters: string[], resultMap: any) => {
       // Mocked Get for all parameters
       const parameters = {
         _errors: [],
@@ -99,7 +103,7 @@ describe("ssm-parameters-handler", () => {
         const tkey = path.slice(path.lastIndexOf("/") + 1);
         const name = tkey.charAt(0).toLowerCase() + tkey.slice(1);
         Object.assign(parameters, {
-          [path]: expectedoutput.result[name].value,
+          [path]: resultMap.result[name].value,
         });
       });
       mockedSsmProvider.getParametersByName.mockResolvedValueOnce(parameters);
@@ -113,12 +117,141 @@ describe("ssm-parameters-handler", () => {
       );
 
       expect(mockedSsmProvider.getParametersByName).toHaveBeenCalledTimes(1);
-      expect(payload).toStrictEqual(expectedoutput);
+      expect(payload).toStrictEqual(resultMap);
 
       expect(mockMetricsProbe.captureMetric).toHaveBeenCalledWith(
         HandlerMetric.CompletionStatus,
         MetricUnit.Count,
         CompletionStatus.OK
+      );
+    }
+  );
+
+  it.each([
+    [
+      [
+        "/stackname/ssmStrategyParam1",
+        "/prefix/ssmStrategyParam2",
+        "/level1/nested/ssmStrategyParam3",
+        "/level1/level2/nested/ssmStrategyParam4",
+      ],
+      [
+        "ipv-core-stub",
+        "ipv-core-stub-aws-build",
+        "ipv-core-stub-aws-prod",
+        "ipv-core-stub-aws-build_3rdparty",
+        "ipv-core-stub-aws-prod_3rdparty",
+        "ipv-core-stub-pre-prod-aws-build",
+        "ipv-core",
+      ],
+      [
+        Strategy.STUB,
+        Strategy.STUB,
+        Strategy.STUB,
+        Strategy.UAT,
+        Strategy.UAT,
+        Strategy.LIVE,
+        Strategy.LIVE,
+      ],
+      {
+        result: {
+          ssmStrategyParam1: {
+            value: JSON.stringify({
+              STUB: "ValueForStub",
+              UAT: "ValueForUat",
+              LIVE: "ValueForLive",
+            }),
+          },
+          ssmStrategyParam2: {
+            value: JSON.stringify({
+              STUB: "ValueForStub",
+              UAT: "ValueForUat",
+              LIVE: "ValueForLive",
+            }),
+          },
+          ssmStrategyParam3: {
+            value: JSON.stringify({
+              STUB: "ValueForStub",
+              UAT: "ValueForUat",
+              LIVE: "ValueForLive",
+            }),
+          },
+          ssmStrategyParam4: {
+            value: JSON.stringify({
+              STUB: "ValueForStub",
+              UAT: "ValueForUat",
+              LIVE: "ValueForLive",
+            }),
+          },
+        },
+      },
+    ],
+  ])(
+    "should return 1 object in the correct format when given a list of strategy parameters and ClientId'testInputEvent: %s'",
+    async (
+      testRequestedParameters: string[],
+      clients: string[],
+      expectedStrategy: Strategy[],
+      resultMap: any
+    ) => {
+      // This does the same checks for each client id and build the expectet result from the handlers
+      clients.forEach(
+        await async function (clientId: string, index: number) {
+          // Strategy Setups
+          testSessionItem.clientId = clientId;
+          const expectedStrategyForThisClient = expectedStrategy[index];
+
+          // Mocked Get for all parameters
+          const parameters = {
+            _errors: [],
+          };
+          // Expected result after json + strategy processing
+          const expectedResult = { result: {} };
+          testRequestedParameters.forEach(function (path: string) {
+            const tkey = path.slice(path.lastIndexOf("/") + 1);
+            const name = tkey.charAt(0).toLowerCase() + tkey.slice(1);
+
+            // getParametersByName Mock return
+            Object.assign(parameters, {
+              [path]: resultMap.result[name].value,
+            });
+
+            // ssmParametersHandler expected Return
+            Object.assign(expectedResult.result, {
+              [name]: {
+                value: JSON.parse(resultMap.result[name].value)[
+                  expectedStrategyForThisClient
+                ],
+              },
+            });
+          });
+
+          // Resets the mock so we can check that getParametersByName called ONCE for each client separately (and not a running count)
+          mockedSsmProvider.getParametersByName.mockReset();
+
+          mockedSsmProvider.getParametersByName.mockResolvedValueOnce(
+            parameters
+          );
+
+          const payload = await ssmParametersHandler.handler(
+            {
+              requestedParameters: testRequestedParameters,
+              sessionItem: testSessionItem,
+            },
+            {} as Context
+          );
+
+          expect(mockedSsmProvider.getParametersByName).toHaveBeenCalledTimes(
+            1
+          );
+          expect(payload).toStrictEqual(expectedResult);
+
+          expect(mockMetricsProbe.captureMetric).toHaveBeenCalledWith(
+            HandlerMetric.CompletionStatus,
+            MetricUnit.Count,
+            CompletionStatus.OK
+          );
+        }
       );
     }
   );
@@ -218,6 +351,35 @@ describe("ssm-parameters-handler", () => {
     expect(payload).toStrictEqual({
       error:
         "SsmParametersHandler : Following SSM parameters do not exist: SecondBadParameter",
+    });
+    expect(mockedSsmProvider.getParametersByName).toHaveBeenCalledTimes(1);
+
+    expect(mockMetricsProbe.captureMetric).toHaveBeenCalledWith(
+      HandlerMetric.CompletionStatus,
+      MetricUnit.Count,
+      CompletionStatus.ERROR
+    );
+  });
+
+  it("should throw error when strategy pararameter value is not valid json", async () => {
+    const parameters = {
+      UnitTestJsonParameter: "UAT STUB LIVE but Not JSON!",
+      _errors: [],
+    };
+
+    mockedSsmProvider.getParametersByName.mockResolvedValueOnce(parameters);
+
+    const payload = await ssmParametersHandler.handler(
+      {
+        requestedParameters: ["UnitTestJsonParameter"],
+        sessionItem: testSessionItem,
+      },
+      {} as Context
+    );
+
+    expect(payload).toStrictEqual({
+      error:
+        "SsmParametersHandler : Failed to parse json for unitTestJsonParameter",
     });
     expect(mockedSsmProvider.getParametersByName).toHaveBeenCalledTimes(1);
 
