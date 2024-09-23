@@ -53,6 +53,20 @@ Parameters:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
     Default: txma-infrastructure
+  LambdaCanaryDeployment:
+    Description: >
+      Canary strategy to be used with your Lambda applications please refer to documentation for configurations -
+      https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/automating-updates-to-serverless-apps.html
+    Type: String
+    Default: "AllAtOnce"
+  StepFunctionsCanaryDeployment:
+    Description: Deployment configuration for your Step Functions
+    Type: String
+    Default: ALL_AT_ONCE
+    AllowedValues:
+      - CANARY
+      - LINEAR
+      - ALL_AT_ONCE
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -147,6 +161,14 @@ Globals:
               !Ref Environment,
               dynatraceSecretArn,
             ]
+    AutoPublishAlias: live
+    DeploymentPreference:
+      Enabled: true
+      Type: !Ref LambdaCanaryDeployment
+      Role: !GetAtt LambdaDeployRole.Arn
+      Alarms:
+        - !Ref HMRCKBVLambdaErrors
+        - !Ref HMRCKBVAPIGW5XXErrors
 
 Mappings:
   EnvironmentConfiguration:
@@ -361,6 +383,26 @@ Resources:
         - !Ref PermissionsBoundary
         - !Ref AWS::NoValue
 
+  LambdaDeployRole:
+    Type: AWS::IAM::Role
+    # checkov:skip=CKV_AWS_111: "Ensure IAM policies does not allow write access without constraints
+    # The network interface permissions can only be applied at the '*' resource level
+    Properties:
+      PermissionsBoundary: !If
+        - UsePermissionsBoundary
+        - !Ref PermissionsBoundary
+        - !Ref AWS::NoValue
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.eu-west-2.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRoleForLambda"
+
   ####################################################################
   #                                                                  #
   # FetchQuestionsStateMachine                                       #
@@ -410,6 +452,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-FetchQuestionsStateMachine:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
@@ -561,6 +612,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-PostAnswer:live"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref SSMParametersFunction
@@ -648,6 +708,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-IssueCredential:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
