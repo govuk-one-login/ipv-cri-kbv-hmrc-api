@@ -426,7 +426,7 @@ Resources:
         Alarms:
           - !Ref HMRCKBVAPIGW5XXErrors
           - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
-        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-FetchQuestionsStateMachine:live"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-FetchQuestionsStateMachine:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
@@ -503,7 +503,7 @@ Resources:
         Alarms:
           - !Ref HMRCKBVAPIGW5XXErrors
           - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
-        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-GetQuestion:live"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-GetQuestion:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
@@ -595,7 +595,7 @@ Resources:
         Alarms:
           - !Ref HMRCKBVAPIGW5XXErrors
           - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
-        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-PostAnswer:live"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-PostAnswer:live"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref SSMParametersFunction
@@ -691,7 +691,7 @@ Resources:
         Alarms:
           - !Ref HMRCKBVAPIGW5XXErrors
           - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
-        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-IssueCredential:live"
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-IssueCredential:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
