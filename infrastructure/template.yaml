@@ -53,6 +53,14 @@ Parameters:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
     Default: txma-infrastructure
+  StepFunctionsCanaryDeployment:
+    Description: Deployment configuration for your Step Functions
+    Type: String
+    Default: ALL_AT_ONCE
+    AllowedValues:
+      - CANARY
+      - LINEAR
+      - ALL_AT_ONCE
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -410,6 +418,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${FetchQuestionsStateMachine}:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
@@ -478,6 +495,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${GetQuestionStateMachine}:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref QuestionsTable
@@ -561,6 +587,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${PostAnswerStateMachine}:live"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref SSMParametersFunction
@@ -648,6 +683,15 @@ Resources:
             !Ref Environment,
             StateMachineLoggingLevel,
           ]
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: !Ref StepFunctionsCanaryDeployment
+        Interval: 1
+        Percentage: 20
+        Alarms:
+          - !Ref HMRCKBVAPIGW5XXErrors
+          - !Ref HMRCKBVAPIGW5XXErrorsPrivatePercentage
+        StateMachineVersionArn: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${IssueCredentialStateMachine}:live"
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
