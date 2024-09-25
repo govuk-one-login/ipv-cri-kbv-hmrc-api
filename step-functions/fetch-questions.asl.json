@@ -88,10 +88,6 @@
               "IsPresent": true
             },
             {
-              "Variable": "$.sessionItem.Item.persistentSessionId.S",
-              "IsPresent": true
-            },
-            {
               "Variable": "$.sessionItem.Item.attemptCount.N",
               "IsPresent": true
             },

@@ -288,10 +288,6 @@ export class IssueCredentialHandler implements LambdaInterface {
       throw new Error("Session item missing clientId");
     }
 
-    if (!sessionItem.persistentSessionId) {
-      throw new Error("Session item missing persistentSessionId");
-    }
-
     if (!sessionItem.attemptCount && sessionItem.attemptCount != 0) {
       throw new Error("Session item missing attemptCount");
     }

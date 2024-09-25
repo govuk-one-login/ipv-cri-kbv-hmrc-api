@@ -7,7 +7,7 @@ export interface SessionItem {
   createdDate: number;
   clientId: string;
   subject: string;
-  persistentSessionId: string;
+  persistentSessionId?: string;
   attemptCount: number;
   sessionId: string;
   state: string;
