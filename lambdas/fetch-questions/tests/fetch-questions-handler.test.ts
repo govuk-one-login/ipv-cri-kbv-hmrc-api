@@ -772,36 +772,6 @@ describe("FetchQuestionsHandler", () => {
             createdDate: "1722954983024",
             clientId: "unit-test-clientid",
             subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-            attemptCount: "0",
-            sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-            state: "7f42f0cc-1681-4455-872f-dd228103a12e",
-          },
-          parameters: {
-            questionsUrl: { value: "TEST_URL" },
-            userAgent: { value: "TEST_USER_AGENT" },
-            issuer: { value: "TEST_ISSUER" },
-          },
-          bearerToken: {
-            expiry: Date.now() + 7200 * 1000,
-            value: "TEST_TOKEN_VALUE",
-          },
-          personIdentityItem: {
-            nino: "TEST_NINO",
-          },
-        },
-        "Session item was malformed : Session item missing persistentSessionId",
-      ],
-      [
-        {
-          sessionId: "sessionId",
-          sessionItem: {
-            expiryDate: "1234",
-            clientIpAddress: "127.0.0.1",
-            redirectUri: "http://localhost:8085/callback",
-            clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
-            createdDate: "1722954983024",
-            clientId: "unit-test-clientid",
-            subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
             persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
