@@ -20,6 +20,7 @@ import {
   PersonIdentityItem,
   SessionItem,
 } from "../../../lib/src/types/common-types";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/services/questions-retrieval-service");
@@ -53,7 +54,7 @@ describe("FetchQuestionsHandler", () => {
   let filterQuestionsServiceSpy: jest.SpyInstance;
   let mockAuditServiceSpy: jest.SpyInstance;
 
-  const mockSessionItem: SessionItem = {
+  const testSessionItem: SessionItem = {
     expiryDate: 1234,
     clientIpAddress: "127.0.0.1",
     redirectUri: "http://localhost:8085/callback",
@@ -65,6 +66,11 @@ describe("FetchQuestionsHandler", () => {
     attemptCount: 0,
     sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
     state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+  };
+
+  const testStateMachineValue: Statemachine = {
+    executionId:
+      "arn:aws:states:REGION:ACCOUNT:express:STACK-LAMBDA:EXECUTIONID_PART1:EXECUTIONID_PART2",
   };
 
   const mockPersonIdentityItem: PersonIdentityItem = {
@@ -91,18 +97,18 @@ describe("FetchQuestionsHandler", () => {
   };
 
   const mockInputEvent = {
-    sessionId: "sessionId",
-    sessionItem: mockSessionItem,
+    sessionItem: testSessionItem,
+    statemachine: testStateMachineValue,
+    personIdentityItem: mockPersonIdentityItem,
+    bearerToken: {
+      expiry: Date.now() + 7200 * 1000,
+      value: "TEST_TOKEN_VALUE",
+    },
     parameters: {
       questionsUrl: { value: "TEST_URL" },
       userAgent: { value: "TEST_USER_AGENT" },
       issuer: { value: "TEST_ISSUER" },
     },
-    bearerToken: {
-      expiry: Date.now() + 7200 * 1000,
-      value: "TEST_TOKEN_VALUE",
-    },
-    personIdentityItem: mockPersonIdentityItem,
   };
 
   const mockInputContext = {
@@ -206,13 +212,13 @@ describe("FetchQuestionsHandler", () => {
         );
 
         const mockFetchQuestionInputs = {
-          sessionId: mockInputEvent.sessionId,
+          sessionItem: mockInputEvent.sessionItem,
+          statemachine: mockInputEvent.statemachine,
+          personIdentityItem: mockInputEvent.personIdentityItem,
+          bearerToken: mockInputEvent.bearerToken.value,
           questionsUrl: mockInputEvent.parameters.questionsUrl.value,
           userAgent: mockInputEvent.parameters.userAgent.value,
           issuer: mockInputEvent.parameters.issuer.value,
-          bearerToken: mockInputEvent.bearerToken.value,
-          personIdentityItem: mockInputEvent.personIdentityItem,
-          sessionItem: mockInputEvent.sessionItem,
         } as FetchQuestionInputs;
 
         expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
@@ -221,7 +227,7 @@ describe("FetchQuestionsHandler", () => {
 
         expect(
           saveQuestionsServicegetExistingSavedItemSpy
-        ).toHaveBeenCalledWith(mockInputEvent.sessionId);
+        ).toHaveBeenCalledWith(mockInputEvent.sessionItem.sessionId);
 
         expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
           HandlerMetric.CompletionStatus,
@@ -326,22 +332,18 @@ describe("FetchQuestionsHandler", () => {
       [undefined, "input event is empty"],
       [
         {
-          sessionId: undefined,
-        },
-        "sessionId was not provided",
-      ],
-      [
-        {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          personIdentityItem: mockPersonIdentityItem,
           parameters: undefined,
         },
         "event parameters not found",
       ],
       [
         {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          personIdentityItem: mockPersonIdentityItem,
           parameters: {
             questionsUrl: undefined,
           },
@@ -350,8 +352,9 @@ describe("FetchQuestionsHandler", () => {
       ],
       [
         {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          personIdentityItem: mockPersonIdentityItem,
           parameters: {
             questionsUrl: { value: "TEST_URL" },
             userAgent: undefined,
@@ -362,49 +365,41 @@ describe("FetchQuestionsHandler", () => {
       ],
       [
         {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          personIdentityItem: mockPersonIdentityItem,
+          bearerToken: {
+            value: undefined,
+          },
           parameters: {
             questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
-          },
-          bearerToken: {
-            value: undefined,
           },
         },
         "bearerToken was not provided",
       ],
       [
         {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          personIdentityItem: undefined,
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
           parameters: {
             questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
-          bearerToken: {
-            expiry: Date.now() + 7200 * 1000,
-            value: "TEST_TOKEN_VALUE",
-          },
-          personIdentityItem: undefined,
         },
         "personIdentityItem not found",
       ],
       [
         {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
-          parameters: {
-            questionsUrl: { value: "TEST_URL" },
-            userAgent: { value: "TEST_USER_AGENT" },
-            issuer: { value: "TEST_ISSUER" },
-          },
-          bearerToken: {
-            expiry: Date.now() + 7200 * 1000,
-            value: "TEST_TOKEN_VALUE",
-          },
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: {
             sessionId: "testSessionId",
             names: [
@@ -422,22 +417,22 @@ describe("FetchQuestionsHandler", () => {
             ],
             expiryDate: 1234,
           },
-        },
-        "nino was not provided",
-      ],
-      [
-        {
-          sessionId: "sessionId",
-          sessionItem: mockSessionItem,
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
           parameters: {
             questionsUrl: { value: "TEST_URL" },
             userAgent: { value: "TEST_USER_AGENT" },
             issuer: { value: "TEST_ISSUER" },
           },
-          bearerToken: {
-            expiry: Date.now() + 7200 * 1000,
-            value: "TEST_TOKEN_VALUE",
-          },
+        },
+        "nino was not provided",
+      ],
+      [
+        {
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: {
             sessionId: "testSessionId",
             socialSecurityRecord: undefined,
@@ -455,6 +450,15 @@ describe("FetchQuestionsHandler", () => {
               },
             ],
             expiryDate: 1234,
+          },
+          bearerToken: {
+            expiry: Date.now() + 7200 * 1000,
+            value: "TEST_TOKEN_VALUE",
+          },
+          parameters: {
+            questionsUrl: { value: "TEST_URL" },
+            userAgent: { value: "TEST_USER_AGENT" },
+            issuer: { value: "TEST_ISSUER" },
           },
         },
         "nino was not provided",
@@ -519,7 +523,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item is empty",
+        "Session item is empty",
       ],
       [
         {
@@ -549,7 +553,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing sessionId",
+        "Session item missing sessionId",
       ],
       [
         {
@@ -579,7 +583,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing expiryDate",
+        "Session item missing expiryDate",
       ],
       [
         {
@@ -609,7 +613,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing clientIpAddress",
+        "Session item missing clientIpAddress",
       ],
       [
         {
@@ -639,7 +643,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing redirectUri",
+        "Session item missing redirectUri",
       ],
       [
         {
@@ -669,7 +673,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing clientSessionId",
+        "Session item missing clientSessionId",
       ],
       [
         {
@@ -699,7 +703,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing createdDate",
+        "Session item missing createdDate",
       ],
       [
         {
@@ -729,7 +733,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing clientId",
+        "Session item missing clientId",
       ],
       [
         {
@@ -759,7 +763,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing subject",
+        "Session item missing subject",
       ],
       [
         {
@@ -789,7 +793,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing attemptCount",
+        "Session item missing attemptCount",
       ],
       [
         {
@@ -819,7 +823,7 @@ describe("FetchQuestionsHandler", () => {
             nino: "TEST_NINO",
           },
         },
-        "Session item was malformed : Session item missing state",
+        "Session item missing state",
       ],
     ])(
       "should return an error sessionItem is missing required values 'testInputEvent: %s, expectedError: %s'",
@@ -858,13 +862,13 @@ describe("FetchQuestionsHandler", () => {
       );
 
       const mockFetchQuestionInputs = {
-        sessionId: mockInputEvent.sessionId,
+        sessionItem: mockInputEvent.sessionItem,
+        statemachine: mockInputEvent.statemachine,
+        personIdentityItem: mockInputEvent.personIdentityItem,
+        bearerToken: mockInputEvent.bearerToken.value,
         questionsUrl: mockInputEvent.parameters.questionsUrl.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
-        bearerToken: mockInputEvent.bearerToken.value,
-        personIdentityItem: mockInputEvent.personIdentityItem,
-        sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
       expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
@@ -915,20 +919,20 @@ describe("FetchQuestionsHandler", () => {
       );
 
       const mockFetchQuestionInputs = {
-        sessionId: mockInputEvent.sessionId,
+        sessionItem: mockInputEvent.sessionItem,
+        statemachine: mockInputEvent.statemachine,
+        personIdentityItem: mockInputEvent.personIdentityItem,
+        bearerToken: mockInputEvent.bearerToken.value,
         questionsUrl: mockInputEvent.parameters.questionsUrl.value,
         userAgent: mockInputEvent.parameters.userAgent.value,
         issuer: mockInputEvent.parameters.issuer.value,
-        bearerToken: mockInputEvent.bearerToken.value,
-        personIdentityItem: mockInputEvent.personIdentityItem,
-        sessionItem: mockInputEvent.sessionItem,
       } as FetchQuestionInputs;
 
       expect(questionsRetrievalServiceSpy).toHaveBeenCalledWith(
         mockFetchQuestionInputs
       );
       expect(saveQuestionsServiceSaveQuestionsSpy).toHaveBeenCalledWith(
-        mockInputEvent.sessionId,
+        mockInputEvent.sessionItem.sessionId,
         mockInputEvent.sessionItem.expiryDate,
         correlationId,
         mockQuestionsRetrievalServiceResponse.questions

@@ -1,5 +1,5 @@
 import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../lib/src/Logging/log-helper";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 
 import {
@@ -23,8 +23,18 @@ import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { CriAuditConfig } from "../../../lib/src/types/cri-audit-config";
+import { SharedInputsValidator } from "../../../lib/src/util/shared-inputs-validator";
+import {
+  SessionItem,
+  PersonIdentityItem,
+} from "../../../lib/src/types/common-types";
+import { OTGToken } from "../../../lib/src/types/otg-token-types";
+import {
+  SavedAnswersItem,
+  SubmitAnswerInputs,
+} from "./types/submit-answer-types";
 
-const logger = new Logger({ serviceName: "SubmitAnswerHandler" });
+const logHelper = new LogHelper("SubmitAnswerHandler");
 const verificationScoreCalculator = new VerificationScoreCalculator();
 const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
 
@@ -47,36 +57,39 @@ export class SubmitAnswerHandler implements LambdaInterface {
     this.resultService = saveAnswerResultService;
   }
 
-  @logger.injectLambdaContext({ clearState: true })
+  @logHelper.logger.injectLambdaContext({ clearState: true })
   @HandlerMetricExport.logMetrics({
     throwOnEmptyMetrics: false,
     captureColdStartMetric: true,
   })
   public async handler(event: any, _context: unknown): Promise<object> {
     try {
-      const sessionId = event?.sessionId;
-      const sessionTtl = event?.sessionItem?.Item?.expiryDate?.N;
+      // Safely retrieve lambda inputs
+      const input: SubmitAnswerInputs =
+        this.safeRetrieveLambdaEventInputs(event);
 
-      if (!event) {
-        throw new Error("input event is empty");
-      }
-
-      if (!sessionId) {
-        throw new Error("sessionId was not provided");
-      }
-
-      if (!sessionTtl) {
-        throw new Error("sessionItem was not provided - cannot use ttl");
-      }
-      logger.info("Handler start");
+      logHelper.setSessionItemToLogging(input.sessionItem);
+      logHelper.setStatemachineValuesToLogging(input.statemachine);
+      this.submitAnswerService.attachLogging(
+        input.sessionItem,
+        input.statemachine
+      );
+      this.resultService.attachLogging(input.sessionItem, input.statemachine);
+      logHelper.info(
+        `Handling request for session ${input.sessionItem.sessionId}`
+      );
 
       const answerResult: SubmitAnswerResult[] =
-        await this.submitAnswerService.checkAnswers(event);
+        await this.submitAnswerService.checkAnswers(
+          input.sessionItem,
+          input.nino,
+          input.savedAnswersItem,
+          input.parameters,
+          input.otgToken
+        );
 
       const verificationScore: number =
         verificationScoreCalculator.calculateVerificationScore(answerResult);
-
-      const correlationId = event.dynamoResult.Item.correlationId.S;
 
       const correctAnswerCount =
         checkDetailsCountCalculator.calculateAnswerCount(
@@ -90,9 +103,9 @@ export class SubmitAnswerHandler implements LambdaInterface {
         );
 
       await this.resultService.saveResults(
-        sessionId,
-        correlationId,
-        Number(sessionTtl),
+        input.sessionItem.sessionId,
+        input.savedAnswersItem.correlationId,
+        Number(input.sessionItem.expiryDate),
         answerResult,
         verificationScore,
         correctAnswerCount,
@@ -117,7 +130,7 @@ export class SubmitAnswerHandler implements LambdaInterface {
       const errorText: string = error.message;
 
       const errorMessage = `${lambdaName} : ${errorText}`;
-      logger.error(errorMessage);
+      logHelper.error(errorMessage);
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -128,6 +141,76 @@ export class SubmitAnswerHandler implements LambdaInterface {
       // Indicate to the statemachine a lambda error has occured
       return { error: errorMessage };
     }
+  }
+
+  private safeRetrieveLambdaEventInputs(event: any): SubmitAnswerInputs {
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    // Parameters
+    const parameters = event?.parameters;
+    const otgApiUrl = event?.parameters?.otgApiUrl?.value;
+    const answersUrl = event?.parameters?.answersUrl?.value;
+    const userAgent = event?.parameters?.userAgent?.value;
+    const issuer = event?.parameters?.issuer?.value;
+
+    if (!parameters) {
+      throw new Error("event parameters not found");
+    }
+
+    if (!otgApiUrl) {
+      throw new Error("otgApiUrl was not provided");
+    }
+
+    if (!answersUrl) {
+      throw new Error("otgApiUrl was not provided");
+    }
+
+    if (!userAgent) {
+      throw new Error("userAgent was not provided");
+    }
+
+    if (!issuer) {
+      throw new Error("issuer was not provided");
+    }
+
+    // personIdentityItem
+    const personIdentityItem = event?.personIdentityItem as PersonIdentityItem;
+    if (!personIdentityItem) {
+      throw new Error("Person identity item was not provided");
+    }
+
+    // personIdentityItem with Nino
+    const nino: string | undefined =
+      personIdentityItem?.socialSecurityRecord?.[0].personalNumber;
+    if (!nino) {
+      throw new Error("Person identity item did not contain a nino");
+    }
+
+    // Final savedAnswersItem item
+    const savedAnswersItem = event?.savedAnswersItem;
+    if (!savedAnswersItem) {
+      throw new Error("Saved answers item was not provided");
+    }
+
+    // OTG Token
+    const otgToken: OTGToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
+    if (!event.parameters) {
+      throw new Error("No otgToken provided");
+    }
+
+    // Session - Will throw errors on failure
+    const sessionItem = event.sessionItem;
+    SharedInputsValidator.validateUnmarshalledSessionItem(event.sessionItem);
+
+    return {
+      sessionItem: sessionItem as SessionItem,
+      nino: nino,
+      savedAnswersItem: savedAnswersItem as SavedAnswersItem,
+      parameters: parameters,
+      otgToken: otgToken,
+    } as SubmitAnswerInputs;
   }
 }
 
@@ -155,7 +238,7 @@ const auditService = new AuditService(
 );
 const handlerClass = new SubmitAnswerHandler(
   metricProbe,
-  new SubmitAnswerService(metricProbe, dynamoClient, auditService),
+  new SubmitAnswerService(metricProbe, auditService),
   new ResultsService(dynamoClient)
 );
 export const lambdaHandler = handlerClass.handler.bind(handlerClass);

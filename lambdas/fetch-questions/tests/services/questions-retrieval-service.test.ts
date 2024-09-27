@@ -19,6 +19,7 @@ import {
   PersonIdentityItem,
   SessionItem,
 } from "../../../../lib/src/types/common-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
@@ -39,7 +40,7 @@ describe("QuestionsRetrievalService", () => {
 
   const issuer: string = "https//issuer.go.uk";
 
-  const mockSessionItem: SessionItem = {
+  const testSessionItem: SessionItem = {
     expiryDate: 1234,
     clientIpAddress: "127.0.0.1",
     redirectUri: "http://localhost:8085/callback",
@@ -51,7 +52,12 @@ describe("QuestionsRetrievalService", () => {
     attemptCount: 0,
     sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
     state: "7f42f0cc-1681-4455-872f-dd228103a12e",
-  } as SessionItem;
+  };
+
+  const testStateMachineValue: Statemachine = {
+    executionId:
+      "arn:aws:states:REGION:ACCOUNT:express:STACK-LAMBDA:EXECUTIONID_PART1:EXECUTIONID_PART2",
+  };
 
   const mockPersonIdentityItem: PersonIdentityItem = {
     sessionId: "testSessionId",
@@ -77,13 +83,13 @@ describe("QuestionsRetrievalService", () => {
   };
 
   const mockFetchQuestionInputs = {
-    sessionId: "SESSION_ID",
+    sessionItem: testSessionItem,
+    statemachine: testStateMachineValue,
+    personIdentityItem: mockPersonIdentityItem,
     questionsUrl: "dummyUrl",
     userAgent: "dummyUserAgent",
     issuer: issuer,
     bearerToken: "dummyBearerToken",
-    personIdentityItem: mockPersonIdentityItem,
-    sessionItem: mockSessionItem,
   } as FetchQuestionInputs;
 
   beforeEach(() => {

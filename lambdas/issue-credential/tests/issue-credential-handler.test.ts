@@ -17,7 +17,6 @@ import {
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { AuditService } from "../../../lib/src/Service/audit-service";
-import { PersonIdentityAddress } from "../../../lib/src/types/common-types";
 import {
   AuditEventType,
   HmrcIvqResponse,
@@ -26,11 +25,12 @@ import {
   PersonIdentityItem,
   SessionItem,
 } from "../../../lib/src/types/common-types";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
 jest.mock("../src/../../../lib/src/Service/audit-service");
 
-const mockSessionItem: SessionItem = {
+const testSessionItem: SessionItem = {
   expiryDate: 1234,
   clientIpAddress: "127.0.0.1",
   redirectUri: "http://localhost:8085/callback",
@@ -42,6 +42,11 @@ const mockSessionItem: SessionItem = {
   attemptCount: 0,
   sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
   state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+};
+
+const testStateMachineValue: Statemachine = {
+  executionId:
+    "arn:aws:states:REGION:ACCOUNT:express:STACK-LAMBDA:EXECUTIONID_PART1:EXECUTIONID_PART2",
 };
 
 const mockPersonIdentityItem: PersonIdentityItem = {
@@ -69,14 +74,15 @@ const mockPersonIdentityItem: PersonIdentityItem = {
 
 const mockInputEvent = {
   bearerToken: "TEST_TOKEN",
+  sessionItem: testSessionItem,
+  statemachine: testStateMachineValue,
+  personIdentityItem: mockPersonIdentityItem,
   parameters: {
     maxJwtTtl: { value: 600 },
     jwtTtlUnit: { value: "HOURS" },
     issuer: { value: "TEST_ISSUER" },
     verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
   },
-  sessionItem: mockSessionItem,
-  personIdentityItem: mockPersonIdentityItem,
 };
 
 const testAnswerResultHappy = {
@@ -515,6 +521,12 @@ describe("IssueCredentialHandler", () => {
       [undefined, "input event is empty"],
       [
         {
+          parameters: {
+            maxJwtTtl: { value: 600 },
+            jwtTtlUnit: { value: "HOURS" },
+            issuer: { value: "TEST_ISSUER" },
+            verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
+          },
           bearerToken: undefined,
         },
         "bearerToken was not provided",
@@ -532,7 +544,8 @@ describe("IssueCredentialHandler", () => {
           parameters: {
             maxJwtTtl: undefined,
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "maxJwtTtl was not provided",
@@ -544,7 +557,8 @@ describe("IssueCredentialHandler", () => {
             maxJwtTtl: { value: 600 },
             jwtTtlUnit: undefined,
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "jwtTtlUnit was not provided",
@@ -557,7 +571,8 @@ describe("IssueCredentialHandler", () => {
             jwtTtlUnit: { value: "HOURS" },
             issuer: undefined,
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "issuer was not provided",
@@ -570,7 +585,8 @@ describe("IssueCredentialHandler", () => {
             jwtTtlUnit: { value: "HOURS" },
             issuer: undefined,
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "issuer was not provided",
@@ -584,7 +600,8 @@ describe("IssueCredentialHandler", () => {
             issuer: { value: "TEST_ISSUER" },
             verifiableCredentialKmsSigningKeyId: undefined,
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "verifiableCredentialKmsSigningKeyId was not provided",
@@ -599,6 +616,7 @@ describe("IssueCredentialHandler", () => {
             verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
           sessionItem: undefined,
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "Session item was not provided",
@@ -612,7 +630,8 @@ describe("IssueCredentialHandler", () => {
             issuer: { value: "TEST_ISSUER" },
             verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
-          sessionItem: mockSessionItem,
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           personIdentityItem: undefined,
         },
         "personIdentityItem not found",
@@ -651,6 +670,7 @@ describe("IssueCredentialHandler", () => {
             issuer: { value: "TEST_ISSUER" },
             verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
         "Session item was not provided",
@@ -664,10 +684,11 @@ describe("IssueCredentialHandler", () => {
             issuer: { value: "TEST_ISSUER" },
             verifiableCredentialKmsSigningKeyId: { value: "TEST_KID" },
           },
-          personIdentityItem: mockPersonIdentityItem,
           sessionItem: {},
+          statemachine: testStateMachineValue,
+          personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item is empty",
+        "Session item is empty",
       ],
       [
         {
@@ -690,9 +711,10 @@ describe("IssueCredentialHandler", () => {
             attemptCount: "0",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing sessionId",
+        "Session item missing sessionId",
       ],
       [
         {
@@ -715,9 +737,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing expiryDate",
+        "Session item missing expiryDate",
       ],
       [
         {
@@ -740,9 +763,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing clientIpAddress",
+        "Session item missing clientIpAddress",
       ],
       [
         {
@@ -765,9 +789,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing redirectUri",
+        "Session item missing redirectUri",
       ],
       [
         {
@@ -790,9 +815,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing clientSessionId",
+        "Session item missing clientSessionId",
       ],
       [
         {
@@ -815,9 +841,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing createdDate",
+        "Session item missing createdDate",
       ],
       [
         {
@@ -840,9 +867,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing clientId",
+        "Session item missing clientId",
       ],
       [
         {
@@ -865,9 +893,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing subject",
+        "Session item missing subject",
       ],
       [
         {
@@ -890,9 +919,10 @@ describe("IssueCredentialHandler", () => {
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
             state: "7f42f0cc-1681-4455-872f-dd228103a12e",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing attemptCount",
+        "Session item missing attemptCount",
       ],
       [
         {
@@ -915,9 +945,10 @@ describe("IssueCredentialHandler", () => {
             attemptCount: "0",
             sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
           },
+          statemachine: testStateMachineValue,
           personIdentityItem: mockPersonIdentityItem,
         },
-        "Session item was malformed : Session item missing state",
+        "Session item missing state",
       ],
     ])(
       "should return an error sessionItem is missing required values 'testInputEvent: %s, expectedError: %s'",

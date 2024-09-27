@@ -12,6 +12,8 @@ import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { mock } from "jest-mock-extended";
 import { AuditService } from "../../../../lib/src/Service/audit-service";
+import { OTGToken } from "../../../../lib/src/types/otg-token-types";
+import { SessionItem } from "../../../../lib/src/types/common-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../../../../lib/src/Service/metrics-probe");
@@ -23,101 +25,62 @@ describe("SubmitAnswerService", () => {
   let mockCaptureServiceMetricMetricsProbeSpy: jest.SpyInstance;
 
   const mockAuditService = mock<AuditService>();
-  const mockDynamoDocument = mock<DynamoDBDocument>();
 
-  const mockInputEvent = {
-    sessionId: "sessionId",
-    sessionItem: {
-      Item: {
-        expiryDate: {
-          N: "1234",
-        },
-        clientIpAddress: {
-          S: "127.0.0.1",
-        },
-        redirectUri: {
-          S: "http://localhost:8085/callback",
-        },
-        clientSessionId: {
-          S: "2d35a412-125e-423e-835e-ca66111a38a1",
-        },
-        createdDate: {
-          N: "1722954983024",
-        },
-        clientId: {
-          S: "unit-test-clientid",
-        },
-        subject: {
-          S: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
-        },
-        persistentSessionId: {
-          S: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
-        },
-        attemptCount: {
-          N: "0",
-        },
-        sessionId: {
-          S: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
-        },
-        state: {
-          S: "7f42f0cc-1681-4455-872f-dd228103a12e",
-        },
+  const mockSessionItem: SessionItem = {
+    expiryDate: 1234,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
+    clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+    createdDate: 1722954983024,
+    clientId: "unit-test-clientid",
+    subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+    persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+    attemptCount: 0,
+    sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+    state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+  };
+
+  const mockNino: string = "AB123456Z";
+
+  const mockSavedAnswersItem: any = {
+    expiryDate: Date.now() + 7200 * 1000,
+    answers: [
+      {
+        questionKey: "test-key-1",
+        answer: "1234.12",
       },
-    },
-    parameters: {
-      answersUrl: "dummyUrl",
-      userAgent: "dummyUserAgent",
-      issuer: "https://issuer/gov.uk",
-    },
-    bearerToken: {
-      value: "dummyOAuthToken",
-    },
-    dynamoResult: {
-      Item: {
-        correlationId: "dummyCorrelationId",
-        answers: {
-          L: [
-            {
-              M: {
-                questionKey: {
-                  S: "dummyQuestionKey1",
-                },
-                answer: {
-                  S: "dummyAnswer1",
-                },
-              },
-            },
-            {
-              M: {
-                questionKey: {
-                  S: "dummyQuestionKey2",
-                },
-                answer: {
-                  S: "dummyAnswer2",
-                },
-              },
-            },
-          ],
-        },
+      {
+        questionKey: "test-key-2",
+        answer: "5678.34",
       },
+      {
+        questionKey: "test-key-4",
+        answer: "78901.56",
+      },
+    ],
+    correlationId: "unit-test-correlationId",
+    sessionId: "unit-test-sessionId",
+  };
+
+  const mockParameters = {
+    otgApiUrl: {
+      value: "MOCK_OTGAPIURL",
+    },
+    answersUrl: {
+      value: "MOCK_ANSWERSURL",
+    },
+    userAgent: {
+      value: "MOCK_USERAGENT",
+    },
+    issuer: {
+      value: "MOCK_ISSUER",
     },
   };
 
-  const personIdentity = {
-    personIdentity: {
-      Item: {
-        socialSecurityRecord: {
-          personalNumber: {
-            S: "123456789",
-          },
-        },
-      },
-    },
+  const mockOtgToken: OTGToken = {
+    expiry: Date.now() + 7200 * 1000,
+    token: "TEST_TOKEN_VALUE",
   };
-
-  mockDynamoDocument.send.mockImplementation(() =>
-    Promise.resolve(personIdentity)
-  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -131,7 +94,6 @@ describe("SubmitAnswerService", () => {
 
     submitAnswerService = new SubmitAnswerService(
       mockMetricsProbe.prototype,
-      mockDynamoDocument,
       mockAuditService
     );
   });
@@ -168,7 +130,13 @@ describe("SubmitAnswerService", () => {
         } as Response)
       ) as jest.Mock;
 
-      const result = await submitAnswerService.checkAnswers(mockInputEvent);
+      const result = await submitAnswerService.checkAnswers(
+        mockSessionItem,
+        mockNino,
+        mockSavedAnswersItem,
+        mockParameters,
+        mockOtgToken
+      );
 
       expect(result).toEqual(apiResponse);
 
@@ -248,7 +216,13 @@ describe("SubmitAnswerService", () => {
       ) as jest.Mock;
 
       await expect(
-        submitAnswerService.checkAnswers(mockInputEvent)
+        submitAnswerService.checkAnswers(
+          mockSessionItem,
+          mockNino,
+          mockSavedAnswersItem,
+          mockParameters,
+          mockOtgToken
+        )
       ).rejects.toEqual(
         new Error(
           "API Request Failed : Unable to parse json from response unexpected content type : application/unknown"
@@ -299,7 +273,13 @@ describe("SubmitAnswerService", () => {
       ) as jest.Mock;
 
       await expect(
-        submitAnswerService.checkAnswers(mockInputEvent)
+        submitAnswerService.checkAnswers(
+          mockSessionItem,
+          mockNino,
+          mockSavedAnswersItem,
+          mockParameters,
+          mockOtgToken
+        )
       ).rejects.toEqual(
         new Error(
           `API Request Failed : Unable to parse json from response Unabled to map QuestionsResult from json in response : responseAnswers.forEach is not a function`
@@ -350,7 +330,13 @@ describe("SubmitAnswerService", () => {
       ) as jest.Mock;
 
       await expect(
-        submitAnswerService.checkAnswers(mockInputEvent)
+        submitAnswerService.checkAnswers(
+          mockSessionItem,
+          mockNino,
+          mockSavedAnswersItem,
+          mockParameters,
+          mockOtgToken
+        )
       ).rejects.toEqual(
         new Error(
           `API Request Failed : API Request Failed due to Credentials being rejected - ${errorReponseText}`
@@ -394,7 +380,13 @@ describe("SubmitAnswerService", () => {
         ) as jest.Mock;
 
         await expect(
-          submitAnswerService.checkAnswers(mockInputEvent)
+          submitAnswerService.checkAnswers(
+            mockSessionItem,
+            mockNino,
+            mockSavedAnswersItem,
+            mockParameters,
+            mockOtgToken
+          )
         ).rejects.toEqual(
           new Error(
             `API Request Failed : Unexpected Response ${httpStatus} - ${errorReponseText}`

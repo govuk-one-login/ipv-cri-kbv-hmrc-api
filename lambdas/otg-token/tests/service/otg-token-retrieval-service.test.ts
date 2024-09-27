@@ -7,7 +7,7 @@ import {
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 
-import { OTGToken } from "../../src/types/otg-token-types";
+import { OTGToken } from "../../../../lib/src/types/otg-token-types";
 import { OTGTokenRetrievalService } from "../../src/services/otg-token-retrieval-service";
 
 jest.mock("@aws-lambda-powertools/metrics");

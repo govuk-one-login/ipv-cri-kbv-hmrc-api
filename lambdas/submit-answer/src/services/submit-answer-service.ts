@@ -1,8 +1,6 @@
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
-import { Logger } from "@aws-lambda-powertools/logger";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
-import { Answer, SubmitAnswerResult } from "../types/answer-result-types";
-import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { SubmitAnswerResult } from "../types/answer-result-types";
 
 import {
   HTTPMetric,
@@ -18,6 +16,11 @@ import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../../lib/src/types/audit-event";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { OTGToken } from "../../../../lib/src/types/otg-token-types";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
+import { SavedAnswersItem } from "../types/submit-answer-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 enum AnswerServiceMetrics {
   AnswersSubmitted = "AnswersSubmitted",
@@ -26,38 +29,36 @@ enum AnswerServiceMetrics {
 }
 
 const ServiceName: string = "SubmitAnswersService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
 
 const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
 
 export class SubmitAnswerService {
   private metricsProbe: MetricsProbe;
-  private dynamo: DynamoDBDocument;
   private stopWatch: StopWatch;
   private auditService: AuditService;
 
-  constructor(
-    metricProbe: MetricsProbe,
-    dyanamoDbClient: DynamoDBDocument,
-    auditService: AuditService
-  ) {
+  constructor(metricProbe: MetricsProbe, auditService: AuditService) {
     this.metricsProbe = metricProbe;
-    this.dynamo = dyanamoDbClient;
     this.stopWatch = new StopWatch();
     this.auditService = auditService;
   }
 
-  public async checkAnswers(event: any): Promise<SubmitAnswerResult[]> {
-    logger.info("Getting nino value...");
-    const nino: string = await this.getNino(event);
-
-    logger.info("Mapping answers to format accepted by HMRC...");
-    const answers: Answer[] = this.mapAnswersForThirdParty(event);
-
-    const results = await this.verifyWithThirdParty(event, nino, answers);
+  public async checkAnswers(
+    sessionItem: SessionItem,
+    nino: string,
+    savedAnswersItem: SavedAnswersItem,
+    parameters: any,
+    otgToken: OTGToken
+  ): Promise<SubmitAnswerResult[]> {
+    const results = await this.verifyWithThirdParty(
+      nino,
+      savedAnswersItem,
+      parameters,
+      otgToken
+    );
 
     //For building and sending audit events
-    const sessionItem = event.sessionItem;
     const endpoint = "SubmitAnswers";
 
     const correctAnswerCount = checkDetailsCountCalculator.calculateAnswerCount(
@@ -67,14 +68,14 @@ export class SubmitAnswerService {
     const incorrectAnswerCount =
       checkDetailsCountCalculator.calculateAnswerCount(results, "incorrect");
 
-    logger.info("Sending REQUEST_SENT Audit Event");
+    logHelper.info("Sending REQUEST_SENT Audit Event");
     await this.auditService.sendAuditEvent(
       AuditEventType.REQUEST_SENT,
       sessionItem,
       nino,
       endpoint,
       undefined,
-      event.parameters.issuer
+      parameters.issuer.value
     );
 
     const totalQuestionsAsked = correctAnswerCount + incorrectAnswerCount;
@@ -90,48 +91,57 @@ export class SubmitAnswerService {
       outcome: outcome,
     };
 
-    logger.info("Sending RESPONSE RECEIVED Audit Event");
+    logHelper.info("Sending RESPONSE RECEIVED Audit Event");
     await this.auditService.sendAuditEvent(
       AuditEventType.RESPONSE_RECEIVED,
       sessionItem,
       undefined,
       endpoint,
       hmrcIvqResponse,
-      event.parameters.issuer
+      parameters.issuer.value
     );
 
     return results;
   }
 
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
+  }
+
   private async verifyWithThirdParty(
-    event: any,
     nino: string,
-    answers: Answer[]
+    savedAnswersItem: SavedAnswersItem,
+    parameters: any,
+    otgToken: OTGToken
   ): Promise<SubmitAnswerResult[]> {
-    logger.info("Performing Submit Answers API Request...");
+    logHelper.info("Performing Submit Answers API Request...");
 
     // Response Latency (Start)
     this.stopWatch.start();
 
-    return await fetch(event.parameters.answersUrl.value, {
+    return await fetch(parameters.answersUrl.value, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.parameters.userAgent.value,
-        Authorization: "Bearer " + event.bearerToken.value,
+        "User-Agent": parameters.userAgent.value,
+        Authorization: "Bearer " + otgToken.token,
       },
       body: JSON.stringify({
-        correlationId: event?.usersQuestions?.Items[0]?.correlationId?.S,
+        correlationId: savedAnswersItem.correlationId, //event?.usersQuestions?.Items[0]?.correlationId?.S,
         selection: {
           nino: nino,
         },
-        answers: answers,
+        answers: savedAnswersItem.answers,
       }),
     })
       .then(async (response) => {
         const latency: number = this.captureResponseLatencyMetric();
 
-        logger.info(
+        logHelper.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
         );
 
@@ -140,7 +150,7 @@ export class SubmitAnswerService {
           Classification.SERVICE_SPECIFIC,
           ServiceName,
           MetricUnit.Count,
-          answers.length
+          savedAnswersItem.answers.length
         );
 
         // Response Status code
@@ -227,25 +237,10 @@ export class SubmitAnswerService {
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
 
-        logger.error(`${errorText}, Latency : ${latency}`);
+        logHelper.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });
-  }
-
-  private mapAnswersForThirdParty(event: any): Answer[] {
-    const requestBody = this.mapItemsToAnswers(
-      event?.dynamoResult?.Item?.answers?.L
-    );
-
-    requestBody.push(new Answer(event.answeredQuestionKey, event.inputAnswer));
-    return requestBody;
-  }
-
-  private async getNino(event: any): Promise<string> {
-    const personIdentity = await this.getPersonIdentityItem(event.sessionId);
-    const nino: string = personIdentity?.socialSecurityRecord[0].personalNumber;
-    return nino;
   }
 
   private async retrieveJSONResponse(response: Response): Promise<any> {
@@ -261,7 +256,7 @@ export class SubmitAnswerService {
   }
 
   private mapToAnswerResults(json: any): SubmitAnswerResult[] {
-    logger.info(`Mapping AnswersResult`);
+    logHelper.info(`Mapping AnswersResult`);
 
     const responseAnswers = json;
     const mappedAnswers: SubmitAnswerResult[] = [];
@@ -272,10 +267,10 @@ export class SubmitAnswerService {
     responseAnswers.forEach(
       (answer: { questionKey: string; score: string }) => {
         const questionKey: string = answer.questionKey;
-        logger.debug(`questionKey : ${questionKey}`);
+        logHelper.debug(`questionKey : ${questionKey}`);
 
         const answerStatus: string = answer.score;
-        logger.debug(`answer status: ${answerStatus}`);
+        logHelper.debug(`answer status: ${answerStatus}`);
 
         if (answerStatus === "correct") {
           correctAnswers++;
@@ -303,21 +298,8 @@ export class SubmitAnswerService {
       incorrectAnswers
     );
 
-    logger.info(`Mapped QuestionsResult`);
+    logHelper.info(`Mapped QuestionsResult`);
     return mappedAnswers;
-  }
-
-  private mapItemsToAnswers(items: any) {
-    const answersArray: Answer[] = [];
-    if (items != undefined && items.length > 0) {
-      items.forEach((element: { M: { [x: string]: { S: string } } }) => {
-        answersArray.push(
-          new Answer(element.M["questionKey"].S, element.M["answer"].S)
-        );
-      });
-    }
-
-    return answersArray;
   }
 
   private captureResponseLatencyMetric(): number {
@@ -332,18 +314,5 @@ export class SubmitAnswerService {
     );
 
     return latency;
-  }
-
-  private async getPersonIdentityItem(
-    sessionId: Record<string, unknown>
-  ): Promise<Record<string, any> | undefined> {
-    const command = new GetCommand({
-      TableName: process.env.PERSON_IDENTITY_TABLE_NAME,
-      Key: {
-        sessionId: sessionId,
-      },
-    });
-    const personIdentityItem = await this.dynamo.send(command);
-    return personIdentityItem.Item;
   }
 }

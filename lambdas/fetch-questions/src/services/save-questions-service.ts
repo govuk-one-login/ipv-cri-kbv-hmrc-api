@@ -1,4 +1,6 @@
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
+import { SessionItem } from "../../../../lib/src/types/common-types";
 import {
   Info,
   Question,
@@ -13,7 +15,7 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 
 const ServiceName: string = "SaveQuestionsService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
 
 export class SaveQuestionsService {
   private dynamo: DynamoDBDocument;
@@ -28,21 +30,20 @@ export class SaveQuestionsService {
     correlationId: string,
     questions: Question[]
   ): Promise<boolean> {
-    logger.info("Start of saveQuestions method");
     const questionsResultItem: QuestionResultItem = new QuestionResultItem(
       sessionId,
       correlationId,
       expiryDate,
       this.mapQuestions(questions)
     );
-    logger.info("Question result mapped to questions result item");
+    logHelper.info("Question result mapped to questions result item");
     try {
       const putQuestionsCommand = new PutCommand({
         TableName: process.env.QUESTIONS_TABLE_NAME,
         Item: questionsResultItem,
       });
       await this.dynamo.send(putQuestionsCommand);
-      logger.info("Questions saved successfully to dynamoDb");
+      logHelper.info("Questions saved successfully to dynamoDb");
       return true;
     } catch (error: any) {
       //future test debt, check these errors aren't logging PII
@@ -51,8 +52,16 @@ export class SaveQuestionsService {
     }
   }
 
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
+  }
+
   private mapQuestions(questions: Question[]): QuestionResultItemQuestion[] {
-    logger.info("mappingQuesiton");
+    logHelper.info("mappingQuesiton");
     const questionItems: QuestionResultItemQuestion[] = [];
 
     let index = 0;
@@ -72,7 +81,7 @@ export class SaveQuestionsService {
   }
 
   private mapInfo(info: Info | undefined): QuestionResultItemInfo {
-    logger.info("mappingInfo");
+    logHelper.info("mappingInfo");
 
     const questionResultItemInfo: QuestionResultItemInfo =
       new QuestionResultItemInfo(info?.currentTaxYear, info?.previousTaxYear);

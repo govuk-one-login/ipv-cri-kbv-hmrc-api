@@ -537,14 +537,16 @@ Resources:
           - !Sub "/${ParameterPrefix}/UserAgent"
           - !Sub "/${AWS::StackName}/UserAgent"
         Issuer: !Sub "/${CommonStackName}/verifiable-credential/issuer"
-        AnswersTableName: !Ref AnswersTable
-        QuestionsTableName: !Ref QuestionsTable
-        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        DynamoUnmarshallArn: !GetAtt DynamoUnmarshallFunction.Arn
         SSMParametersFunctionArn: !GetAtt SSMParametersFunction.Arn
         OTGTokenFunctionArn: !GetAtt OTGTokenFunction.Arn
         AnswerValidationArn: !GetAtt AnswerValidationFunction.Arn
         SubmitAnswersArn: !GetAtt SubmitAnswerFunction.Arn
         CreateAuthCodeFunctionArn: !GetAtt CreateAuthCodeFunction.Arn
+        SessionTableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        PersonIdentityTableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
+        AnswersTableName: !Ref AnswersTable
+        QuestionsTableName: !Ref QuestionsTable
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -563,6 +565,8 @@ Resources:
           ]
       Policies:
         - LambdaInvokePolicy:
+            FunctionName: !Ref DynamoUnmarshallFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref SSMParametersFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref OTGTokenFunction
@@ -580,6 +584,8 @@ Resources:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Sub "{{resolve:ssm:/${CommonStackName}/SessionTableName}}"
+        - DynamoDBReadPolicy:
+            TableName: !Sub "{{resolve:ssm:/${CommonStackName}/PersonIdentityTableName}}"
         - DynamoDBWritePolicy:
             TableName: !Ref QuestionsTable
         - DynamoDBWritePolicy:

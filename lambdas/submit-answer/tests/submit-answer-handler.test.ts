@@ -1,3 +1,6 @@
+process.env = {
+  SQS_AUDIT_EVENT_QUEUE_URL: "TEST_URL",
+};
 import { mock } from "jest-mock-extended";
 import { Context } from "aws-lambda";
 import { MetricsProbe } from "../../../lib/src/Service/metrics-probe";
@@ -5,253 +8,119 @@ import { SubmitAnswerService } from "../src/services/submit-answer-service";
 import { ResultsService } from "../src/services/results-service";
 import { SubmitAnswerHandler } from "../src/submit-answer-handler";
 import { SubmitAnswerResult } from "../src/types/answer-result-types";
+import {
+  PersonIdentityItem,
+  SessionItem,
+} from "../../../lib/src/types/common-types";
+import {
+  CompletionStatus,
+  HandlerMetric,
+} from "../../../lib/src/MetricTypes/handler-metric-types";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 
-const metricsProbe = mock<MetricsProbe>();
-const submitAnswerService = mock<SubmitAnswerService>();
-const answerResultsService = mock<ResultsService>();
+jest.mock("@aws-lambda-powertools/metrics");
+jest.mock("../src/../../../lib/src/Service/metrics-probe");
 
 describe("submit-answer-handler", () => {
+  let mockMetricsProbe = jest.mocked(MetricsProbe).prototype;
+  const mockSubmitAnswerService = mock<SubmitAnswerService>();
+  const mockAnswerResultsService = mock<ResultsService>();
+
+  let submitAnswerHandler: SubmitAnswerHandler;
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetAllMocks();
+
+    mockMetricsProbe = jest.mocked(MetricsProbe).prototype;
+    jest.spyOn(mockMetricsProbe, "captureMetric");
+
+    submitAnswerHandler = new SubmitAnswerHandler(
+      mockMetricsProbe,
+      mockSubmitAnswerService,
+      mockAnswerResultsService
+    );
   });
 
-  const mockEventInput = {
-    inputAnswer: "34334.34",
-    validated: true,
-    answeredQuestionKey: "rti-p60-statutory-shared-parental-pay",
-    sessionId: "94fcd1ae-3c2e-4570-9365-c57f82f6974c",
-    sessionItem: {
-      Item: {
-        expiryDate: {
-          N: "1724173653",
-        },
-        clientIpAddress: {
-          S: "51.149.8.131",
-        },
-        redirectUri: {
-          S: "http://localhost:8085/callback",
-        },
-        clientSessionId: {
-          S: "3cf8ef50-b4d1-4952-b76a-35379a6052a8",
-        },
-        createdDate: {
-          N: "1724166453757",
-        },
-        clientId: {
-          S: "ipv-core-stub-aws-build",
-        },
-        subject: {
-          S: "urn:fdc:gov.uk:2022:cf7bf76b-86d9-468e-942e-031cf68c55b0",
-        },
-        persistentSessionId: {
-          S: "39156017-152f-4584-8772-77fdd27b7879",
-        },
-        attemptCount: {
-          N: "0",
-        },
-        sessionId: {
-          S: "94fcd1ae-3c2e-4570-9365-c57f82f6974c",
-        },
-        state: {
-          S: "state-123456789",
-        },
+  const mockSessionItem: SessionItem = {
+    expiryDate: 1234,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
+    clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+    createdDate: 1722954983024,
+    clientId: "unit-test-clientid",
+    subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+    persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+    attemptCount: 0,
+    sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+    state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+  };
+
+  const mockPersonIdentityItem: PersonIdentityItem = {
+    sessionId: "testSessionId",
+    socialSecurityRecord: [
+      {
+        personalNumber: "AB123456Z",
       },
-    },
-    usersQuestions: {
-      Count: 1,
-      Items: [
-        {
-          expiryDate: {
-            N: "1724173653",
-          },
-          questions: {
-            L: [
-              {
-                M: {
-                  questionKey: {
-                    S: "tc-amount",
-                  },
-                  answered: {
-                    Bool: true,
-                  },
-                  info: {
-                    M: {},
-                  },
-                  order: {
-                    N: "0",
-                  },
-                },
-              },
-              {
-                M: {
-                  questionKey: {
-                    S: "sa-income-from-pensions",
-                  },
-                  answered: {
-                    Bool: true,
-                  },
-                  info: {
-                    M: {},
-                  },
-                  order: {
-                    N: "1",
-                  },
-                },
-              },
-              {
-                M: {
-                  questionKey: {
-                    S: "rti-p60-statutory-shared-parental-pay",
-                  },
-                  answered: {
-                    Bool: false,
-                  },
-                  info: {
-                    M: {
-                      currentTaxYear: {
-                        S: "2024/25",
-                      },
-                      previousTaxYear: {
-                        S: "2023/24",
-                      },
-                    },
-                  },
-                  order: {
-                    N: "2",
-                  },
-                },
-              },
-            ],
-          },
-          correlationId: {
-            S: "3a7e253c-15a5-41d0-b247-5e794f1cf589",
-          },
-          sessionId: {
-            S: "94fcd1ae-3c2e-4570-9365-c57f82f6974c",
-          },
-        },
-      ],
-      ScannedCount: 1,
-    },
+    ],
+    names: [
+      {
+        nameParts: [
+          { type: "GivenName", value: "Rishi" },
+          { type: "FamilyName", value: "Johnson" },
+        ],
+      },
+    ],
+    birthDates: [
+      {
+        value: "2000-11-05",
+      },
+    ],
+    expiryDate: 1234,
+  };
+
+  const mockSavedAnswersItem: any = {
+    expiryDate: Date.now() + 7200 * 1000,
     answers: [
-      {},
-      {},
       {
-        M: {
-          questionKey: "rti-p60-statutory-shared-parental-pay",
-          answer: "34334.34",
-        },
+        questionKey: "test-key-1",
+        answer: "1234.12",
+      },
+      {
+        questionKey: "test-key-2",
+        answer: "5678.34",
+      },
+      {
+        questionKey: "test-key-4",
+        answer: "78901.56",
       },
     ],
-    dynamoResult: {
-      Item: {
-        expiryDate: {
-          N: "1724173653",
-        },
-        answers: {
-          L: [
-            {
-              M: {
-                questionKey: {
-                  S: "tc-amount",
-                },
-                answer: {
-                  S: "34343.34",
-                },
-              },
-            },
-            {
-              M: {
-                questionKey: {
-                  S: "sa-income-from-pensions",
-                },
-                answer: {
-                  S: "10686",
-                },
-              },
-            },
-          ],
-        },
-        correlationId: {
-          S: "3a7e253c-15a5-41d0-b247-5e794f1cf589",
-        },
-        sessionId: {
-          S: "94fcd1ae-3c2e-4570-9365-c57f82f6974c",
-        },
-      },
-    },
-    answeredQuestionsMap: [
-      {
-        M: {
-          answered: {
-            BOOL: true,
-          },
-          questionKey: {
-            S: "tc-amount",
-          },
-          info: {
-            M: {},
-          },
-          order: {
-            N: "0",
-          },
-        },
-      },
-      {
-        M: {
-          answered: {
-            BOOL: true,
-          },
-          questionKey: {
-            S: "sa-income-from-pensions",
-          },
-          info: {
-            M: {},
-          },
-          order: {
-            N: "1",
-          },
-        },
-      },
-      {
-        M: {
-          answered: {
-            BOOL: true,
-          },
-          questionKey: {
-            S: "rti-p60-statutory-shared-parental-pay",
-          },
-          info: {
-            M: {
-              currentTaxYear: {
-                S: "2024/25",
-              },
-              previousTaxYear: {
-                S: "2023/24",
-              },
-            },
-          },
-          order: {
-            N: "2",
-          },
-        },
-      },
-    ],
-    arrayLengths: {
-      answeredQuestionsLength: 3,
-      totalQuestionsLength: 3,
-    },
+    correlationId: "unit-test-correlationId",
+    sessionId: "unit-test-sessionId",
+  };
+
+  const mockInputEvent = {
+    sessionId: "sessionId",
+    sessionItem: mockSessionItem,
+    personIdentityItem: mockPersonIdentityItem,
+    savedAnswersItem: mockSavedAnswersItem,
     parameters: {
       otgApiUrl: {
-        value: "https://otg.gov.uk",
+        value: "MOCK_OTGAPIURL",
       },
-      url: {
-        value: "https://hmrc.gov.uk",
+      answersUrl: {
+        value: "MOCK_ANSWERSURL",
       },
       userAgent: {
-        value: "govuk-one-login",
+        value: "MOCK_USERAGENT",
       },
+      issuer: {
+        value: "MOCK_ISSUER",
+      },
+    },
+    bearerToken: {
+      expiry: Date.now() + 7200 * 1000,
+      token: "TEST_TOKEN_VALUE",
     },
   };
 
@@ -264,24 +133,26 @@ describe("submit-answer-handler", () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce(hmrcResponse),
       });
-      const submitAnswerHandler = new SubmitAnswerHandler(
-        metricsProbe,
-        submitAnswerService,
-        answerResultsService
-      );
+
       const submitAnswerResultArray: SubmitAnswerResult[] = [
         new SubmitAnswerResult("questionKey1", "correct"),
         new SubmitAnswerResult("questionKey2", "incorrect"),
       ];
 
-      submitAnswerService.checkAnswers.mockResolvedValue(
+      mockSubmitAnswerService.checkAnswers.mockResolvedValue(
         submitAnswerResultArray
       );
       const result = await submitAnswerHandler.handler(
-        mockEventInput,
+        mockInputEvent,
         {} as Context
       );
       expect(result).toEqual(hmrcResponse);
+
+      expect(mockMetricsProbe.captureMetric).toHaveBeenCalledWith(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.OK
+      );
     });
   });
 });

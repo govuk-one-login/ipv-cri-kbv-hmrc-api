@@ -1,7 +1,15 @@
 {
   "Comment": "Return any unanswered question if available.",
-  "StartAt": "Check Session-Id is Present",
+  "StartAt": "Capture Execution Id",
   "States": {
+    "Capture Execution Id": {
+      "Type": "Pass",
+      "Next": "Check Session-Id is Present",
+      "ResultPath": "$.statemachine",
+      "Parameters": {
+        "executionId.$": "$$.Execution.Id"
+      }
+    },
     "Check Session-Id is Present": {
       "Type": "Choice",
       "Choices": [
