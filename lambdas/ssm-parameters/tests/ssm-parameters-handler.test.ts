@@ -10,6 +10,7 @@ import {
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Strategy } from "../src/types/strategy";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/../../../lib/src/Service/metrics-probe");
@@ -26,6 +27,11 @@ const testSessionItem: SessionItem = {
   attemptCount: 0,
   sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
   state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+};
+
+const testStateMachineValue: Statemachine = {
+  executionId:
+    "arn:aws:states:REGION:ACCOUNT:express:STACK-LAMBDA:EXECUTIONID_PART1:EXECUTIONID_PART2",
 };
 
 describe("ssm-parameters-handler", () => {
@@ -110,8 +116,9 @@ describe("ssm-parameters-handler", () => {
 
       const payload = await ssmParametersHandler.handler(
         {
-          requestedParameters: testRequestedParameters,
           sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          requestedParameters: testRequestedParameters,
         },
         {} as Context
       );
@@ -235,8 +242,9 @@ describe("ssm-parameters-handler", () => {
 
           const payload = await ssmParametersHandler.handler(
             {
-              requestedParameters: testRequestedParameters,
               sessionItem: testSessionItem,
+              statemachine: testStateMachineValue,
+              requestedParameters: testRequestedParameters,
             },
             {} as Context
           );
@@ -259,12 +267,12 @@ describe("ssm-parameters-handler", () => {
   it("should return error when given an empty list", async () => {
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: [],
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: [],
       },
       {} as Context
     );
-
     expect(payload).toStrictEqual({
       error: "SsmParametersHandler : requestedParameters array was empty",
     });
@@ -286,8 +294,9 @@ describe("ssm-parameters-handler", () => {
 
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: ["BadParameter"],
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: ["BadParameter"],
       },
       {} as Context
     );
@@ -314,8 +323,9 @@ describe("ssm-parameters-handler", () => {
 
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: ["BadParameter", "SecondBadParameter"],
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: ["BadParameter", "SecondBadParameter"],
       },
       {} as Context
     );
@@ -342,8 +352,9 @@ describe("ssm-parameters-handler", () => {
 
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: ["GoodParameter", "SecondBadParameter"],
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: ["GoodParameter", "SecondBadParameter"],
       },
       {} as Context
     );
@@ -371,8 +382,9 @@ describe("ssm-parameters-handler", () => {
 
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: ["UnitTestJsonParameter"],
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: ["UnitTestJsonParameter"],
       },
       {} as Context
     );
@@ -393,8 +405,9 @@ describe("ssm-parameters-handler", () => {
   it("should throw error when not given an array", async () => {
     const payload = await ssmParametersHandler.handler(
       {
-        requestedParameters: undefined,
         sessionItem: testSessionItem,
+        statemachine: testStateMachineValue,
+        requestedParameters: undefined,
       } as never,
       {} as Context
     );

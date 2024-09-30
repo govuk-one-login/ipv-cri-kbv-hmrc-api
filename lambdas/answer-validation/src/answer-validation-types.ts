@@ -1,8 +1,9 @@
 import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 import { SessionItem } from "../../../lib/src/types/common-types";
 
-export interface OTGTokenInputs {
+export interface AnswerValidationInputs {
   sessionItem: SessionItem;
   statemachine: Statemachine;
-  otgApiUrl: string;
+  key: string;
+  value: string;
 }

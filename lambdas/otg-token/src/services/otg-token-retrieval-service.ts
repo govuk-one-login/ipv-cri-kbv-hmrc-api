@@ -1,5 +1,4 @@
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
-import { Logger } from "@aws-lambda-powertools/logger";
 import {
   HTTPMetric,
   ResponseValidity,
@@ -9,14 +8,15 @@ import { Classification } from "../../../../lib/src/MetricTypes/metric-classific
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
 import { StopWatch } from "../../../../lib/src/Service/stop-watch";
 
-import { OTGToken } from "../types/otg-token-types";
+import { OTGToken } from "../../../../lib/src/types/otg-token-types";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
 
 enum OTGTokenRetrievalServiceMetrics {
   FailedToRetrieveOTGToken = "FailedToRetrieveOTGToken",
 }
 
 const ServiceName: string = "OTGTokenRetrievalService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper("OTGTokenRetrievalService");
 
 export class OTGTokenRetrievalService {
   metricsProbe: MetricsProbe;
@@ -32,7 +32,7 @@ export class OTGTokenRetrievalService {
   }
 
   private async performAPIRequest(otgApiUrl: string): Promise<OTGToken> {
-    logger.info("Performing API Request");
+    logHelper.info("Performing API Request");
 
     // Response Latency (Start)
     this.stopWatch.start();
@@ -44,7 +44,7 @@ export class OTGTokenRetrievalService {
         // Happy Path Response Latency
         const latency: number = this.captureResponseLatencyMetric();
 
-        logger.info(
+        logHelper.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
         );
 
@@ -61,7 +61,7 @@ export class OTGTokenRetrievalService {
           case 200: {
             return await this.retrieveJSONResponse(response)
               .then((tokenResponse: OTGToken) => {
-                logger.debug(
+                logHelper.debug(
                   `TOKEN REPONSE - ${JSON.stringify(tokenResponse)}`
                 );
 
@@ -131,7 +131,7 @@ export class OTGTokenRetrievalService {
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
 
-        logger.error(`${errorText}, Latency : ${latency}`);
+        logHelper.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });

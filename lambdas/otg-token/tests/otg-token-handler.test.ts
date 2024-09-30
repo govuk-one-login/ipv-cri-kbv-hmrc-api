@@ -1,13 +1,15 @@
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { OTGTokenHandler } from "../src/otg-token-handler";
-import { OTGToken } from "../src/types/otg-token-types";
+import { OTGToken } from "../../../lib/src/types/otg-token-types";
 import { OTGTokenRetrievalService } from "../src/services/otg-token-retrieval-service";
 import { MetricsProbe } from "../../../lib/src/Service/metrics-probe";
+import { SessionItem } from "../../../lib/src/types/common-types";
 
 import {
   HandlerMetric,
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
 jest.mock("@aws-lambda-powertools/metrics");
 jest.mock("../src/services/otg-token-retrieval-service");
@@ -24,7 +26,28 @@ describe("OTGTokenHandler", () => {
   let mockMetricsProbeSpy: jest.SpyInstance;
   let otgTokenRetrievalServiceSpy: jest.SpyInstance;
 
+  const testSessionItem: SessionItem = {
+    expiryDate: 1234,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
+    clientSessionId: "2d35a412-125e-423e-835e-ca66111a38a1",
+    createdDate: 1722954983024,
+    clientId: "unit-test-clientid",
+    subject: "urn:fdc:gov.uk:2022:6dab2b2d-5fcb-43a3-b682-9484db4a2ca5",
+    persistentSessionId: "6c33f1e4-70a9-41f6-a335-7bb036edd3ca",
+    attemptCount: 0,
+    sessionId: "665ed4d5-7576-4c4b-84ff-99af3a57ea64",
+    state: "7f42f0cc-1681-4455-872f-dd228103a12e",
+  };
+
+  const testStateMachineValue: Statemachine = {
+    executionId:
+      "arn:aws:states:REGION:ACCOUNT:express:STACK-LAMBDA:EXECUTIONID_PART1:EXECUTIONID_PART2",
+  };
+
   const mockInputEvent = {
+    sessionItem: testSessionItem,
+    statemachine: testStateMachineValue,
     parameters: {
       otgApiUrl: {
         value: "https://example.com/dev?tokenType=unitTest",
@@ -96,10 +119,22 @@ describe("OTGTokenHandler", () => {
     // The following tests test the lambda being called missing parts of the requried input
     // and checks the assoicated error is thrown
     it.each([
-      [undefined, "otgApiUrl was not provided"],
-      [{ parameters: undefined }, "otgApiUrl was not provided"],
+      [
+        { sessionItem: testSessionItem, statemachine: testStateMachineValue },
+        "otgApiUrl was not provided",
+      ],
       [
         {
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
+          parameters: undefined,
+        },
+        "otgApiUrl was not provided",
+      ],
+      [
+        {
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           parameters: {
             otgApiUrl: undefined,
           },
@@ -108,6 +143,8 @@ describe("OTGTokenHandler", () => {
       ],
       [
         {
+          sessionItem: testSessionItem,
+          statemachine: testStateMachineValue,
           parameters: {
             otgApiUrl: {
               value: undefined,
@@ -170,6 +207,49 @@ describe("OTGTokenHandler", () => {
       const expectedResponse = { error: errorMessage };
 
       expect(lambdaResponse).toEqual(expectedResponse);
+    });
+
+    it("should return an error on no input event", async () => {
+      global.fetch = jest.fn();
+
+      const lambdaResponse = await otgTokenHandler.handler(
+        undefined,
+        mockInputContext
+      );
+      expect(lambdaResponse).toEqual({
+        error: "OTGTokenHandler : input event is empty",
+      });
+
+      expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.ERROR
+      );
+    });
+
+    it("should return an error on no statemachine in input event", async () => {
+      global.fetch = jest.fn();
+
+      const lambdaResponse = await otgTokenHandler.handler(
+        {
+          sessionItem: testSessionItem,
+          parameters: {
+            otgApiUrl: {
+              value: "https://example.com/dev?tokenType=unitTest",
+            },
+          },
+        },
+        mockInputContext
+      );
+      expect(lambdaResponse).toEqual({
+        error: "OTGTokenHandler : Statemachine values not found",
+      });
+
+      expect(mockMetricsProbeSpy).toHaveBeenCalledWith(
+        HandlerMetric.CompletionStatus,
+        MetricUnit.Count,
+        CompletionStatus.ERROR
+      );
     });
   });
 });

@@ -1,4 +1,4 @@
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { QuestionsResult, Question } from "../types/questions-result-types";
 import {
@@ -16,13 +16,15 @@ import {
   AuditEventType,
   HmrcIvqResponse,
 } from "../../../../lib/src/types/audit-event";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
 }
 
 const ServiceName: string = "QuestionsRetrievalService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
 
 export class QuestionsRetrievalService {
   metricsProbe: MetricsProbe;
@@ -47,7 +49,7 @@ export class QuestionsRetrievalService {
     const issuer = inputs.issuer;
     const questionResultCount: number = questionsResult.getQuestionCount();
 
-    logger.info("Sending REQUEST SENT Audit Event");
+    logHelper.info("Sending REQUEST SENT Audit Event");
     this.auditService.sendAuditEvent(
       AuditEventType.REQUEST_SENT,
       sessionItem,
@@ -61,7 +63,7 @@ export class QuestionsRetrievalService {
       totalQuestionsReturned: questionResultCount,
     };
 
-    logger.info("Sending RESPONSE RECEIVED Audit Event");
+    logHelper.info("Sending RESPONSE RECEIVED Audit Event");
     this.auditService.sendAuditEvent(
       AuditEventType.RESPONSE_RECEIVED,
       sessionItem,
@@ -74,10 +76,18 @@ export class QuestionsRetrievalService {
     return questionsResult;
   }
 
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
+  }
+
   private async performAPIRequest(
     inputs: FetchQuestionInputs
   ): Promise<QuestionsResult> {
-    logger.info("Performing API Request");
+    logHelper.info("Performing API Request");
 
     // Response Latency (Start)
     this.stopWatch.start();
@@ -98,7 +108,7 @@ export class QuestionsRetrievalService {
         // Happy Path Response Latency
         const latency: number = this.captureResponseLatencyMetric();
 
-        logger.info(
+        logHelper.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
         );
 
@@ -177,14 +187,14 @@ export class QuestionsRetrievalService {
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
 
-        logger.error(`${errorText}, Latency : ${latency}`);
+        logHelper.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });
   }
 
   private mapToQuestionsResult(json: any): QuestionsResult {
-    logger.info(`Mapping QuestionsResult`);
+    logHelper.info(`Mapping QuestionsResult`);
 
     const correlationId = json.correlationId;
     const responseQuestions = json.questions;
@@ -196,7 +206,7 @@ export class QuestionsRetrievalService {
         questionKey: any;
       }) => {
         const questionKey: string = question.questionKey;
-        logger.debug(`question : ${questionKey}`);
+        logHelper.debug(`question : ${questionKey}`);
 
         let currentTaxYear: string | undefined = undefined;
         let previousTaxYear: string | undefined = undefined;
@@ -206,8 +216,8 @@ export class QuestionsRetrievalService {
           previousTaxYear = question["info"].previousTaxYear;
         }
 
-        logger.debug(`info currentTaxYear: ${currentTaxYear}`);
-        logger.debug(`info previousTaxYear: ${previousTaxYear}`);
+        logHelper.debug(`info currentTaxYear: ${currentTaxYear}`);
+        logHelper.debug(`info previousTaxYear: ${previousTaxYear}`);
 
         mappedQuestions.push(
           new Question(questionKey, currentTaxYear, previousTaxYear)
@@ -224,7 +234,7 @@ export class QuestionsRetrievalService {
       responseQuestions.length
     );
 
-    logger.info(`Mapped QuestionsResult`);
+    logHelper.info(`Mapped QuestionsResult`);
     return new QuestionsResult(correlationId, mappedQuestions);
   }
 

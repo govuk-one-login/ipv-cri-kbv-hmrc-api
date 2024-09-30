@@ -1,7 +1,15 @@
 {
   "Comment": "Populates the table of questions from the HMRC IVQ API",
-  "StartAt": "Check Session-Id is Present",
+  "StartAt": "Capture Execution Id",
   "States": {
+    "Capture Execution Id": {
+      "Type": "Pass",
+      "Next": "Check Session-Id is Present",
+      "ResultPath": "$.statemachine",
+      "Parameters": {
+        "executionId.$": "$$.Execution.Id"
+      }
+    },
     "Check Session-Id is Present": {
       "Type": "Choice",
       "Choices": [
@@ -111,6 +119,7 @@
       "Parameters": {
         "FunctionName": "${DynamoUnmarshallArn}",
         "Payload": {
+          "statemachine.$": "$.statemachine",
           "marshalledPayload.$": "$.sessionItem.Item"
         }
       },
@@ -183,13 +192,14 @@
       "Parameters": {
         "FunctionName": "${SSMParametersFunctionArn}",
         "Payload": {
+          "sessionItem.$": "$.sessionItem",
+          "statemachine.$": "$.statemachine",
           "requestedParameters": [
             "${OtgApiUrl}",
             "${QuestionsUrl}",
             "${UserAgent}",
             "${Issuer}"
-          ],
-          "sessionItem.$": "$.sessionItem"
+          ]
         }
       },
       "Retry": [
@@ -239,6 +249,8 @@
       "Parameters": {
         "FunctionName": "${DynamoUnmarshallArn}",
         "Payload": {
+          "sessionItem.$": "$.sessionItem",
+          "statemachine.$": "$.statemachine",
           "marshalledPayload.$": "$.personIdentityItem.Item"
         }
       },

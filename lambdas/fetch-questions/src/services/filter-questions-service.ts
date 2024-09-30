@@ -1,11 +1,13 @@
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { Question } from "../types/questions-result-types";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 const ServiceName: string = "FilterQuestionService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
 
 // Categories for Metrics
 const RtiP60PayslipQuestionKeys: string[] = [
@@ -54,6 +56,14 @@ export class FilterQuestionsService {
     this.captureFilteringMetrics(filteredQuestions, false);
 
     return filteredQuestions;
+  }
+
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
   }
 
   private async filter(questions: Question[]): Promise<Question[]> {
@@ -108,15 +118,8 @@ export class FilterQuestionsService {
         return false;
       }
     });
-    logger.info(
-      "questions returned paye " +
-        payeCategory.length +
-        " sa " +
-        selfAssessmentCategory.length +
-        " tax " +
-        taxCreditCategory.length
-    );
-    logger.info("The question keys have been sorted into categories");
+
+    logHelper.info("The question keys have been sorted into categories");
 
     //3. Check to ensure at least two categories contain question keys
     const payeContainsQuestions: boolean = payeCategory.length > 0;
@@ -139,7 +142,7 @@ export class FilterQuestionsService {
       if (mediumConfidenceQuestions.length === 2) {
         //a. Returning two question keys if only two present
         const shuffledArray = this.shuffleArray(mediumConfidenceQuestions);
-        logger.info(
+        logHelper.debug(
           "2 questions selected " +
             JSON.stringify([shuffledArray[0], shuffledArray[1]])
         );
@@ -147,7 +150,7 @@ export class FilterQuestionsService {
       } else if (mediumConfidenceQuestions.length > 2) {
         //b. If more than two quesion keys are present, array is shuffled and first three question keys returned
         const shuffledArray = this.shuffleArray(mediumConfidenceQuestions);
-        logger.info(
+        logHelper.debug(
           "3 questions selected " +
             JSON.stringify([
               shuffledArray[0],

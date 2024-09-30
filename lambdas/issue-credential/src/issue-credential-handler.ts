@@ -1,5 +1,5 @@
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../lib/src/Logging/log-helper";
 import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { fromEnv } from "@aws-sdk/credential-providers";
@@ -35,12 +35,15 @@ import {
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
 import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 import {
   SessionItem,
   PersonIdentityItem,
 } from "../../../lib/src/types/common-types";
+import { SharedInputsValidator } from "../../../lib/src/util/shared-inputs-validator";
 
-const logger = new Logger({ serviceName: "IssueCredentialHandler" });
+const logHelper = new LogHelper("IssueCredentialHandler");
+
 const credentialSubjectBuilder = new CredentialSubjectBuilder();
 const evidenceBuilder = new EvidenceBuilder();
 const checkDetailsBuilder = new CheckDetailsBuilder();
@@ -63,28 +66,32 @@ export class IssueCredentialHandler implements LambdaInterface {
     this.sqsQueueUrl = sqsQueueUrl;
   }
 
-  @logger.injectLambdaContext({ clearState: true })
+  @logHelper.logger.injectLambdaContext({ clearState: true })
   @HandlerMetricExport.logMetrics({
     throwOnEmptyMetrics: false,
     captureColdStartMetric: true,
   })
   public async handler(event: any, _context: unknown): Promise<object> {
     try {
-      logger.info("handler start");
+      // Safely retrieve lambda input
+      const input: IssueCredentialInputs =
+        this.safeRetrieveLambdaEventinput(event);
 
-      // Safely retrieve lambda inputs
-      const inputs: IssueCredentialInputs =
-        this.safeRetrieveLambdaEventInputs(event);
+      logHelper.setSessionItemToLogging(input.sessionItem);
+      logHelper.setStatemachineValuesToLogging(input.statemachine);
+      logHelper.info(
+        `Handling request for session ${input.sessionItem.sessionId}`
+      );
 
       const answerResults = await this.resultsRetrievalService.getResults(
-        inputs.sessionItem.sessionId
+        input.sessionItem.sessionId
       );
 
       const correlationId = answerResults.Item.correlationId;
 
       const sub = "urn:uuid:" + uuidv4().toString();
       const nbf = Date.now();
-      const iss = inputs.issuer;
+      const iss = input.issuer;
       const jti = "urn:uuid:" + uuidv4().toString();
 
       const checkDetailsCount: number =
@@ -101,9 +108,9 @@ export class IssueCredentialHandler implements LambdaInterface {
       }
 
       const credentialSubject: CredentialSubject = credentialSubjectBuilder
-        .setSocialSecurityRecord(inputs.personIdentityItem.socialSecurityRecord)
-        .addNames(inputs.personIdentityItem.names)
-        .setBirthDate(inputs.personIdentityItem.birthDates)
+        .setSocialSecurityRecord(input.personIdentityItem.socialSecurityRecord)
+        .addNames(input.personIdentityItem.names)
+        .setBirthDate(input.personIdentityItem.birthDates)
         .build();
 
       const evidence: Array<Evidence> = evidenceBuilder
@@ -132,7 +139,7 @@ export class IssueCredentialHandler implements LambdaInterface {
         jti
       );
 
-      logger.info("Verifiable Credential Successfully Created");
+      logHelper.info("Verifiable Credential Successfully Created");
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -147,10 +154,10 @@ export class IssueCredentialHandler implements LambdaInterface {
         outcome: outcome,
       };
 
-      logger.info("Sending VC_ISSUED Audit Event");
+      logHelper.info("Sending VC_ISSUED Audit Event");
       await this.auditService.sendAuditEvent(
         AuditEventType.VC_ISSUED,
-        inputs.sessionItem,
+        input.sessionItem,
         undefined,
         undefined,
         hmrcIvqResponse,
@@ -158,10 +165,10 @@ export class IssueCredentialHandler implements LambdaInterface {
         evidence
       );
 
-      logger.info("Sending CRI_END Audit Event");
+      logHelper.info("Sending CRI_END Audit Event");
       await this.auditService.sendAuditEvent(
         AuditEventType.END,
-        inputs.sessionItem,
+        input.sessionItem,
         undefined,
         undefined,
         undefined,
@@ -174,7 +181,7 @@ export class IssueCredentialHandler implements LambdaInterface {
       const errorText: string = error.message;
 
       const errorMessage = `${lambdaName} : ${errorText}`;
-      logger.error(errorMessage);
+      logHelper.error(errorMessage);
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -187,27 +194,18 @@ export class IssueCredentialHandler implements LambdaInterface {
     }
   }
 
-  private safeRetrieveLambdaEventInputs(event: any): IssueCredentialInputs {
+  private safeRetrieveLambdaEventinput(event: any): IssueCredentialInputs {
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    // Parameters
     const parameters = event?.parameters;
     const maxJwtTtl = event?.parameters?.maxJwtTtl?.value;
     const jwtTtlUnit = event?.parameters?.jwtTtlUnit?.value;
     const issuer = event?.parameters?.issuer?.value;
     const verifiableCredentialKmsSigningKeyId =
       event?.parameters?.verifiableCredentialKmsSigningKeyId?.value;
-
-    const bearerToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
-
-    const personIdentityItem = event?.personIdentityItem;
-    const sessionItem = event?.sessionItem;
-
-    if (!event) {
-      throw new Error("input event is empty");
-    }
-
-    if (!bearerToken) {
-      throw new Error("bearerToken was not provided");
-    }
-
     if (!parameters) {
       throw new Error("event parameters not found");
     }
@@ -228,77 +226,43 @@ export class IssueCredentialHandler implements LambdaInterface {
       throw new Error("verifiableCredentialKmsSigningKeyId was not provided");
     }
 
+    // Oauth2 Access Token
+    const bearerToken = event?.bearerToken;
+    if (!bearerToken) {
+      throw new Error("bearerToken was not provided");
+    }
+
+    // Session - Will throw errors on failure
+    const sessionItem = event.sessionItem;
+    SharedInputsValidator.validateUnmarshalledSessionItem(event.sessionItem);
+
+    // State machine values for logging
+    const statemachine = event.statemachine;
+    if (!statemachine) {
+      throw new Error("Statemachine values not found");
+    }
+
+    const personIdentityItem = event?.personIdentityItem;
     if (!personIdentityItem) {
       throw new Error("personIdentityItem not found");
     }
 
-    if (!sessionItem) {
-      throw new Error("Session item was not provided");
-    } else {
-      try {
-        this.validateUnmarshalledSessionItem(sessionItem);
-      } catch (error: any) {
-        const errorText: string = error.message;
-
-        throw new Error(`Session item was malformed : ${errorText}`);
-      }
+    const nino =
+      event?.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
+    if (!nino) {
+      throw new Error("nino was not provided");
     }
 
     return {
       bearerToken: bearerToken,
       sessionItem: sessionItem as SessionItem,
+      statemachine: statemachine as Statemachine,
       personIdentityItem: personIdentityItem as PersonIdentityItem,
       maxJwtTtl: maxJwtTtl,
       jwtTtlUnit: jwtTtlUnit,
       issuer: issuer,
       verifiableCredentialKmsSigningKeyId: verifiableCredentialKmsSigningKeyId,
     } as IssueCredentialInputs;
-  }
-
-  private validateUnmarshalledSessionItem(sessionItem: any) {
-    if (Object.keys(sessionItem).length === 0) {
-      throw new Error("Session item is empty");
-    }
-
-    if (!sessionItem.sessionId) {
-      throw new Error("Session item missing sessionId");
-    }
-
-    if (!sessionItem.expiryDate) {
-      throw new Error("Session item missing expiryDate");
-    }
-
-    if (!sessionItem.clientIpAddress) {
-      throw new Error("Session item missing clientIpAddress");
-    }
-
-    if (!sessionItem.redirectUri) {
-      throw new Error("Session item missing redirectUri");
-    }
-
-    if (!sessionItem.clientSessionId) {
-      throw new Error("Session item missing clientSessionId");
-    }
-
-    if (!sessionItem.createdDate) {
-      throw new Error("Session item missing createdDate");
-    }
-
-    if (!sessionItem.clientId) {
-      throw new Error("Session item missing clientId");
-    }
-
-    if (!sessionItem.attemptCount && sessionItem.attemptCount != 0) {
-      throw new Error("Session item missing attemptCount");
-    }
-
-    if (!sessionItem.state) {
-      throw new Error("Session item missing state");
-    }
-
-    if (!sessionItem.subject) {
-      throw new Error("Session item missing subject");
-    }
   }
 }
 // Handler Export

@@ -13,8 +13,12 @@ import {
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
+import { SharedInputsValidator } from "../../../lib/src/util/shared-inputs-validator";
+
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { StrategyUtil, Strategy } from "./types/strategy";
+import { SsmParametersInputs } from "./types/ssm-parameters-handler-types";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
 const cacheMinMinutes =
   Number(process.env.CONFIG_SERVICE_SSM_OPTIMIZED_CACHE_AGE_MIN_MINUTES) || 5;
@@ -49,30 +53,33 @@ export class SsmParametersHandler implements LambdaInterface {
     captureColdStartMetric: true,
   })
   public async handler(
-    event: { requestedParameters: string[]; sessionItem: SessionItem },
+    event: {
+      sessionItem: SessionItem;
+      statemachine: Statemachine;
+      requestedParameters: string[];
+    },
     _context: Context
   ): Promise<object | { error: string }> {
     try {
-      logHelper.setSessionItemToLogging(event.sessionItem);
+      const input: SsmParametersInputs =
+        this.safeRetrieveLambdaEventInputs(event);
+
+      logHelper.setSessionItemToLogging(input.sessionItem);
+      logHelper.setStatemachineValuesToLogging(input.statemachine);
+      logHelper.info(
+        `Handling request for session ${input.sessionItem.sessionId}`
+      );
 
       const strategy: Strategy = StrategyUtil.fromClientIdString(
-        event.sessionItem.clientId
+        input.sessionItem.clientId
       );
 
       logHelper.info(`Strategy in use : ${strategy}`);
 
-      if (!Array.isArray(event.requestedParameters)) {
-        throw new Error("requestedParameters must be string array");
-      }
-
-      if (event.requestedParameters.length == 0) {
-        throw new Error("requestedParameters array was empty");
-      }
-
       const { _errors: errors, ...parameters } =
         await getParametersByName<string>(
           Object.fromEntries(
-            event.requestedParameters.map((parameter) => [parameter, {}])
+            input.requestedParameters.map((parameter) => [parameter, {}])
           ),
           { maxAge: this.randomMaxAgeInSeconds, throwOnError: false }
         );
@@ -87,7 +94,7 @@ export class SsmParametersHandler implements LambdaInterface {
 
       logHelper.debug("Creating Result");
       const result = {};
-      event.requestedParameters.forEach((path: string) => {
+      input.requestedParameters.forEach((path: string) => {
         // remove path from parameter
         const tkey = path.slice(path.lastIndexOf("/") + 1);
         // Convention is lower case first leter in all keys
@@ -129,6 +136,36 @@ export class SsmParametersHandler implements LambdaInterface {
       // Indicate to the statemachine a lambda error has occured
       return { error: errorMessage };
     }
+  }
+
+  private safeRetrieveLambdaEventInputs(event: any): SsmParametersInputs {
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    const requestedParameters = event.requestedParameters;
+    if (!Array.isArray(event.requestedParameters)) {
+      throw new Error("requestedParameters must be string array");
+    }
+    if (requestedParameters.length == 0) {
+      throw new Error("requestedParameters array was empty");
+    }
+
+    // Session - Will throw errors on failure
+    const sessionItem = event.sessionItem;
+    SharedInputsValidator.validateUnmarshalledSessionItem(event.sessionItem);
+
+    // State machine values for logging
+    const statemachine = event.statemachine;
+    if (!statemachine) {
+      throw new Error("Statemachine values not found");
+    }
+
+    return {
+      sessionItem: sessionItem as SessionItem,
+      statemachine: statemachine as Statemachine,
+      requestedParameters: requestedParameters,
+    } as SsmParametersInputs;
   }
 
   private retrieveParameterValue(

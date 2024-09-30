@@ -2,7 +2,6 @@ import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { createHash } from "crypto";
 import sigFormatter from "ecdsa-sig-formatter";
 import { fromEnv } from "@aws-sdk/credential-providers";
-import { SignerPayLoad } from "./signer-payload";
 import { SignageType } from "./signage-type";
 import { base64url } from "jose";
 import {
@@ -22,38 +21,42 @@ import {
   CompletionStatus,
 } from "../../../lib/src/MetricTypes/handler-metric-types";
 
-import { Logger } from "@aws-lambda-powertools/logger";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
-const logger = new Logger({ serviceName: "JwtSignerHandler" });
+import { LogHelper } from "../../../lib/src/Logging/log-helper";
+import { JwtSignerInputs } from "./jwt-signer-inputs";
+import { SessionItem } from "../../../lib/src/types/common-types";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
+import { SharedInputsValidator } from "../../../lib/src/util/shared-inputs-validator";
+
+const logHelper = new LogHelper("JwtSignerHandler");
 
 export class JwtSignerHandler implements LambdaInterface {
   constructor(
-    private metricsProbe: MetricsProbe,
-    private kmsClient: KMSClient
+    private readonly metricsProbe: MetricsProbe,
+    private readonly kmsClient: KMSClient
   ) {}
 
-  @logger.injectLambdaContext({ clearState: true })
+  @logHelper.logger.injectLambdaContext({ clearState: true })
   @HandlerMetricExport.logMetrics({
     throwOnEmptyMetrics: false,
     captureColdStartMetric: true,
   })
-  public async handler(
-    event: SignerPayLoad,
-    _context: unknown
-  ): Promise<object> {
+  public async handler(event: any, _context: unknown): Promise<object> {
     try {
-      logger.info("Encoding JWT details");
+      const input: JwtSignerInputs = this.safeRetrieveLambdaEventInputs(event);
 
-      const header = base64url.encode(event.header);
-      const payload = base64url.encode(event.claimsSet);
-
-      logger.info("Signing JWT with KMS");
-
-      const response = await this.signWithKms(
-        header,
-        payload,
-        event.kid as string
+      logHelper.setSessionItemToLogging(input.sessionItem);
+      logHelper.setStatemachineValuesToLogging(input.statemachine);
+      logHelper.info(
+        `Handling request for session ${input.sessionItem.sessionId}`
       );
+
+      logHelper.info("Base64 encodeding JWT header and body");
+      const header = base64url.encode(input.header);
+      const payload = base64url.encode(input.claimsSet);
+
+      logHelper.info("Signing JWT with KMS");
+      const response = await this.signWithKms(header, payload, input.kid);
       const signature = sigFormatter.derToJose(
         Buffer.from(response).toString("base64"),
         "ES256"
@@ -67,13 +70,14 @@ export class JwtSignerHandler implements LambdaInterface {
         CompletionStatus.OK
       );
 
+      logHelper.info("Returning JWT");
       return { jwt: encodedJWT };
     } catch (error: any) {
       const lambdaName = JwtSignerHandler.name;
       const errorText: string = error.message;
 
       const errorMessage = `${lambdaName} : ${errorText}`;
-      logger.error(errorMessage);
+      logHelper.error(errorMessage);
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -109,11 +113,13 @@ export class JwtSignerHandler implements LambdaInterface {
       if (!signingResponse?.Signature) {
         throw new Error("KMS response does not contain a valid Signature.");
       }
-      logger.info("JWT Signed");
+      logHelper.info("JWT Signed");
       return signingResponse.Signature;
     } catch (error) {
       if (error instanceof SyntaxError) {
-        throw new Error(`KMS response is not in JSON format. ${error}`);
+        throw new Error(
+          `KMS response is not in JSON format. ${error.name} ${error.message}`
+        );
       } else if (error instanceof Error) {
         throw new Error(`KMS signing error: ${error}`);
       } else {
@@ -124,10 +130,50 @@ export class JwtSignerHandler implements LambdaInterface {
     }
   }
 
-  private hashInput = (input: Buffer): Uint8Array =>
+  private readonly hashInput = (input: Buffer): Uint8Array =>
     createHash("sha256").update(input).digest();
 
-  private checkSize = (message: Buffer): boolean => message.length >= 4096;
+  private readonly checkSize = (message: Buffer): boolean =>
+    message.length >= 4096;
+
+  private safeRetrieveLambdaEventInputs(event: any): JwtSignerInputs {
+    if (!event) {
+      throw new Error("input event is empty");
+    }
+
+    const header = event.header;
+    if (!header) {
+      throw new Error("header not found");
+    }
+
+    const claimsSet = event.claimsSet;
+    if (!claimsSet) {
+      throw new Error("claimsSet not found");
+    }
+
+    const kid = event.kid;
+    if (!kid) {
+      throw new Error("kid not found");
+    }
+
+    // Session - Will throw errors on failure
+    const sessionItem = event.sessionItem;
+    SharedInputsValidator.validateUnmarshalledSessionItem(event.sessionItem);
+
+    // State machine values for logging
+    const statemachine = event.statemachine;
+    if (!statemachine) {
+      throw new Error("Statemachine values not found");
+    }
+
+    return {
+      sessionItem: sessionItem as SessionItem,
+      statemachine: statemachine as Statemachine,
+      header: header,
+      claimsSet: claimsSet,
+      kid: kid,
+    } as JwtSignerInputs;
+  }
 }
 
 const metricProbe = new MetricsProbe();

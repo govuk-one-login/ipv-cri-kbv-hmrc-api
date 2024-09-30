@@ -1,10 +1,12 @@
 import { LogHelper } from "../../src/Logging/log-helper";
+import { Statemachine } from "../../src/Logging/log-helper-types";
 import { SessionItem } from "../../src/types/common-types";
 
 jest.mock("@aws-lambda-powertools/logger", () => ({
   Logger: jest.fn(() => ({
     appendKeys: jest.fn(),
     info: jest.fn(),
+    warn: jest.fn(),
     debug: jest.fn(),
     error: jest.fn(),
   })),
@@ -25,6 +27,12 @@ const testSessionItem: SessionItem = {
   state: "7f42f0cc-1681-4455-872f-dd228103a12e",
 };
 
+const unitTestStack = "UNIT-TEST-STACK-UNIT-TEST-STATEMACHINE";
+const unitTestUUIDs = `UUID1:UUID2`;
+const testStateMachineValue: Statemachine = {
+  executionId: `arn:aws:states:REGION:ACCOUNT:express:${unitTestStack}:${unitTestUUIDs}`,
+};
+
 describe("log-helper", () => {
   let logHelper: LogHelper;
 
@@ -36,14 +44,29 @@ describe("log-helper", () => {
     jest.clearAllMocks();
   });
 
+  it("should log entry with govJourneyId", () => {
+    logHelper.setStatemachineValuesToLogging(testStateMachineValue);
+
+    expect(logHelper.logger.appendKeys).toHaveBeenCalledWith({
+      source_stack_statemachine: unitTestStack,
+    });
+
+    expect(logHelper.logger.appendKeys).toHaveBeenCalledWith({
+      statemachine_execution_id_uuids: unitTestUUIDs,
+    });
+    expect(logHelper.logger.debug).toHaveBeenCalledWith(
+      `Attached source_stack_statemachine: ${unitTestStack} and statemachine_execution_id_uuids ${unitTestUUIDs} to LogHelper`
+    );
+  });
+
   it("should log entry with source and govJourneyId", () => {
     logHelper.setSessionItemToLogging(testSessionItem);
 
     expect(logHelper.logger.appendKeys).toHaveBeenCalledWith({
       govuk_signin_journey_id: testSessionItem.clientSessionId,
     });
-    expect(logHelper.logger.info).toHaveBeenCalledWith(
-      `Logging attached to government journey id: ${testSessionItem.clientSessionId}`
+    expect(logHelper.logger.debug).toHaveBeenCalledWith(
+      `Attached govuk_signin_journey_id: ${testSessionItem.clientSessionId} for session_id: ${testSessionItem.sessionId} to LogHelper`
     );
   });
 
@@ -51,6 +74,12 @@ describe("log-helper", () => {
     const message = "Test info message";
     logHelper.info(message);
     expect(logHelper.logger.info).toHaveBeenCalledWith(message);
+  });
+
+  it("should log warn level", () => {
+    const message = "Test warn message";
+    logHelper.warn(message);
+    expect(logHelper.logger.warn).toHaveBeenCalledWith(message);
   });
 
   it("should log debug level", () => {
@@ -63,5 +92,42 @@ describe("log-helper", () => {
     const message = "Test error message";
     logHelper.error(message);
     expect(logHelper.logger.error).toHaveBeenCalledWith(message);
+  });
+});
+
+describe("log-helper warnings", () => {
+  let logHelper: LogHelper;
+
+  beforeEach(() => {
+    logHelper = new LogHelper(testServiceName);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should warn when not given sessionItem", () => {
+    const message = "SessionItem was not provided to LogHelper";
+
+    logHelper.setSessionItemToLogging(undefined);
+    expect(logHelper.logger.warn).toHaveBeenCalledWith(message);
+  });
+
+  it("should warn when not given statemachine", () => {
+    const message =
+      "Statemachine executionId not found - cannnot attach statemachine values to LogHelper";
+
+    logHelper.setStatemachineValuesToLogging(undefined);
+    expect(logHelper.logger.warn).toHaveBeenCalledWith(message);
+  });
+
+  it("should warn when statemachine execution id not in the expected format", () => {
+    const message =
+      "Statemachine executionId could not be used - expected 9, found 1 parts";
+
+    logHelper.setStatemachineValuesToLogging({
+      executionId: "1234",
+    });
+    expect(logHelper.logger.warn).toHaveBeenCalledWith(message);
   });
 });

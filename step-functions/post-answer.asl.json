@@ -1,7 +1,15 @@
 {
   "Comment": "State machine for saving answers submitted in the HMRC KBV journey",
-  "StartAt": "Check Session-Id is Present",
+  "StartAt": "Capture Execution Id",
   "States": {
+    "Capture Execution Id": {
+      "Type": "Pass",
+      "Next": "Check Session-Id is Present",
+      "ResultPath": "$.statemachine",
+      "Parameters": {
+        "executionId.$": "$$.Execution.Id"
+      }
+    },
     "Check Session-Id is Present": {
       "Type": "Choice",
       "Choices": [
@@ -100,7 +108,7 @@
               "IsPresent": true
             }
           ],
-          "Next": "Invoke Validating Answers Lambda"
+          "Next": "Unmarshall SessionItem (Step1)"
         }
       ],
       "Default": "Err: SessionItem not valid"
@@ -108,6 +116,38 @@
     "Err: SessionItem not valid": {
       "Type": "Fail",
       "Error": "SessionItem not valid"
+    },
+    "Unmarshall SessionItem (Step1)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DynamoUnmarshallArn}",
+        "Payload": {
+          "statemachine.$": "$.statemachine",
+          "marshalledPayload.$": "$.sessionItem.Item"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Unmarshall SessionItem (Step 2)",
+      "ResultPath": "$.sessionItem"
+    },
+    "Unmarshall SessionItem (Step 2)": {
+      "Type": "Pass",
+      "Next": "Invoke Validating Answers Lambda",
+      "ResultPath": "$.sessionItem",
+      "InputPath": "$.sessionItem.Payload"
     },
     "Invoke Validating Answers Lambda": {
       "Type": "Task",
@@ -151,6 +191,7 @@
       "Parameters": {
         "sessionId.$": "$.sessionId",
         "sessionItem.$": "$.sessionItem",
+        "statemachine.$": "$.statemachine",
         "inputAnswer.$": "$.value",
         "answeredQuestionKey.$": "$.key"
       }
@@ -207,7 +248,7 @@
           }
         }
       },
-      "Next": "Get previous answers",
+      "Next": "Get saved answers",
       "ItemsPath": "$.usersQuestions.Items[0].questions.L",
       "MaxConcurrency": 1,
       "ItemSelector": {
@@ -216,7 +257,7 @@
       },
       "ResultPath": "$.answers"
     },
-    "Get previous answers": {
+    "Get saved answers": {
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:getItem",
       "Parameters": {
@@ -227,10 +268,10 @@
           }
         }
       },
-      "Next": "Answers for session exists",
+      "Next": "Saved answers for session exists",
       "ResultPath": "$.dynamoResult"
     },
-    "Answers for session exists": {
+    "Saved answers for session exists": {
       "Type": "Choice",
       "Choices": [
         {
@@ -263,7 +304,7 @@
             "S.$": "$.usersQuestions.Items[0].correlationId.S"
           },
           "expiryDate": {
-            "N.$": "$.sessionItem.Item.expiryDate.N"
+            "N.$": "States.JsonToString($.sessionItem.expiryDate)"
           },
           "answers": {
             "L.$": "$.answers[?(@.M)]"
@@ -391,7 +432,132 @@
           "Next": "Return Question State as Done"
         }
       ],
-      "Default": "Fetch Parameters via SSM Lambda"
+      "Default": "Get final saved answers"
+    },
+    "Get final saved answers": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${AnswersTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Unmarshall savedAnswersItem (Step1)",
+      "ResultPath": "$.savedAnswersItem"
+    },
+    "Unmarshall savedAnswersItem (Step1)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DynamoUnmarshallArn}",
+        "Payload": {
+          "sessionItem.$": "$.sessionItem",
+          "statemachine.$": "$.statemachine",
+          "marshalledPayload.$": "$.savedAnswersItem.Item"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Unmarshall savedAnswersItem (Step 2)",
+      "ResultPath": "$.savedAnswersItem"
+    },
+    "Unmarshall savedAnswersItem (Step 2)": {
+      "Type": "Pass",
+      "Next": "DynamoDB Get PersonIdentityItem",
+      "ResultPath": "$.savedAnswersItem",
+      "InputPath": "$.savedAnswersItem.Payload"
+    },
+    "DynamoDB Get PersonIdentityItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${PersonIdentityTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Is there a PersonIdentityItem for the sessionId",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.personIdentityItem"
+    },
+    "Is there a PersonIdentityItem for the sessionId": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.Item",
+          "IsPresent": true,
+          "Next": "Unmarshall PersonIdentityItem (Step1)"
+        }
+      ],
+      "Default": "Err: PersonIdentityItem not found"
+    },
+    "Unmarshall PersonIdentityItem (Step1)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DynamoUnmarshallArn}",
+        "Payload": {
+          "sessionItem.$": "$.sessionItem",
+          "statemachine.$": "$.statemachine",
+          "marshalledPayload.$": "$.personIdentityItem.Item"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Unmarshall PersonIdentityItem (Step2)",
+      "ResultPath": "$.personIdentityItem"
+    },
+    "Unmarshall PersonIdentityItem (Step2)": {
+      "Type": "Pass",
+      "InputPath": "$.personIdentityItem.Payload",
+      "ResultPath": "$.personIdentityItem",
+      "Next": "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present"
+    },
+    "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.socialSecurityRecord[0].personalNumber",
+          "IsPresent": true,
+          "Next": "Fetch Parameters via SSM Lambda"
+        }
+      ],
+      "Default": "Err: NINO was not present in shared claims"
+    },
+    "Err: PersonIdentityItem not found": {
+      "Type": "Fail",
+      "Error": "PersonIdentityItem not found"
+    },
+    "Err: NINO was not present in shared claims": {
+      "Type": "Fail",
+      "Error": "NINO was not present in shared claims"
     },
     "Return Question State as Done": {
       "Type": "Pass",
@@ -406,13 +572,14 @@
       "Parameters": {
         "FunctionName": "${SSMParametersFunctionArn}",
         "Payload": {
+          "sessionItem.$": "$.sessionItem",
+          "statemachine.$": "$.statemachine",
           "requestedParameters": [
             "${OtgApiUrl}",
             "${AnswersUrl}",
             "${UserAgent}",
             "${Issuer}"
-          ],
-          "sessionItem.$": "$.sessionItem"
+          ]
         }
       },
       "Retry": [
@@ -497,7 +664,8 @@
         "Payload.$": "$",
         "FunctionName": "${SubmitAnswersArn}"
       },
-      "Next": "Was the answer saved sucessfully"
+      "Next": "Was the answer saved sucessfully",
+      "ResultPath": "$.submitAnswerResult"
     },
     "Was the answer saved sucessfully": {
       "Type": "Choice",
@@ -505,11 +673,11 @@
         {
           "And": [
             {
-              "Variable": "$.Payload.messsage",
+              "Variable": "$.submitAnswerResult.Payload.messsage",
               "IsPresent": true
             },
             {
-              "Variable": "$.Payload.messsage",
+              "Variable": "$.submitAnswerResult.Payload.messsage",
               "StringEquals": "AnswerResults Saved"
             }
           ],

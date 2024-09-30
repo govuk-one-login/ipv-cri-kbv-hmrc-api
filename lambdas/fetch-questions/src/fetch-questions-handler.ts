@@ -1,6 +1,6 @@
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { MetricUnit } from "@aws-lambda-powertools/metrics";
-import { Logger } from "@aws-lambda-powertools/logger";
+import { LogHelper } from "../../../lib/src/Logging/log-helper";
 import { LambdaInterface } from "@aws-lambda-powertools/commons/types";
 import { fromEnv } from "@aws-sdk/credential-providers";
 
@@ -32,8 +32,10 @@ import {
   HmrcIvqResponse,
 } from "../../../lib/src/types/audit-event";
 import { SqsAuditClient } from "../../../lib/src/Service/sqs-audit-client";
+import { SharedInputsValidator } from "../../../lib/src/util/shared-inputs-validator";
+import { Statemachine } from "../../../lib/src/Logging/log-helper-types";
 
-const logger = new Logger({ serviceName: "FetchQuestionsHandler" });
+const logHelper = new LogHelper("FetchQuestionsHandler");
 
 // NOTE: these strings are also used in the metric for the outcome
 enum FetchQuestionsState {
@@ -65,25 +67,42 @@ export class FetchQuestionsHandler implements LambdaInterface {
     this.auditService = auditService;
     this.sqsQueueUrl = sqsQueueUrl;
   }
-  @logger.injectLambdaContext({ clearState: true })
+  @logHelper.logger.injectLambdaContext({ clearState: true })
   @HandlerMetricExport.logMetrics({
     throwOnEmptyMetrics: false,
     captureColdStartMetric: true,
   })
   public async handler(event: any, _context: unknown): Promise<object> {
     try {
-      logger.info("handler start");
-
       // Safely retrieve lambda inputs
-      const inputs: FetchQuestionInputs =
+      const input: FetchQuestionInputs =
         this.safeRetrieveLambdaEventInputs(event);
 
-      const sessionItem = inputs.sessionItem;
-      const nino =
-        inputs.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
+      logHelper.setSessionItemToLogging(input.sessionItem);
+      logHelper.setStatemachineValuesToLogging(input.statemachine);
+      // Each has an internal logging that needs attached
+      this.questionsRetrievalService.attachLogging(
+        input.sessionItem,
+        input.statemachine
+      );
+      this.filterQuestionsService.attachLogging(
+        input.sessionItem,
+        input.statemachine
+      );
+      this.saveQuestionsService.attachLogging(
+        input.sessionItem,
+        input.statemachine
+      );
+      logHelper.info(
+        `Handling request for session ${input.sessionItem.sessionId}`
+      );
 
-      logger.debug(
-        `Event inputs - sessionId:${inputs.sessionId}, questionsUrl:${inputs.questionsUrl}, userAgent:${inputs.userAgent}, token:${inputs.bearerToken}, nino:${nino},`
+      const sessionItem = input.sessionItem;
+      const nino =
+        input.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
+
+      logHelper.debug(
+        `Event inputs - sessionId:${input.sessionItem.sessionId}, questionsUrl:${input.questionsUrl}, userAgent:${input.userAgent}, token:${input.bearerToken}, nino:${nino},`
       );
 
       let fetchQuestionsState: FetchQuestionsState =
@@ -91,42 +110,44 @@ export class FetchQuestionsHandler implements LambdaInterface {
 
       // Look up questions table and see if already stored for this session/nino
       const existingSavedItem = (
-        await this.saveQuestionsService.getExistingSavedItem(inputs.sessionId)
+        await this.saveQuestionsService.getExistingSavedItem(
+          input.sessionItem.sessionId
+        )
       )?.Item;
       const alreadyExistingQuestionsResult: boolean =
         existingSavedItem != undefined;
-      logger.info(
+      logHelper.info(
         `Already existing questions result - ${alreadyExistingQuestionsResult}`
       );
 
       if (!alreadyExistingQuestionsResult) {
         const questionsResult: QuestionsResult =
-          await this.questionsRetrievalService.retrieveQuestions(inputs);
+          await this.questionsRetrievalService.retrieveQuestions(input);
 
         const correlationId = questionsResult.getCorrelationId();
         const questionResultCount: number = questionsResult.getQuestionCount();
-        logger.info(
+        logHelper.info(
           `Result returned - correlationId : ${correlationId}, questionResultCount ${questionResultCount}`
         );
 
-        logger.debug(
+        logHelper.debug(
           `Retrieved Question keys returned for nino ${nino} / session ${
-            inputs.sessionId
+            input.sessionItem.sessionId
           } - ${JSON.stringify(questionsResult.questions)}`
         );
 
-        logger.info("Filtering questions");
+        logHelper.info("Filtering questions");
         const filteredQuestions: Question[] =
           await this.filterQuestionsService.filterQuestions(
             questionsResult.questions
           );
-        logger.debug(
+        logHelper.debug(
           `Filtered Question keys returned  for nino ${nino} / session ${
-            inputs.sessionId
+            input.sessionItem.sessionId
           } - ${JSON.stringify(filteredQuestions)}`
         );
 
-        logger.info("Question keys have been filtered successfully");
+        logHelper.info("Question keys have been filtered successfully");
 
         // Check filter outcome (questionResultCount placeholder)
         const filterQuestionsResultCount: number = filteredQuestions.length;
@@ -143,22 +164,22 @@ export class FetchQuestionsHandler implements LambdaInterface {
             undefined,
             undefined,
             hmrcIvqResponse,
-            inputs.issuer
+            input.issuer
           );
         }
 
         // Save question keys to DynamoDB only if they pass filtering - other wise save an empty questions result
-        const sessionExpiryDate: number = inputs.sessionItem.expiryDate;
-        logger.info(
-          `Saving questions ${inputs.sessionId} - ${sessionExpiryDate}`
+        const sessionExpiryDate: number = input.sessionItem.expiryDate;
+        logHelper.info(
+          `Saving questions ${input.sessionItem.sessionId} - ${sessionExpiryDate}`
         );
         const questionsSaved = await this.saveQuestionsService.saveQuestions(
-          inputs.sessionId,
+          input.sessionItem.sessionId,
           sessionExpiryDate,
           correlationId,
           filteredQuestions
         );
-        logger.info("Questions have been saved " + questionsSaved);
+        logHelper.info("Questions have been saved " + questionsSaved);
       } else {
         // If the user arrives in fetch questions, with question keys already saved
         // We need to indicate to the front end if they can continue or not
@@ -166,13 +187,13 @@ export class FetchQuestionsHandler implements LambdaInterface {
           existingSavedItem?.questions?.length;
 
         if (existingQuestionsNonZero) {
-          logger.info(
+          logHelper.info(
             "Continue there are sufficient questions in the existing result NINO"
           );
           fetchQuestionsState =
             FetchQuestionsState.ContinueSufficientQuestionAlreadyRetrieved;
         } else {
-          logger.info(
+          logHelper.info(
             "InsufficientQuestions in the existing result for this NINO"
           );
 
@@ -199,7 +220,7 @@ export class FetchQuestionsHandler implements LambdaInterface {
       const errorText: string = error.message;
 
       const errorMessage = `${lambdaName} : ${errorText}`;
-      logger.error(errorMessage);
+      logHelper.error(errorMessage);
 
       this.metricsProbe.captureMetric(
         HandlerMetric.CompletionStatus,
@@ -213,27 +234,15 @@ export class FetchQuestionsHandler implements LambdaInterface {
   }
 
   private safeRetrieveLambdaEventInputs(event: any): FetchQuestionInputs {
-    const sessionId = event?.sessionId;
-
-    const parameters = event?.parameters;
-    const questionsUrl = event?.parameters?.questionsUrl?.value;
-    const userAgent = event?.parameters?.userAgent?.value;
-    const issuer = event?.parameters?.issuer?.value;
-    const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently
-
-    const personIdentityItem = event?.personIdentityItem;
-    const nino =
-      event?.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
-    const sessionItem = event?.sessionItem;
-
     if (!event) {
       throw new Error("input event is empty");
     }
 
-    if (!sessionId) {
-      throw new Error("sessionId was not provided");
-    }
-
+    // Parameters
+    const parameters = event?.parameters;
+    const questionsUrl = event?.parameters?.questionsUrl?.value;
+    const userAgent = event?.parameters?.userAgent?.value;
+    const issuer = event?.parameters?.issuer?.value;
     if (!parameters) {
       throw new Error("event parameters not found");
     }
@@ -250,85 +259,42 @@ export class FetchQuestionsHandler implements LambdaInterface {
       throw new Error("issuer was not provided");
     }
 
+    // OTG Token
+    const bearerToken = event?.bearerToken?.value; // NOTE expiry is not checked as its not used currently
     if (!bearerToken) {
       throw new Error("bearerToken was not provided");
     }
 
-    if (!sessionItem) {
-      throw new Error("Session item was not provided");
-    } else {
-      try {
-        this.validateUnmarshalledSessionItem(sessionItem);
-      } catch (error: any) {
-        const errorText: string = error.message;
+    // Session - Will throw errors on failure
+    const sessionItem = event.sessionItem;
+    SharedInputsValidator.validateUnmarshalledSessionItem(event.sessionItem);
 
-        throw new Error(`Session item was malformed : ${errorText}`);
-      }
+    // State machine values for logging
+    const statemachine = event.statemachine;
+    if (!statemachine) {
+      throw new Error("Statemachine values not found");
+    }
 
-      if (!personIdentityItem) {
-        throw new Error("personIdentityItem not found");
-      }
+    const personIdentityItem = event?.personIdentityItem;
+    if (!personIdentityItem) {
+      throw new Error("personIdentityItem not found");
+    }
 
-      if (!nino) {
-        throw new Error("nino was not provided");
-      }
+    const nino =
+      event?.personIdentityItem?.socialSecurityRecord?.[0]?.personalNumber;
+    if (!nino) {
+      throw new Error("nino was not provided");
     }
 
     return {
-      sessionId: sessionId,
+      sessionItem: sessionItem as SessionItem,
+      statemachine: statemachine as Statemachine,
+      personIdentityItem: personIdentityItem as PersonIdentityItem,
+      bearerToken: bearerToken,
       questionsUrl: questionsUrl,
       userAgent: userAgent,
       issuer: issuer,
-      bearerToken: bearerToken,
-      personIdentityItem: personIdentityItem as PersonIdentityItem,
-      sessionItem: sessionItem as SessionItem,
     } as FetchQuestionInputs;
-  }
-
-  private validateUnmarshalledSessionItem(sessionItem: any) {
-    if (Object.keys(sessionItem).length === 0) {
-      throw new Error("Session item is empty");
-    }
-
-    if (!sessionItem.sessionId) {
-      throw new Error("Session item missing sessionId");
-    }
-
-    if (!sessionItem.expiryDate) {
-      throw new Error("Session item missing expiryDate");
-    }
-
-    if (!sessionItem.clientIpAddress) {
-      throw new Error("Session item missing clientIpAddress");
-    }
-
-    if (!sessionItem.redirectUri) {
-      throw new Error("Session item missing redirectUri");
-    }
-
-    if (!sessionItem.clientSessionId) {
-      throw new Error("Session item missing clientSessionId");
-    }
-
-    if (!sessionItem.createdDate) {
-      throw new Error("Session item missing createdDate");
-    }
-
-    if (!sessionItem.clientId) {
-      throw new Error("Session item missing clientId");
-    }
-
-    if (!sessionItem.attemptCount && sessionItem.attemptCount != 0) {
-      throw new Error("Session item missing attemptCount");
-    }
-
-    if (!sessionItem.state) {
-      throw new Error("Session item missing state");
-    }
-
-    if (!sessionItem.subject) {
-      throw new Error("Session item missing subject");
-    }
   }
 }
 
