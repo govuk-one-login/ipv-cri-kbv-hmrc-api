@@ -195,8 +195,8 @@ export class SubmitAnswerHandler implements LambdaInterface {
     }
 
     // OTG Token
-    const otgToken: OTGToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
-    if (!event.parameters) {
+    const otgToken = event?.bearerToken; // NOTE expiry is not checked as its not used currently
+    if (!otgToken) {
       throw new Error("No otgToken provided");
     }
 
@@ -209,7 +209,10 @@ export class SubmitAnswerHandler implements LambdaInterface {
       nino: nino,
       savedAnswersItem: savedAnswersItem as SavedAnswersItem,
       parameters: parameters,
-      otgToken: otgToken,
+      otgToken: {
+        token: otgToken.value,
+        expiry: otgToken.expiry,
+      } as OTGToken,
     } as SubmitAnswerInputs;
   }
 }

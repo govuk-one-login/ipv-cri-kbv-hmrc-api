@@ -120,7 +120,7 @@ describe("submit-answer-handler", () => {
     },
     bearerToken: {
       expiry: Date.now() + 7200 * 1000,
-      token: "TEST_TOKEN_VALUE",
+      value: "TEST_TOKEN_VALUE",
     },
   };
 
