@@ -1,38 +1,120 @@
 {
   "Comment": "Return any unanswered question if available.",
-  "StartAt": "Get NINO",
+  "StartAt": "Capture Execution Id",
   "States": {
-    "Get NINO": {
+    "Capture Execution Id": {
+      "Type": "Pass",
+      "Next": "Check Session-Id is Present",
+      "ResultPath": "$.statemachine",
+      "Parameters": {
+        "executionId.$": "$$.Execution.Id"
+      }
+    },
+    "Check Session-Id is Present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.sessionId",
+              "IsPresent": true
+            },
+            {
+              "Variable": "$.sessionId",
+              "IsString": true
+            }
+          ],
+          "Next": "DynamoDB Get SessionItem"
+        }
+      ],
+      "Default": "Err: SessionId missing"
+    },
+    "Err: SessionId missing": {
+      "Type": "Fail",
+      "Error": "SessionId missing or not found"
+    },
+    "DynamoDB Get SessionItem": {
       "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
       "Parameters": {
         "TableName": "${PersonIdentityTableName}",
-        "KeyConditionExpression": "sessionId = :value",
-        "ExpressionAttributeValues": {
-          ":value": {
+        "Key": {
+          "sessionId": {
             "S.$": "$.sessionId"
           }
         }
       },
-      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-      "ResultPath": "$.nino",
-      "Next": "Check NINO field present"
+      "Next": "Was a SessionItem found",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.sessionItem",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Comment": "Error getting sessionItem",
+          "Next": "Err: SessionItem not found"
+        }
+      ]
     },
-    "Check NINO field present": {
+    "Was a SessionItem found": {
       "Type": "Choice",
       "Choices": [
         {
-          "Not": {
-            "Variable": "$.nino.Count",
-            "NumericGreaterThan": 0
-          },
-          "Next": "Err: Missing nino"
+          "Variable": "$.sessionItem.Item",
+          "IsPresent": true,
+          "Next": "DynamoDB Get PersonIdentityItem"
         }
       ],
-      "Default": "Get Unanswered question set"
+      "Default": "Err: SessionItem not found"
     },
-    "Err: Missing nino": {
+    "Err: SessionItem not found": {
       "Type": "Fail",
-      "Cause": "No NINO found for given session-id"
+      "Error": "SessionItem not found"
+    },
+    "DynamoDB Get PersonIdentityItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${PersonIdentityTableName}",
+        "Key": {
+          "sessionId": {
+            "S.$": "$.sessionId"
+          }
+        }
+      },
+      "Next": "Is there a PersonIdentityItem for the sessionId",
+      "TimeoutSeconds": 5,
+      "ResultPath": "$.personIdentityItem"
+    },
+    "Is there a PersonIdentityItem for the sessionId": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.Item",
+          "IsPresent": true,
+          "Next": "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present"
+        }
+      ],
+      "Default": "Err: PersonIdentityItem not found"
+    },
+    "Err: PersonIdentityItem not found": {
+      "Type": "Fail",
+      "Error": "PersonIdentityItem not found"
+    },
+    "Does PersonIdentityItem have a socialSecurityRecord with personalNumber present": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.personIdentityItem.Item.socialSecurityRecord.L[0].M.personalNumber.S",
+          "IsPresent": true,
+          "Next": "Get Unanswered question set"
+        }
+      ],
+      "Default": "Err: NINO was not present in shared claims",
+      "Comment": "Note this state use the raw dynamo pat. This is to avoid an expensive unmarshalling just for the the path."
+    },
+    "Err: NINO was not present in shared claims": {
+      "Type": "Fail",
+      "Error": "NINO was not present in shared claims"
     },
     "Get Unanswered question set": {
       "Type": "Task",
@@ -58,7 +140,7 @@
           "Next": "Iterate over questions"
         }
       ],
-      "Default": "204: No More Questions"
+      "Default": "No More Questions"
     },
     "Iterate over questions": {
       "Type": "Map",
@@ -72,33 +154,100 @@
             "Type": "Pass",
             "Parameters": {
               "questionKey.$": "$.questionKey.S",
-              "info.$": "$[?(@.info)].info.M",
+              "info.$": "$.info.M",
               "order.$": "$.order.N",
-              "answered.$": "$.answered.Bool"
+              "answered.$": "$.answered.Bool",
+              "infoCount.$": "States.ArrayLength($[?(@.info)].info.M)",
+              "infoIsEmpty.$": "States.ArrayContains($[?(@.info)].info.M, '{}')"
             },
-            "End": true
+            "Next": "Is Info Present"
+          },
+          "Is Info Present": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "And": [
+                  {
+                    "Variable": "$.infoCount",
+                    "NumericGreaterThan": 0
+                  },
+                  {
+                    "Variable": "$.infoIsEmpty",
+                    "BooleanEquals": false
+                  }
+                ],
+                "Next": "$.info.currentTaxYear.S is present"
+              }
+            ],
+            "Default": "Add questionKey, order, answered"
+          },
+          "$.info.currentTaxYear.S is present": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.info.currentTaxYear.S",
+                "IsPresent": true,
+                "Next": "Add currentTaxYear value"
+              }
+            ],
+            "Default": "Add questionKey, order, answered"
+          },
+          "Add questionKey, order, answered": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "questionKey.$": "$.questionKey",
+              "info.$": "$.info",
+              "order.$": "$.order",
+              "answered.$": "$.answered"
+            }
+          },
+          "Add currentTaxYear value": {
+            "Type": "Pass",
+            "Next": "$.info.previousTaxYear.S is present",
+            "ResultPath": "$.info.currentTaxYear",
+            "InputPath": "$.info.currentTaxYear.S"
+          },
+          "$.info.previousTaxYear.S is present": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.info.previousTaxYear.S",
+                "IsPresent": true,
+                "Next": "Add previousTaxYear value"
+              }
+            ],
+            "Default": "Add questionKey, order, answered"
+          },
+          "Add previousTaxYear value": {
+            "Type": "Pass",
+            "Next": "Add questionKey, order, answered",
+            "ResultPath": "$.info.previousTaxYear",
+            "InputPath": "$.info.previousTaxYear.S"
           }
         }
       },
-      "Next": "Get next question",
+      "Next": "Return Question",
       "MaxConcurrency": 1
     },
-    "Get next question": {
+    "Return Question": {
       "Type": "Pass",
-      "Next": "Return Next Question",
+      "Next": "Success",
       "Parameters": {
         "questionKey.$": "$[0].questionKey",
-        "info.$": "$[0].info"
+        "info.$": "$[0].info",
+        "getQuestionState": "Question"
       }
     },
-    "Return Next Question": {
+    "No More Questions": {
       "Type": "Pass",
-      "End": true
+      "Next": "Success",
+      "Result": {
+        "getQuestionState": "NoMoreQuestions"
+      }
     },
-    "204: No More Questions": {
-      "Type": "Pass",
-      "End": true,
-      "Parameters": 204
+    "Success": {
+      "Type": "Succeed"
     }
   }
 }

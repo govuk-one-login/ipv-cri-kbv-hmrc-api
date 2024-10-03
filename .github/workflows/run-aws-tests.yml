@@ -42,13 +42,10 @@ jobs:
           role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
           aws-region: ${{ inputs.aws-region }}
 
-      - name: Refresh HMRC OAuth token
-        run: .github/refresh-hmrc-token.sh
-        shell: bash
-
       - name: Run tests
         working-directory: integration-tests
         env:
           AWS_REGION: ${{ inputs.aws-region }}
           STACK_NAME: ${{ inputs.stack-name }}
+          PARAMETER_PREFIX: "kbv-hmrc-cri-api"
         run: npm run test:aws -- --config jest.config.ci.ts --runInBand

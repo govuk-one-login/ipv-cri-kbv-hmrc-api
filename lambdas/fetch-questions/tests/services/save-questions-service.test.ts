@@ -8,8 +8,8 @@ import {
 import { mock } from "jest-mock-extended";
 
 const questionKey = "testkey";
-const taxYearCurrent = "testTaxYearCurrent";
-const taxYearPrevious = "testTaxYearPrevious";
+const currentTaxYear = "testcurrentTaxYear";
+const previousTaxYear = "testpreviousTaxYear";
 
 describe("SaveQuestionsService", () => {
   process.env.QUESTIONS_TABLE_NAME = "QUESTIONS_TABLE_NAME";
@@ -25,7 +25,7 @@ describe("SaveQuestionsService", () => {
 
   it("should save questions", async () => {
     const questionResultItemInfo: QuestionResultItemInfo =
-      new QuestionResultItemInfo(taxYearCurrent, taxYearPrevious);
+      new QuestionResultItemInfo(currentTaxYear, previousTaxYear);
 
     const questionResultItemQuestion: QuestionResultItemQuestion =
       new QuestionResultItemQuestion(
@@ -42,7 +42,7 @@ describe("SaveQuestionsService", () => {
       questions: [questionResultItemQuestion],
     };
     const questions: Question[] = [
-      new Question(questionKey, taxYearCurrent, taxYearPrevious),
+      new Question(questionKey, currentTaxYear, previousTaxYear),
     ];
 
     const result = await service.saveQuestions(

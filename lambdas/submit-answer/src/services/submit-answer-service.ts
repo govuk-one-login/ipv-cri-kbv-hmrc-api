@@ -1,8 +1,6 @@
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
-import { Logger } from "@aws-lambda-powertools/logger";
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
-import { Answer, SubmitAnswerResult } from "../types/answer-result-types";
-import { DynamoDBDocument, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
+import { SubmitAnswerResult } from "../types/answer-result-types";
 
 import {
   HTTPMetric,
@@ -10,64 +8,149 @@ import {
 } from "../../../../lib/src/MetricTypes/http-service-metrics";
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 
+import { CheckDetailsCountCalculator } from ".././utils/check-details-count-calculator";
+
+import { StopWatch } from "../../../../lib/src/Service/stop-watch";
+import { AuditService } from "../../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../../lib/src/types/audit-event";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { OTGToken } from "../../../../lib/src/types/otg-token-types";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
+import { SavedAnswersItem } from "../types/submit-answer-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
+
 enum AnswerServiceMetrics {
-  ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedAnswerKeyCount = "MappedAnswerKeyCount",
+  AnswersSubmitted = "AnswersSubmitted",
+  AnswersCorrect = "AnswersCorrect",
+  AnswersIncorrect = "AnswersIncorrect",
 }
 
 const ServiceName: string = "SubmitAnswersService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
+
+const checkDetailsCountCalculator = new CheckDetailsCountCalculator();
 
 export class SubmitAnswerService {
   private metricsProbe: MetricsProbe;
-  private dynamo: DynamoDBDocument;
+  private stopWatch: StopWatch;
+  private auditService: AuditService;
 
-  constructor(metricProbe: MetricsProbe, dyanamoDbClient: DynamoDBDocument) {
+  constructor(metricProbe: MetricsProbe, auditService: AuditService) {
     this.metricsProbe = metricProbe;
-    this.dynamo = dyanamoDbClient;
+    this.stopWatch = new StopWatch();
+    this.auditService = auditService;
   }
 
-  public async checkAnswers(event: any): Promise<SubmitAnswerResult[]> {
-    logger.info("Getting nino value...");
-    const nino: string = await this.getNino(event);
+  public async checkAnswers(
+    sessionItem: SessionItem,
+    nino: string,
+    savedAnswersItem: SavedAnswersItem,
+    parameters: any,
+    otgToken: OTGToken
+  ): Promise<SubmitAnswerResult[]> {
+    const results = await this.verifyWithThirdParty(
+      nino,
+      savedAnswersItem,
+      parameters,
+      otgToken
+    );
 
-    logger.info("Mapping answers to format accepted by HMRC...");
-    const answers: Answer[] = this.mapAnswersForThirdParty(event);
+    //For building and sending audit events
+    const endpoint = "SubmitAnswers";
 
-    return await this.verifyWithThirdParty(event, nino, answers);
+    const correctAnswerCount = checkDetailsCountCalculator.calculateAnswerCount(
+      results,
+      "correct"
+    );
+    const incorrectAnswerCount =
+      checkDetailsCountCalculator.calculateAnswerCount(results, "incorrect");
+
+    logHelper.info("Sending REQUEST_SENT Audit Event");
+    await this.auditService.sendAuditEvent(
+      AuditEventType.REQUEST_SENT,
+      sessionItem,
+      nino,
+      endpoint,
+      undefined,
+      parameters.issuer.value
+    );
+
+    const totalQuestionsAsked = correctAnswerCount + incorrectAnswerCount;
+    let outcome = "Not Authenticated";
+    if (correctAnswerCount > 2) {
+      outcome = "Authenticated";
+    }
+
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsAnsweredCorrect: correctAnswerCount,
+      totalQuestionsAsked: totalQuestionsAsked,
+      totalQuestionsAnsweredIncorrect: incorrectAnswerCount,
+      outcome: outcome,
+    };
+
+    logHelper.info("Sending RESPONSE RECEIVED Audit Event");
+    await this.auditService.sendAuditEvent(
+      AuditEventType.RESPONSE_RECEIVED,
+      sessionItem,
+      undefined,
+      endpoint,
+      hmrcIvqResponse,
+      parameters.issuer.value
+    );
+
+    return results;
+  }
+
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
   }
 
   private async verifyWithThirdParty(
-    event: any,
     nino: string,
-    answers: Answer[]
+    savedAnswersItem: SavedAnswersItem,
+    parameters: any,
+    otgToken: OTGToken
   ): Promise<SubmitAnswerResult[]> {
-    logger.info("Performing Submit Answers API Request...");
+    logHelper.info("Performing Submit Answers API Request...");
 
     // Response Latency (Start)
-    const start: number = Date.now();
+    this.stopWatch.start();
 
-    return await fetch(event.parameters.url, {
-      //How to get URL from template? Can JB pass url in event?
+    return await fetch(parameters.answersUrl.value, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.parameters.userAgent,
-        Authorization: "Bearer " + event.bearerToken.value, //don't think we'll have this in the event
+        "User-Agent": parameters.userAgent.value,
+        Authorization: "Bearer " + otgToken.token,
       },
       body: JSON.stringify({
-        correlationId: event.dynamoResult.Item.correlationId.S,
+        correlationId: savedAnswersItem.correlationId, //event?.usersQuestions?.Items[0]?.correlationId?.S,
         selection: {
           nino: nino,
         },
-        answers: answers,
+        answers: savedAnswersItem.answers,
       }),
     })
       .then(async (response) => {
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
-        logger.info(
+        logHelper.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
+        );
+
+        this.metricsProbe.captureServiceMetric(
+          AnswerServiceMetrics.AnswersSubmitted,
+          Classification.SERVICE_SPECIFIC,
+          ServiceName,
+          MetricUnit.Count,
+          savedAnswersItem.answers.length
         );
 
         // Response Status code
@@ -75,7 +158,7 @@ export class SubmitAnswerService {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           response.status
         );
 
@@ -98,7 +181,7 @@ export class SubmitAnswerService {
                   HTTPMetric.ResponseValidity,
                   Classification.HTTP,
                   ServiceName,
-                  MetricUnits.Count,
+                  MetricUnit.Count,
                   ResponseValidity.Valid
                 );
                 return answerResults;
@@ -139,27 +222,25 @@ export class SubmitAnswerService {
       })
 
       .catch((error: Error) => {
-        const subError: string = error.message;
+        // All errors caught in this top level catch
+        this.metricsProbe.captureServiceMetric(
+          HTTPMetric.ResponseValidity,
+          Classification.HTTP,
+          ServiceName,
+          MetricUnit.Count,
+          ResponseValidity.Invalid
+        );
 
-        const errorText: string = `Unable to parse json from response ${subError}`;
+        // Error Path Response Latency
+        const latency: number = this.captureResponseLatencyMetric();
+
+        // any other status code
+        const errorText: string = `API Request Failed : ${error.message}`;
+
+        logHelper.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });
-  }
-
-  private mapAnswersForThirdParty(event: any): Answer[] {
-    const requestBody = this.mapItemsToAnswers(
-      event.dynamoResult.Item.answers.L
-    );
-
-    requestBody.push(new Answer(event.answeredQuestionKey, event.inputAnswer));
-    return requestBody;
-  }
-
-  private async getNino(event: any): Promise<string> {
-    const personIdentity = await this.getPersonIdentityItem(event.sessionId);
-    const nino: string = personIdentity?.socialSecurityRecord?.personalNumber;
-    return nino;
   }
 
   private async retrieveJSONResponse(response: Response): Promise<any> {
@@ -175,78 +256,63 @@ export class SubmitAnswerService {
   }
 
   private mapToAnswerResults(json: any): SubmitAnswerResult[] {
-    logger.info(`Mapping AnswersResult`);
+    logHelper.info(`Mapping AnswersResult`);
 
     const responseAnswers = json;
     const mappedAnswers: SubmitAnswerResult[] = [];
 
+    let correctAnswers: number = 0;
+    let incorrectAnswers: number = 0;
+
     responseAnswers.forEach(
       (answer: { questionKey: string; score: string }) => {
         const questionKey: string = answer.questionKey;
-        logger.debug(`questionKey : ${questionKey}`);
+        logHelper.debug(`questionKey : ${questionKey}`);
 
         const answerStatus: string = answer.score;
-        logger.debug(`answer status: ${answerStatus}`);
+        logHelper.debug(`answer status: ${answerStatus}`);
+
+        if (answerStatus === "correct") {
+          correctAnswers++;
+        } else {
+          incorrectAnswers++;
+        }
 
         mappedAnswers.push(new SubmitAnswerResult(questionKey, answerStatus));
       }
     );
 
     this.metricsProbe.captureServiceMetric(
-      AnswerServiceMetrics.ResponseQuestionKeyCount,
+      AnswerServiceMetrics.AnswersCorrect,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
-      responseAnswers.length
+      MetricUnit.Count,
+      correctAnswers
     );
 
     this.metricsProbe.captureServiceMetric(
-      AnswerServiceMetrics.MappedAnswerKeyCount,
+      AnswerServiceMetrics.AnswersIncorrect,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
-      responseAnswers.length
+      MetricUnit.Count,
+      incorrectAnswers
     );
 
-    logger.info(`Mapped QuestionsResult`);
+    logHelper.info(`Mapped QuestionsResult`);
     return mappedAnswers;
   }
 
-  private mapItemsToAnswers(items: any) {
-    const answersArray: Answer[] = [];
-    items.forEach((element: { M: { [x: string]: { S: string } } }) => {
-      answersArray.push(
-        new Answer(element.M["questionKey"].S, element.M["answer"].S)
-      );
-    });
-
-    return answersArray;
-  }
-
-  private captureResponseLatency(start: number): number {
+  private captureResponseLatencyMetric(): number {
     // Response Latency (End)
-    const latency: number = Date.now() - start;
+    const latency: number = this.stopWatch.stop();
     this.metricsProbe.captureServiceMetric(
       HTTPMetric.ResponseLatency,
       Classification.HTTP,
       ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       latency
     );
 
     return latency;
-  }
-
-  private async getPersonIdentityItem(
-    sessionId: Record<string, unknown>
-  ): Promise<Record<string, any> | undefined> {
-    const command = new GetCommand({
-      TableName: process.env.PERSON_IDENTITY_TABLE_NAME,
-      Key: {
-        sessionId: sessionId,
-      },
-    });
-    const personIdentityItem = await this.dynamo.send(command);
-    return personIdentityItem.Item;
   }
 }

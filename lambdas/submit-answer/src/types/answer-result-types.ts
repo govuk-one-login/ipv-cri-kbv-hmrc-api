@@ -21,18 +21,30 @@ export class Answer {
 export class AnswerResultItem {
   sessionId: string;
   correlationId: string;
-  ttl: number;
+  expiryDate: number;
   answers: SubmitAnswerResult[];
+  verificationScore: number;
+  ci?: Array<string>;
+  checkDetailsCount?: number;
+  failedCheckDetailsCount?: number;
 
   constructor(
     sessionId: string,
     correlationId: string,
-    ttl: number,
-    answers: SubmitAnswerResult[]
+    expiryDate: number,
+    answers: SubmitAnswerResult[],
+    verificationScore: number,
+    checkDetailsCount?: number,
+    failedCheckDetailsCount?: number,
+    ci?: Array<string>
   ) {
     this.sessionId = sessionId;
     this.correlationId = correlationId;
-    this.ttl = ttl;
+    this.expiryDate = expiryDate;
     this.answers = answers;
+    this.verificationScore = verificationScore;
+    this.checkDetailsCount = checkDetailsCount;
+    this.failedCheckDetailsCount = failedCheckDetailsCount;
+    this.ci = ci;
   }
 }

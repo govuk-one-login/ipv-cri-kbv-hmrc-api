@@ -18,24 +18,25 @@ describe("fetch-questions-happy", () => {
 
   const sessionItem = {
     sessionId: sessionId,
-    attemptCount: 0,
-    clientId: "ipv-core-stub-aws-build",
-    clientIpAddress: "192.0.2.1",
+    expiryDate: ttl,
+    clientIpAddress: "127.0.0.1",
+    redirectUri: "http://localhost:8085/callback",
     clientSessionId: uuidv4(),
     createdDate: Date.now(),
-    expiryDate: ttl,
+    clientId: "integration-test-clientid",
+    subject: "integration-test-subject",
     persistentSessionId: uuidv4(),
-    redirectUri: "http://localhost:8085/callback",
+    attemptCount: 0,
     state: uuidv4(),
   };
 
   // Both the same until happy path test user has questions
   const happyPathSocialSecurityRecord = {
-    socialSecurityRecord: [{ personalNumber: "AA000003D" }],
+    socialSecurityRecord: [{ personalNumber: "KE000000C" }],
   };
 
   const unhappyPathSocialSecurityRecord = {
-    socialSecurityRecord: [{ personalNumber: "AA300005D" }],
+    socialSecurityRecord: [{ personalNumber: "NA000000Q" }],
   };
 
   const personIdentity = {
@@ -99,7 +100,7 @@ describe("fetch-questions-happy", () => {
       ).Item;
 
       // Will be the count of questions after question filtering
-      expect(questionItemResult?.questions?.length).toEqual(6);
+      expect(questionItemResult?.questions?.length).toEqual(3);
 
       const questions = questionItemResult?.questions;
 

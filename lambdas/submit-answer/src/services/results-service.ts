@@ -1,4 +1,3 @@
-import { Logger } from "@aws-lambda-powertools/logger";
 import {
   SubmitAnswerResult,
   AnswerResultItem,
@@ -8,12 +7,19 @@ import {
   GetCommand,
   PutCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { getParameter } from "@aws-lambda-powertools/parameters/ssm";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 const ServiceName: string = "ResultsService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
+
+const MINIMUM_QUESTION_COUNT = 0;
+const MAXIMUM_QUESTION_COUNT_FOR_NO_CI = 2;
 
 export class ResultsService {
-  private dynamo: DynamoDBDocument;
+  private readonly dynamo: DynamoDBDocument;
 
   constructor(dynamoDbClient: DynamoDBDocument) {
     this.dynamo = dynamoDbClient;
@@ -22,25 +28,51 @@ export class ResultsService {
   public async saveResults(
     sessionId: string,
     correlationId: string,
-    ttl: number,
-    answerResults: SubmitAnswerResult[]
+    expiryDate: number,
+    answerResults: SubmitAnswerResult[],
+    verificationScore: number,
+    checkDetailsCount: number,
+    failedCheckDetailsCount: number
   ): Promise<boolean> {
-    logger.info("Saving kbv results...");
+    logHelper.info("Saving kbv results...");
+    let ciValue: string;
+    try {
+      logHelper.info("Getting SSM parameters");
+
+      const ciParameterPath = process.env.CI_VALUE_PARAM_NAME as string;
+      const ciParameter = await this.getContraIndicator(ciParameterPath);
+
+      ciValue = ciParameter;
+    } catch (error: any) {
+      logHelper.info(`Error getting SSM parameters: ${error.message}`);
+      ciValue = "";
+    }
+
     const answerResultItem: AnswerResultItem = new AnswerResultItem(
       sessionId,
       correlationId,
-      ttl,
-      answerResults
+      expiryDate,
+      answerResults,
+      verificationScore,
+      checkDetailsCount > MINIMUM_QUESTION_COUNT
+        ? checkDetailsCount
+        : undefined,
+      failedCheckDetailsCount > MINIMUM_QUESTION_COUNT
+        ? failedCheckDetailsCount
+        : undefined,
+      checkDetailsCount >= MAXIMUM_QUESTION_COUNT_FOR_NO_CI
+        ? undefined
+        : [ciValue]
     );
-    logger.info("Mapped to answers to result item");
+    logHelper.info("Mapped to answers to result item");
     try {
-      logger.info("Commencing DB put...");
+      logHelper.info("Commencing DB put...");
       const putAnswersCommand = new PutCommand({
         TableName: process.env.RESULTS_TABLE_NAME,
         Item: answerResultItem,
       });
       await this.dynamo.send(putAnswersCommand);
-      logger.info("Answer Results saved successfully to DB");
+      logHelper.info("Answer Results saved successfully to DB");
       return true;
     } catch (error: any) {
       //future test debt, check these errors aren't logging PII
@@ -50,7 +82,7 @@ export class ResultsService {
   }
 
   public async getResults(sessionId: Record<string, unknown>): Promise<any> {
-    logger.info("Getting item from DB with ID " + sessionId);
+    logHelper.info("Getting item from DB with ID " + sessionId);
     const command = new GetCommand({
       TableName: process.env.RESULTS_TABLE_NAME,
       Key: {
@@ -58,5 +90,21 @@ export class ResultsService {
       },
     });
     return await this.dynamo.send(command);
+  }
+
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
+  }
+
+  private async getContraIndicator(ssmParamName: string): Promise<string> {
+    const parameter = await getParameter(ssmParamName);
+
+    logHelper.info("Successfully retrieved paramater from SSM");
+
+    return parameter as string;
   }
 }

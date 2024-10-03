@@ -5,6 +5,7 @@ export default {
   clearMocks: true,
   modulePaths: ["<rootDir>/src"],
   collectCoverageFrom: ["<rootDir>/src/**/*"],
+  coveragePathIgnorePatterns: ["<rootDir>/tests/jest.custom.ts"],
   testMatch: ["<rootDir>/tests/**/*.test.ts"],
   coverageThreshold: {
     global: {

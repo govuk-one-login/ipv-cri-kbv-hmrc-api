@@ -35,8 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Run Unit tests
         run: npm run test:coverage -- --config .github/jest.config.ci.ts
+
+      - name: Run Infra tests
+        run: npm run test:infra -- --config .github/jest.config.ci.ts
 
       - name: Archive coverage results
         if: ${{ inputs.coverage-report }}

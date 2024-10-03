@@ -1,5 +1,5 @@
-import { Logger } from "@aws-lambda-powertools/logger";
-import { MetricUnits } from "@aws-lambda-powertools/metrics";
+import { LogHelper } from "../../../../lib/src/Logging/log-helper";
+import { MetricUnit } from "@aws-lambda-powertools/metrics";
 import { QuestionsResult, Question } from "../types/questions-result-types";
 import {
   HTTPMetric,
@@ -8,48 +8,107 @@ import {
 
 import { Classification } from "../../../../lib/src/MetricTypes/metric-classifications";
 import { MetricsProbe } from "../../../../lib/src/Service/metrics-probe";
+import { StopWatch } from "../../../../lib/src/Service/stop-watch";
+import { FetchQuestionInputs } from "../types/fetch-question-types";
+
+import { AuditService } from "../../../../lib/src/Service/audit-service";
+import {
+  AuditEventType,
+  HmrcIvqResponse,
+} from "../../../../lib/src/types/audit-event";
+import { SessionItem } from "../../../../lib/src/types/common-types";
+import { Statemachine } from "../../../../lib/src/Logging/log-helper-types";
 
 enum QuestionServiceMetrics {
   ResponseQuestionKeyCount = "ResponseQuestionKeyCount",
-  MappedQuestionKeyCount = "MappedQuestionKeyCount",
 }
 
 const ServiceName: string = "QuestionsRetrievalService";
-const logger = new Logger({ serviceName: `${ServiceName}` });
+const logHelper = new LogHelper(ServiceName);
 
 export class QuestionsRetrievalService {
   metricsProbe: MetricsProbe;
+  stopWatch: StopWatch;
+  auditService: AuditService;
+  sqsQueueUrl: string | undefined;
 
-  constructor(metricProbe: MetricsProbe) {
+  constructor(metricProbe: MetricsProbe, auditService: AuditService) {
     this.metricsProbe = metricProbe;
+    this.stopWatch = new StopWatch();
+    this.auditService = auditService;
   }
 
-  public async retrieveQuestions(event: any): Promise<QuestionsResult> {
-    return await this.performAPIRequest(event);
+  public async retrieveQuestions(
+    inputs: FetchQuestionInputs
+  ): Promise<QuestionsResult> {
+    const questionsResult = await this.performAPIRequest(inputs);
+    const sessionItem = inputs.sessionItem;
+    const nino =
+      inputs?.personIdentityItem?.socialSecurityRecord?.[0].personalNumber;
+    const endpoint: string = "GetQuestions";
+    const issuer = inputs.issuer;
+    const questionResultCount: number = questionsResult.getQuestionCount();
+
+    logHelper.info("Sending REQUEST SENT Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.REQUEST_SENT,
+      sessionItem,
+      nino,
+      endpoint,
+      undefined,
+      issuer
+    );
+
+    const hmrcIvqResponse: HmrcIvqResponse = {
+      totalQuestionsReturned: questionResultCount,
+    };
+
+    logHelper.info("Sending RESPONSE RECEIVED Audit Event");
+    this.auditService.sendAuditEvent(
+      AuditEventType.RESPONSE_RECEIVED,
+      sessionItem,
+      undefined,
+      endpoint,
+      hmrcIvqResponse,
+      issuer
+    );
+
+    return questionsResult;
   }
 
-  private async performAPIRequest(event: any): Promise<QuestionsResult> {
-    logger.info("Performing API Request");
+  public async attachLogging(
+    sessionItem: SessionItem,
+    statemachine: Statemachine
+  ) {
+    logHelper.setSessionItemToLogging(sessionItem);
+    logHelper.setStatemachineValuesToLogging(statemachine);
+  }
+
+  private async performAPIRequest(
+    inputs: FetchQuestionInputs
+  ): Promise<QuestionsResult> {
+    logHelper.info("Performing API Request");
 
     // Response Latency (Start)
-    const start: number = Date.now();
+    this.stopWatch.start();
 
-    return await fetch(event.parameters.url, {
+    return await fetch(inputs.questionsUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": event.parameters.userAgent,
-        Authorization: "Bearer " + event.bearerToken.value,
+        "User-Agent": inputs.userAgent,
+        Authorization: "Bearer " + inputs.bearerToken,
       },
       body: JSON.stringify({
-        nino: event.personIdentityItem.nino,
+        nino: inputs?.personIdentityItem?.socialSecurityRecord?.[0]
+          .personalNumber,
       }),
     })
       .then(async (response) => {
         // Happy Path Response Latency
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
-        logger.info(
+        logHelper.info(
           `API Response Status Code: ${response.status}, Latency : ${latency}`
         );
 
@@ -58,7 +117,7 @@ export class QuestionsRetrievalService {
           HTTPMetric.HTTPStatusCode,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           response.status
         );
 
@@ -81,7 +140,7 @@ export class QuestionsRetrievalService {
                   HTTPMetric.ResponseValidity,
                   Classification.HTTP,
                   ServiceName,
-                  MetricUnits.Count,
+                  MetricUnit.Count,
                   ResponseValidity.Valid
                 );
                 return questionsResult;
@@ -118,24 +177,24 @@ export class QuestionsRetrievalService {
           HTTPMetric.ResponseValidity,
           Classification.HTTP,
           ServiceName,
-          MetricUnits.Count,
+          MetricUnit.Count,
           ResponseValidity.Invalid
         );
 
         // Error Path Response Latency
-        const latency: number = this.captureResponseLatency(start);
+        const latency: number = this.captureResponseLatencyMetric();
 
         // any other status code
         const errorText: string = `API Request Failed : ${error.message}`;
 
-        logger.error(`${errorText}, Latency : ${latency}`);
+        logHelper.error(`${errorText}, Latency : ${latency}`);
 
         throw new Error(errorText);
       });
   }
 
   private mapToQuestionsResult(json: any): QuestionsResult {
-    logger.info(`Mapping QuestionsResult`);
+    logHelper.info(`Mapping QuestionsResult`);
 
     const correlationId = json.correlationId;
     const responseQuestions = json.questions;
@@ -143,25 +202,25 @@ export class QuestionsRetrievalService {
 
     responseQuestions.forEach(
       (question: {
-        [info: string]: { taxYearCurrent: string; taxYearPrevious: string };
+        [info: string]: { currentTaxYear: string; previousTaxYear: string };
         questionKey: any;
       }) => {
         const questionKey: string = question.questionKey;
-        logger.debug(`question : ${questionKey}`);
+        logHelper.debug(`question : ${questionKey}`);
 
-        let taxYearCurrent: string | undefined = undefined;
-        let taxYearPrevious: string | undefined = undefined;
+        let currentTaxYear: string | undefined = undefined;
+        let previousTaxYear: string | undefined = undefined;
 
         if (Object.prototype.hasOwnProperty.call(question, "info")) {
-          taxYearCurrent = question["info"].taxYearCurrent;
-          taxYearPrevious = question["info"].taxYearPrevious;
+          currentTaxYear = question["info"].currentTaxYear;
+          previousTaxYear = question["info"].previousTaxYear;
         }
 
-        logger.debug(`info taxYearCurrent: ${taxYearCurrent}`);
-        logger.debug(`info taxYearPrevious: ${taxYearPrevious}`);
+        logHelper.debug(`info currentTaxYear: ${currentTaxYear}`);
+        logHelper.debug(`info previousTaxYear: ${previousTaxYear}`);
 
         mappedQuestions.push(
-          new Question(questionKey, taxYearCurrent, taxYearPrevious)
+          new Question(questionKey, currentTaxYear, previousTaxYear)
         );
       }
     );
@@ -171,19 +230,11 @@ export class QuestionsRetrievalService {
       QuestionServiceMetrics.ResponseQuestionKeyCount,
       Classification.SERVICE_SPECIFIC,
       ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       responseQuestions.length
     );
 
-    this.metricsProbe.captureServiceMetric(
-      QuestionServiceMetrics.MappedQuestionKeyCount,
-      Classification.SERVICE_SPECIFIC,
-      ServiceName,
-      MetricUnits.Count,
-      responseQuestions.length
-    );
-
-    logger.info(`Mapped QuestionsResult`);
+    logHelper.info(`Mapped QuestionsResult`);
     return new QuestionsResult(correlationId, mappedQuestions);
   }
 
@@ -199,14 +250,14 @@ export class QuestionsRetrievalService {
     }
   }
 
-  private captureResponseLatency(start: number): number {
+  private captureResponseLatencyMetric(): number {
     // Response Latency (End)
-    const latency: number = Date.now() - start;
+    const latency: number = this.stopWatch.stop();
     this.metricsProbe.captureServiceMetric(
       HTTPMetric.ResponseLatency,
       Classification.HTTP,
       ServiceName,
-      MetricUnits.Count,
+      MetricUnit.Count,
       latency
     );
 
