@@ -89,7 +89,7 @@ export class IssueCredentialHandler implements LambdaInterface {
 
       const correlationId = answerResults.Item.correlationId;
 
-      const sub = "urn:uuid:" + uuidv4().toString();
+      const sub = input.sessionItem.subject;
       const nbf = Date.now();
       const iss = input.issuer;
       const jti = "urn:uuid:" + uuidv4().toString();
