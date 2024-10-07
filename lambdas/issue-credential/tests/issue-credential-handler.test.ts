@@ -217,7 +217,7 @@ describe("IssueCredentialHandler", () => {
       SQS_AUDIT_EVENT_QUEUE_URL
     );
 
-    const sub = "urn:uuid:" + uuidv4().toString();
+    const sub = mockInputEvent.sessionItem.subject;
     const nbf = Date.now();
     const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
@@ -262,7 +262,6 @@ describe("IssueCredentialHandler", () => {
     )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.vcBody.sub = sub;
     lambdaResponse.vcBody.nbf = nbf;
     lambdaResponse.vcBody.jti = jti;
 
@@ -327,7 +326,7 @@ describe("IssueCredentialHandler", () => {
       SQS_AUDIT_EVENT_QUEUE_URL
     );
 
-    const sub = "urn:uuid:" + uuidv4().toString();
+    const sub = mockInputEvent.sessionItem.subject;
     const nbf = Date.now();
     const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
@@ -374,7 +373,6 @@ describe("IssueCredentialHandler", () => {
     )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.vcBody.sub = sub;
     lambdaResponse.vcBody.nbf = nbf;
     lambdaResponse.vcBody.jti = jti;
 
@@ -430,7 +428,7 @@ describe("IssueCredentialHandler", () => {
       SQS_AUDIT_EVENT_QUEUE_URL
     );
 
-    const sub = "urn:uuid:" + uuidv4().toString();
+    const sub = mockInputEvent.sessionItem.subject;
     const nbf = Date.now();
     const iss = mockInputEvent.parameters.issuer.value;
     const jti = "urn:uuid:" + uuidv4().toString();
@@ -477,7 +475,6 @@ describe("IssueCredentialHandler", () => {
     )) as { vcBody: VerifiableCredential };
 
     //The below is a temporary workAround for random UUID generation causing test to fail as jti/sub/nbf fields mismatch in VC
-    lambdaResponse.vcBody.sub = sub;
     lambdaResponse.vcBody.nbf = nbf;
     lambdaResponse.vcBody.jti = jti;
 
