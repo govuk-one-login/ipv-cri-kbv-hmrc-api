@@ -53,6 +53,10 @@ Parameters:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
     Default: txma-infrastructure
+  LogGroupRetentionInDays:
+    Description: "Retention for all log groups"
+    Type: Number
+    Default: "30"
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -245,7 +249,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-public-AccessLogs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
   PublicKbvHmrcApiAccessLogGroupSubscriptionFilter:
@@ -324,7 +328,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/apigateway/${AWS::StackName}-private-AccessLogs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
       KmsKeyId: !GetAtt LoggingKmsKey.Arn
 
   PrivateKbvHmrcApiAccessLogGroupSubscriptionFilter:
@@ -440,7 +444,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-FetchQuestionsStateMachine-logs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   FetchQuestionsStateMachineLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -501,7 +505,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-GetQuestion-state-machine-logs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   GetQuestionStateMachineLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -603,7 +607,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-PostAnswer-state-machine-logs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   PostAnswerStateMachineLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -688,7 +692,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/vendedlogs/states/${AWS::StackName}-IssueCredential-state-machine-logs
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   IssueCredentialStateMachineLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -734,7 +738,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${OTGTokenFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   OTGTokenFunctionLogGroupLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -801,7 +805,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${FetchQuestionsFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   FetchQuestionsFunctionLogGroupLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -876,7 +880,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${SubmitAnswerFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   SubmitAnswerFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -907,7 +911,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${CreateAuthCodeFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   CreateAuthCodeFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -938,7 +942,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${EvidenceCheckDetailsFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   EvidenceCheckDetailsFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -1007,7 +1011,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${IssueCredentialFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   IssueCredentialFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -1046,7 +1050,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${AWS::StackName}/JwtSignerFunction
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   JwtSignerFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -1078,7 +1082,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AnswerValidationFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   AnswerValidationFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -1124,7 +1128,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${DynamoUnmarshallFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   DynamoUnmarshallFunctionLogGroupLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
@@ -1179,7 +1183,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${SSMParametersFunction}"
-      RetentionInDays: 30
+      RetentionInDays: !Ref LogGroupRetentionInDays
 
   SSMParametersFunctionLogGroupSubscriptionFilterCsls:
     Type: AWS::Logs::SubscriptionFilter
