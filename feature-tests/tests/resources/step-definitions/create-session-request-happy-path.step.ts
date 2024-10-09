@@ -4,7 +4,6 @@ import {
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
-  updateClaimsUrl,
 } from "../../../utils/create-session";
 
 const feature = loadFeature(

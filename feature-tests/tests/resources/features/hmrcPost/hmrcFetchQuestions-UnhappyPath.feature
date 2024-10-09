@@ -20,7 +20,7 @@ Feature: HMRC-KBV-GET-FetchQuestions-UnhappyPath.feature
             | text/html        | application/json | 400        | KE000000C    | 197    |
             | application/json | text/html        | 403        | KE000000C    | 197    |
 
-    @failing-regression @hmrc-fetchquestions
+    @pre-merge @hmrc-fetchquestions
     Scenario Outline: Unhappy Path - Post Request to /fetchquestions Endpoint - Invalid Endpoint
         Given I send a new valid fetchquestions request to the core stub with the selected nino value <selectedNino> for user <userId>
         When I send a POST request with valid headers <contentType> and <accept> to a Invalid fetchQuestions endpoint
