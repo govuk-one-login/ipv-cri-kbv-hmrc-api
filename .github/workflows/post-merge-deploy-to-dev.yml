@@ -27,7 +27,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: SAM Validate
-        run: sam validate --region ${{ env.AWS_REGION }} -t infrastructure/template.yaml
+        run: sam validate --region ${{ env.AWS_REGION }} -t infrastructure/template.yaml --lint
 
       - name: SAM build
         run: |
