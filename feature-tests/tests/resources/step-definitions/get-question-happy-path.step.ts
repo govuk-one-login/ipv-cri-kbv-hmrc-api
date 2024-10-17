@@ -43,9 +43,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -63,9 +65,11 @@ defineFeature(feature, (test) => {
         EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
       )
         .get(EndPoints.QUESTION_ENDPOINT)
-        .set("Content-Type", "application/json")
-        .set("Accept", "application/json")
-        .set("session-id", getValidSessionId);
+        .set({
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "session-id": getValidSessionId,
+        });
       console.log(
         "GET Request Questions Endpoint - Status Code= ",
         getRequestToQuestionEndpoint.statusCode

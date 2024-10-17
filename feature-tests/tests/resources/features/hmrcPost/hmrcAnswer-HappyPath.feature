@@ -1,7 +1,7 @@
 Feature: HMRC-KBV-POST-Answer-HappyPath.feature
 
     @pre-merge @hmrc-answer
-    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with >=3 questions over 2 questionKeys
+    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with >=3 questions over 2 questionKeys - Verification Score 2
         Given I send a new answer request to the core stub with nino value <selectedNino> for user <userId>
         Given I send a valid POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
         When I send a first GET request to the question endpoint followed by a POST request to the answer endpoint with the correct answerKey
@@ -19,11 +19,24 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 202                    | 204             | AA000005A    | "verificationScore":2 | 197    |
             | application/json | application/json | 200        | 202                    | 204             | AA000006A    | "verificationScore":2 | 197    |
             | application/json | application/json | 200        | 202                    | 204             | AA000003I    | "verificationScore":2 | 197    |
+
+    @pre-merge @hmrc-answer
+    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with >=3 questions over 2 questionKeys - Verification Score 0
+        Given I send a new answer request to the core stub with nino value <selectedNino> for user <userId>
+        Given I send a valid POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
+        When I send a first GET request to the question endpoint followed by a POST request to the answer endpoint with the correct answerKey
+        And I send a second GET request to the question endpoint followed by a POST request to the answer endpoint
+        And I send a third GET request to the question endpoint followed by a POST request to the answer endpoint
+        Then I should receive a valid response with statusCode <intermediateStatusCode> from the answers endpoint
+        Then I should receive a final valid response with statusCode <finalStatusCode> from the questions endpoint
+        And I should receive a VC with verification score <verificationScore> for <selectedNino> with >=3 questions over 2 questionKey
+        Examples:
+            | contentType      | accept           | statusCode | intermediateStatusCode | finalStatusCode | selectedNino | verificationScore     | userId |
             | application/json | application/json | 200        | 202                    | 204             | AA000003C    | "verificationScore":0 | 197    |
             | application/json | application/json | 200        | 202                    | 204             | AA000003Z    | "verificationScore":0 | 197    |
 
     @pre-merge @hmrc-answer
-    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 2 questions over 2 questionKeys
+    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 2 questions over 2 questionKeys - Verification Score 2
         Given I send a new request to the core stub with nino value <selectedNino> for a user <userId> with 2 questions
         Given I send a valid 2 question POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
         When I send the first GET request to the question endpoint followed by a POST request to the answer endpoint
@@ -33,6 +46,17 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
         Examples:
             | contentType      | accept           | statusCode | finalStatusCode | selectedNino | verificationScore     | userId |
             | application/json | application/json | 200        | 204             | AA000002A    | "verificationScore":2 | 197    |
+
+    @pre-merge @hmrc-answer
+    Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 2 questions over 2 questionKeys - Verification Score 0
+        Given I send a new request to the core stub with nino value <selectedNino> for a user <userId> with 2 questions
+        Given I send a valid 2 question POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
+        When I send the first GET request to the question endpoint followed by a POST request to the answer endpoint
+        And I send a second GET request to the question endpoint followed by a final POST request to the answer endpoint
+        Then I should receive the final valid response with statusCode <finalStatusCode> from the questions endpoint for a user with 2 questions answered correctly
+        And I should receive a VC with verification score <verificationScore> for <selectedNino> with 2 questions over 2 question keys
+        Examples:
+            | contentType      | accept           | statusCode | finalStatusCode | selectedNino | verificationScore     | userId |
             | application/json | application/json | 200        | 204             | AA000002Z    | "verificationScore":0 | 197    |
             | application/json | application/json | 200        | 204             | AA000002C    | "verificationScore":0 | 197    |
 

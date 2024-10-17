@@ -21,7 +21,7 @@ const config: Config = {
       "./node_modules/jest-html-reporter",
       {
         pageTitle: "HMRC KBV CRI - Test Report",
-        outputPath: "results/test-report.html",
+        outputPath: "results/index.html",
       },
     ],
   ],
