@@ -62,6 +62,7 @@ jobs:
           sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
           aws-role-arn: ${{ vars.DEPLOYMENT_ROLE_ARN }}
           stack-name-prefix: preview-kbv-hmrc-api
+          stack-name-length-limit: 34
           cache-name: ipv-cri-hmrc-kbv-api-${{ needs.build.outputs.sha_short}}
           s3-prefix: preview
           pull-repository: true
