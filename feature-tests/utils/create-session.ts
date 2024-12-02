@@ -23,15 +23,14 @@ export async function generateClaimsUrl(selectedNino: string, userId: string) {
     ninoValue;
   getClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .get(claimsForUserUrl)
-    .set(
-      "Authorization",
-      getBasicAuthenticationHeader(
+    .set({
+      Authorization: getBasicAuthenticationHeader(
         process.env.CORE_STUB_USERNAME,
         process.env.CORE_STUB_PASSWORD
-      )
-    )
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json");
+      ),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
   console.log(
     "Initial ClaimSet Generated: " +
       JSON.stringify(getClaimsUrl.text, undefined, 2)
@@ -71,15 +70,14 @@ export async function postUpdatedClaimsUrl(useUpdatedBody: boolean) {
   postClaimsUrl = await request(EndPoints.CORE_STUB_URL)
     .post(EndPoints.PATH_POST_CLAIMS + EndPoints.CRI_ID)
     .send(bodyToSend)
-    .set(
-      "Authorization",
-      getBasicAuthenticationHeader(
+    .set({
+      Authorization: getBasicAuthenticationHeader(
         process.env.CORE_STUB_USERNAME,
         process.env.CORE_STUB_PASSWORD
-      )
-    )
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json");
+      ),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
   console.log(
     "Encoded ClaimSet Response Body: " +
       JSON.stringify(postClaimsUrl.body, undefined, 2)
@@ -94,9 +92,11 @@ export async function postRequestToSessionEndpoint() {
   )
     .post(EndPoints.SESSION_URL)
     .send(postClaimsUrl.text)
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json")
-    .set("X-Forwarded-For", "123456789");
+    .set({
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Forwarded-For": "123456789",
+    });
   console.log("SESSION_ID = ", postSessionEndpoint.body.session_id);
   expect(postSessionEndpoint.statusCode).toEqual(Number(201));
 }
@@ -114,9 +114,11 @@ export async function getRequestAuthorisationCode() {
     clientId;
   getReqAuthCode = await request(EndPoints.PRIVATE_API_GATEWAY_URL)
     .get(authCodeUrl)
-    .set("session-id", sessionId)
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json");
+    .set({
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "session-id": sessionId,
+    });
   console.log("SESSION ID: ", sessionId);
   console.log("AUTH CODE: ", getReqAuthCode.body.authorizationCode.value);
   expect(getReqAuthCode.statusCode).toEqual(Number(200));
@@ -131,15 +133,14 @@ export async function getAccessTokenRequest() {
     EndPoints.CRI_ID;
   getTokenRequest = await request(EndPoints.CORE_STUB_URL)
     .get(accessTokenUrl)
-    .set(
-      "Authorization",
-      getBasicAuthenticationHeader(
+    .set({
+      Authorization: getBasicAuthenticationHeader(
         process.env.CORE_STUB_USERNAME,
         process.env.CORE_STUB_PASSWORD
-      )
-    )
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json");
+      ),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
   console.log(
     "Request to Access Token Endpoint Response Body: " +
       JSON.stringify(getTokenRequest.text, undefined, 2)
@@ -150,8 +151,10 @@ export async function postRequestToAccessTokenEndpoint() {
   postAccessTokenEndpoint = await request(EndPoints.PUBLIC_API_GATEWAY_URL)
     .post(EndPoints.PATH_ACCESS_TOKEN)
     .send(getTokenRequest.text)
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json");
+    .set({
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
   console.log("ACCESS TOKEN: ", postAccessTokenEndpoint.body.access_token);
   expect(postAccessTokenEndpoint.statusCode).toEqual(Number(200));
 }
@@ -162,9 +165,11 @@ export async function postRequestHmrcKbvCriVc() {
   postHmrcKbvVCEndpoint = await request(EndPoints.PUBLIC_API_GATEWAY_URL)
     .post(EndPoints.PATH_CREDENTIAL_ISSUE)
     .send({})
-    .set("Authorization", "Bearer" + " " + bearerToken)
-    .set("Content-Type", "application/json")
-    .set("Accept", "application/json")
+    .set({
+      Authorization: "Bearer" + " " + bearerToken,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    })
     .buffer(true)
     .parse((res, cb) => {
       let data = Buffer.from("");

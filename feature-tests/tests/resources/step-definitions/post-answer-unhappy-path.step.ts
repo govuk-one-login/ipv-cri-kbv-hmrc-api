@@ -6,10 +6,6 @@ import {
   generateClaimsUrl,
   postUpdatedClaimsUrl,
   postRequestToSessionEndpoint,
-  getRequestAuthorisationCode,
-  getAccessTokenRequest,
-  postRequestToAccessTokenEndpoint,
-  postRequestHmrcKbvCriVc,
 } from "../../../utils/create-session";
 import { App } from "supertest/types";
 import { questionKeyResponse } from "../../../utils/answer_body";
@@ -25,7 +21,6 @@ defineFeature(feature, (test) => {
   let postRequestToHmrcKbvEndpoint: any;
   let getValidSessionId: string;
   let questionKeyFromGetResponse: string;
-  let decrypedVcResponse: any;
 
   beforeEach(async () => {});
 
@@ -52,9 +47,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -76,9 +73,11 @@ defineFeature(feature, (test) => {
         EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
       )
         .get(EndPoints.QUESTION_ENDPOINT)
-        .set("Content-Type", "application/json")
-        .set("Accept", "application/json")
-        .set("session-id", getValidSessionId);
+        .set({
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "session-id": getValidSessionId,
+        });
       console.log(
         "GET Request Question Endpoint - QuestionKey Response = " +
           JSON.stringify(
@@ -105,9 +104,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(postQuestionKey)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", session_id)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": session_id,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -164,9 +165,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -191,9 +194,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Questions Endpoint - Status Code= ",
           getRequestToQuestionEndpoint.statusCode
@@ -225,10 +230,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(postQuestionKey)
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId);
-
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          });
         console.log("ReturnedAnswer = ", postPayload);
         console.log(
           "Response from Answer Endpoint using invalid headers: " +
@@ -282,9 +288,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -309,9 +317,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Questions Endpoint - Status Code= ",
           getRequestToQuestionEndpoint.statusCode
@@ -337,9 +347,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.INVALID_ANSWER_ENDPOINT)
           .send("")
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          });
         console.log(
           "Answer Endpoint Invalid Endpoint: ",
           JSON.stringify(postRequestToAnswerEndpoint.request.url, undefined, 2)
@@ -391,9 +403,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -417,9 +431,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -439,9 +455,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(questionKeyResponse.ANSWER_POST_PAYLOAD_INVALID_QUESTION_KEY)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -496,9 +514,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -522,9 +542,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -544,9 +566,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(questionKeyResponse.ANSWER_POST_PAYLOAD_ITA_BANK)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -601,9 +625,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -627,9 +653,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -649,9 +677,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(invalidQuestionKeyValue)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -706,9 +736,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -735,9 +767,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -759,9 +793,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(postQuestionKey)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "Answer Endpoint Status Response " +
             JSON.stringify(postRequestToAnswerEndpoint.status)
@@ -776,9 +812,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -801,9 +839,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(postQuestionKey)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "Answer Endpoint Status Response " +
             JSON.stringify(postRequestToAnswerEndpoint.status)
@@ -817,9 +857,11 @@ defineFeature(feature, (test) => {
           EndPoints.PRIVATE_API_GATEWAY_URL as unknown as App
         )
           .get(EndPoints.QUESTION_ENDPOINT)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "GET Request Question Endpoint - QuestionKey Response = " +
             JSON.stringify(
@@ -854,9 +896,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.ANSWER_ENDPOINT)
           .send(postQuestionKey)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .set("session-id", getValidSessionId);
+          .set({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "session-id": getValidSessionId,
+          });
         console.log(
           "Answer Endpoint Status Response " +
             JSON.stringify(postRequestToAnswerEndpoint.status)

@@ -1,5 +1,6 @@
 import { WebDriver, By, until } from "selenium-webdriver";
 import { AbstractPageObject } from "./abstract-page-object";
+import { timeDelayForTestEnvironment } from "../../../utils/utility";
 
 export class ContextPage extends AbstractPageObject {
   private continueButton = By.xpath("//*[@id='start']");
@@ -9,12 +10,13 @@ export class ContextPage extends AbstractPageObject {
   }
 
   clickContinue = async () => {
-    await this.driver.wait(until.elementLocated(this.continueButton)), 2000;
+    await this.driver.wait(until.elementLocated(this.continueButton));
     await this.driver.findElement(this.continueButton).click();
     return this;
   };
 
   goTo = async (pageUrl: string) => {
+    console.log(`Navigating to: ${pageUrl}`);
     await this.driver.get(pageUrl);
   };
 }

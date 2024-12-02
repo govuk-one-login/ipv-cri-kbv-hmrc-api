@@ -2,7 +2,7 @@ import { WebDriver, By } from "selenium-webdriver";
 import { AbstractPageObject } from "./abstract-page-object";
 
 export class QuestionPage extends AbstractPageObject {
-  private continueButton = By.xpath(
+  private readonly continueButton = By.xpath(
     '//*[@id="main-content"]/div/div/form/button'
   );
 
@@ -17,6 +17,11 @@ export class QuestionPage extends AbstractPageObject {
 
   enterAnswer = async (answer: string, questionKey: string) => {
     await this.driver.findElement(By.id(questionKey)).sendKeys(answer);
+    return this;
+  };
+
+  enterInvalidAnswer = async (answer: string, questionKeySelected: string) => {
+    await this.driver.findElement(By.id(questionKeySelected)).sendKeys(answer);
     return this;
   };
 
