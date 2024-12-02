@@ -139,4 +139,8 @@ dist
 # SAM
 **/.aws-sam/
 build
+
 /feature-tests/results
+
+# OS generated files
+.DS_Store
