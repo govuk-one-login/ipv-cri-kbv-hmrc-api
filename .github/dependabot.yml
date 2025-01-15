@@ -8,6 +8,7 @@ updates:
     target-branch: main
     labels:
       - dependabot
+    open-pull-requests-limit: 20
     ignore:
       - dependency-name: "node"
         versions: ["17.x", "18.x"]
