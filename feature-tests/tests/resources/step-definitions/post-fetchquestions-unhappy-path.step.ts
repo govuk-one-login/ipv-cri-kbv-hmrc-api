@@ -41,9 +41,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", session_id)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": session_id,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -99,9 +101,11 @@ defineFeature(feature, (test) => {
           )
             .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
             .send({})
-            .set("Content-Type", contentType)
-            .set("Accept", accept)
-            .set("session-id", getValidSessionId)
+            .set({
+              "Content-Type": contentType,
+              Accept: accept,
+              "session-id": getValidSessionId,
+            })
             .buffer(true)
             .parse((res, cb) => {
               console.log(
@@ -171,9 +175,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.INVALID_FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -231,9 +237,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -283,9 +291,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -335,9 +345,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");
@@ -387,9 +399,11 @@ defineFeature(feature, (test) => {
         )
           .post(EndPoints.FETCH_QUESTIONS_ENDPOINT)
           .send({})
-          .set("Content-Type", contentType)
-          .set("Accept", accept)
-          .set("session-id", getValidSessionId)
+          .set({
+            "Content-Type": contentType,
+            Accept: accept,
+            "session-id": getValidSessionId,
+          })
           .buffer(true)
           .parse((res, cb) => {
             let data = Buffer.from("");

@@ -71,7 +71,20 @@ defineFeature(feature, (test) => {
     );
 
     then(/^I see a question page$/, async () => {
+      await driver.wait(
+        async () => {
+          let pageTitle = await driver.getTitle();
+          return (
+            pageTitle.includes("Enter the") ||
+            pageTitle.includes("What type") ||
+            pageTitle.includes("Enter a")
+          );
+        },
+        1000,
+        "Expected the page to be a question page, but it wasn't."
+      );
       let pageTitle = await driver.getTitle();
+      console.log(`Page Title: ${pageTitle}`);
       let isQuestionPage =
         pageTitle.includes("Enter the") ||
         pageTitle.includes("What type") ||
