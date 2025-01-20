@@ -56,7 +56,7 @@ Parameters:
   LogGroupRetentionInDays:
     Description: "Retention for all log groups"
     Type: Number
-    Default: "30"
+    Default: "7"
 
 Conditions:
   # Avoid adding a standalone IsDevEnv condition
@@ -207,8 +207,8 @@ Resources:
           # Disable data trace in production to avoid logging customer sensitive information
           DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 200
-          ThrottlingBurstLimit: 400
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 100
       AccessLogSetting:
         DestinationArn: !GetAtt PublicKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -273,8 +273,8 @@ Resources:
           # Disable data trace in production to avoid logging customer sensitive information
           DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 200
-          ThrottlingBurstLimit: 400
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 100
       AccessLogSetting:
         DestinationArn: !GetAtt PrivateKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -1266,11 +1266,11 @@ Resources:
         - ApiId: !Ref PublicKbvHmrcApi
           Stage: !Ref Environment
       Quota:
-        Limit: 500000
+        Limit: 100000
         Period: DAY
       Throttle:
-        RateLimit: 200 # allowed requests per second
-        BurstLimit: 400 # requests the API can handle concurrently
+        RateLimit: 50 # allowed requests per second
+        BurstLimit: 100 # requests the API can handle concurrently
 
   PrivateKbvHmrcApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
@@ -1282,11 +1282,11 @@ Resources:
         - ApiId: !Ref PrivateKbvHmrcApi
           Stage: !Ref Environment
       Quota:
-        Limit: 500000
+        Limit: 100000
         Period: DAY
       Throttle:
-        RateLimit: 200 # allowed requests per second
-        BurstLimit: 400 # requests the API can handle concurrently
+        RateLimit: 50 # allowed requests per second
+        BurstLimit: 100 # requests the API can handle concurrently
 
   LinkUsagePlanApiKey1:
     Condition: IsDeployedFromPipeline
