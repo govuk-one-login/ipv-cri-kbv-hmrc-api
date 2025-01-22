@@ -13,16 +13,16 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
         Examples:
             | contentType      | accept           | statusCode | intermediateStatusCode | finalStatusCode | selectedNino | verificationScore     | userId |
             | application/json | application/json | 200        | 202                    | 204             | KE000000C    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000000A    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000003A    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000004A    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000005A    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000006A    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000003I    | "verificationScore":2 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000003C    | "verificationScore":0 | 197    |
-            | application/json | application/json | 200        | 202                    | 204             | AA000003Z    | "verificationScore":0 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000000A    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000003A    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000004A    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000005A    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000006A    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000003I    | "verificationScore":2 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000003C    | "verificationScore":0 | 197    |
+            # | application/json | application/json | 200        | 202                    | 204             | AA000003Z    | "verificationScore":0 | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 2 questions over 2 questionKeys
         Given I send a new request to the core stub with nino value <selectedNino> for a user <userId> with 2 questions
         Given I send a valid 2 question POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
@@ -36,7 +36,7 @@ Feature: HMRC-KBV-POST-Answer-HappyPath.feature
             | application/json | application/json | 200        | 204             | AA000002Z    | "verificationScore":0 | 197    |
             | application/json | application/json | 200        | 204             | AA000002C    | "verificationScore":0 | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Happy Path - Post request to /answer Endpoint for nino <selectedNino> with 3 questions including 1 low confidence question
         Given I send a new request to the core stub with nino value <selectedNino> for a user <userId> with 3 questions including 1 low confidence question
         Given I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>

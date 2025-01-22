@@ -15,7 +15,7 @@ const feature = loadFeature(
 defineFeature(feature, (test) => {
   let driver: WebDriver;
 
-  let chromeOptions = new Options();
+  const chromeOptions = new Options();
   if (process.env.CI) {
     chromeOptions.addArguments("--no-sandbox");
     chromeOptions.addArguments("--whitelisted-ips= ");
@@ -50,8 +50,8 @@ defineFeature(feature, (test) => {
       /^I start the journey with the backend stub and nino (.*) for user (.*)$/,
       async (selectedNino, userId) => {
         await generateClaimsUrl(selectedNino, userId);
-        let encodedClaims = await postUpdatedClaimsUrl(false);
-        let contextPage: ContextPage = new ContextPage(driver);
+        const encodedClaims = await postUpdatedClaimsUrl(false);
+        const contextPage: ContextPage = new ContextPage(driver);
         await contextPage.goTo(
           EndPoints.FRONTEND +
             "/oauth2/authorize?request=" +
@@ -65,14 +65,14 @@ defineFeature(feature, (test) => {
     when(
       /^I select continue on the context page triggering fetch questions Request$/,
       async () => {
-        let contextPage: ContextPage = new ContextPage(driver);
+        const contextPage: ContextPage = new ContextPage(driver);
         await contextPage.clickContinue();
       }
     );
 
     then(/^I see a question page$/, async () => {
-      let pageTitle = await driver.getTitle();
-      let isQuestionPage =
+      const pageTitle = await driver.getTitle();
+      const isQuestionPage =
         pageTitle.includes("Enter the") ||
         pageTitle.includes("What type") ||
         pageTitle.includes("Enter a");
