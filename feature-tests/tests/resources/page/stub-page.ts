@@ -12,7 +12,7 @@ export class StubPage extends AbstractPageObject {
     await this.driver
       .findElement(By.xpath('//*[@id="main-content"]/div/details/summary'))
       .click();
-    let vcText = await this.driver.findElement(this.vcBlock).getText();
+    const vcText = await this.driver.findElement(this.vcBlock).getText();
     return vcText;
   };
 }

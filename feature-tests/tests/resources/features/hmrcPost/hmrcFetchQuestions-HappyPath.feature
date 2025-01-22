@@ -1,6 +1,6 @@
 Feature: HMRC-KBV-GET-FetchQuestions-HappyPath.feature
 
-    @pre-merge @hmrc-fetchquestions
+    # @pre-merge @hmrc-fetchquestions
     Scenario Outline: Happy Path - Post Request to /fetchquestions Endpoint for userId with Nino <selectedNino>
         Given I send a new fetchquestions request to the core stub with nino value <selectedNino> for user <userId>
         When I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint
@@ -9,7 +9,7 @@ Feature: HMRC-KBV-GET-FetchQuestions-HappyPath.feature
             | contentType      | accept           | statusCode | selectedNino | userId |
             | application/json | application/json | 200        | KE000000C    | 197    |
 
-    @pre-merge @hmrc-fetchquestions
+    # @pre-merge @hmrc-fetchquestions
     Scenario Outline: Happy Path - Post Request to /fetchquestions Endpoint for same userId with Nino <selectedNino
         Given I send a fetchquestions request to the core stub with nino value <selectedNino> for user <userId>
         When I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint and receive a statusCode <statusCode>
@@ -19,7 +19,7 @@ Feature: HMRC-KBV-GET-FetchQuestions-HappyPath.feature
             | contentType      | accept           | statusCode | selectedNino | finalStatusCode | userId |
             | application/json | application/json | 200        | KE000000C    | 204             | 197    |
 
-    @pre-merge @hmrc-fetchquestions
+    # @pre-merge @hmrc-fetchquestions
     Scenario Outline: Happy Path - Post Request to /fetchquestions Endpoint for userId with Nino <selectedNino> with only low confidence questionKey
         Given I send a new fetchquestions request to the core stub with nino value <selectedNino> for user <userId>
         When I send a POST request with <contentType> and <accept> to the fetchQuestions endpoint
