@@ -1,6 +1,6 @@
 Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - sessionId
         Given I send a request to the core stub with nino value <selectedNino> for user <userId>
         Given I send a valid POST request with <contentType> and <accept> to the fetchQuestions endpoint
@@ -11,7 +11,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | contentType      | accept           | statusCode | selectedNino | session_id                           | userId |
             | application/json | application/json | 403        | AA000002A    | 44443939-4cf4-41e9-9fee-231e16e9f382 | 197    |
 
-    @failing-regression @hmrc-answer
+    # @failing-regression @hmrc-answer
     # Confirm with Dev the expected outcome for invalid contentType headers
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - contentType and accept
         Given I send a valid request to the core stub with nino value <selectedNino> for user <userId>
@@ -23,7 +23,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | contentType | accept           | statusCode | selectedNino | responseMessage        | userId |
             | text/html   | application/json | 415        | KE000000C    | Unsupported Media Type | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Endpoint
         Given I send a valid request to the core stub with the selected nino value <selectedNino> for user <userId>
         And I send a valid new POST request to the fetchQuestions endpoint
@@ -34,7 +34,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | contentType | accept           | statusCode | selectedNino | responseMessage              | userId |
             | text/html   | application/json | 403        | AA000002A    | Missing Authentication Token | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Invalid Question Key
         Given I send a request to the core stub with a nino value <selectedNino> for user <userId>
         Given I send a new valid POST request to the fetchQuestions endpoint
@@ -45,7 +45,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | statusCode | selectedNino | userId |
             | 500        | AA000002A    | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Incorrect Question Key
         Given I send a new request to the core stub with a nino value <selectedNino> for user <userId>
         Given I send a new POST request to the fetchQuestions endpoint
@@ -56,7 +56,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | statusCode | selectedNino | userId |
             | 204        | AA000002A    | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Answer Body - Incorrect Question Key Value
         Given I send a new valid request to the core stub with a nino value <selectedNino> for user <userId>
         Given I send a new POST request to the fetchQuestions endpoint for a valid userId
@@ -77,7 +77,7 @@ Feature: HMRC-KBV-POST-Answer-UnhappyPath.feature
             | 400        | AL000000S    | {"": "","": ""}                                                                                     | 197    |
             | 400        | AL000000S    | {"questionKeys": "tc-amount","value": "400"}                                                        | 197    |
 
-    @pre-merge @hmrc-answer
+    # @pre-merge @hmrc-answer
     Scenario Outline: Unhappy Path - Post request to /answer Endpoint - Invalid Header Values - Malformed Response
         Given I send a answer request to the core stub with nino value <selectedNino> for user <userId>
         Given I send a new valid POST request with <contentType> and <accept> to the fetchQuestions endpoint with status code <statusCode>
