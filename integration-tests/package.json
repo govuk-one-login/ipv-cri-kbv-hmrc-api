@@ -29,6 +29,6 @@
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "9.0.8",
     "aws-testing-library": "4.0.6",
-    "testcontainers": "10.0.2"
+    "testcontainers": "10.17.2"
   }
 }
