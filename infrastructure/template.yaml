@@ -65,6 +65,15 @@ Conditions:
     Fn::Equals:
       - !Ref DeploymentType
       - "pipeline"
+  IsHMRCDecommissioned: !Or
+    - !Equals [!Ref Environment, dev]
+    - !Equals [!Ref Environment, build]
+    - !Equals [!Ref Environment, staging]
+    - !Equals [!Ref Environment, integration]
+    - !Equals [!Ref Environment, production]
+  IsHMRCDecommissionedOrIsDeployedFromPipeline: !Or
+    - !Condition IsHMRCDecommissioned
+    - !Condition IsDeployedFromPipeline
   # Don't send logs in dev to avoid overwhelming the destination with debug
   LogSendingEnabled: !And
     - !Not [!Equals [!Ref Environment, "dev"]]
@@ -160,30 +169,45 @@ Mappings:
       VerifiableCredentialJwtTtlUnit: HOURS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
+      throttleQuotaLimit: 0
+      throttleRateLimit: 0
+      throttleBurstLimit: 0
     build:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 2
       VerifiableCredentialJwtTtlUnit: HOURS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
+      throttleQuotaLimit: 0
+      throttleRateLimit: 0
+      throttleBurstLimit: 0
     staging:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
+      throttleQuotaLimit: 0
+      throttleRateLimit: 0
+      throttleBurstLimit: 0
     integration:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: false # PII in state data
       StateMachineLoggingLevel: "ALL"
+      throttleQuotaLimit: 0
+      throttleRateLimit: 0
+      throttleBurstLimit: 0
     production:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: false # PII in state data
       StateMachineLoggingLevel: "ALL"
+      throttleQuotaLimit: 0
+      throttleRateLimit: 0
+      throttleBurstLimit: 0
 
 Resources:
   ####################################################################
@@ -1258,38 +1282,62 @@ Resources:
 
   PublicKbvHmrcApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    Condition: IsDeployedFromPipeline
-    # DependsOn:
-    #   - PublicKbvHmrcApiStage
+    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
+    DependsOn:
+      - PublicKbvHmrcApiStage
     Properties:
       ApiStages:
         - ApiId: !Ref PublicKbvHmrcApi
           Stage: !Ref Environment
       Quota:
-        Limit: 100000
+        Limit:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleQuotaLimit,
+          ]
         Period: DAY
       Throttle:
-        RateLimit: 50 # allowed requests per second
-        BurstLimit: 100 # requests the API can handle concurrently
-
+        RateLimit: !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleRateLimit,
+          ] # allowed requests per second
+        BurstLimit: !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleBurstLimit,
+          ] # requests the API can handle concurrently
   PrivateKbvHmrcApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    Condition: IsDeployedFromPipeline
-    # DependsOn:
-    #   - PrivateKbvHmrcApiStage
+    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
+    DependsOn:
+      - PrivateKbvHmrcApiStage
     Properties:
       ApiStages:
         - ApiId: !Ref PrivateKbvHmrcApi
           Stage: !Ref Environment
       Quota:
-        Limit: 100000
+        Limit:
+          !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleQuotaLimit,
+          ]
         Period: DAY
       Throttle:
-        RateLimit: 50 # allowed requests per second
-        BurstLimit: 100 # requests the API can handle concurrently
-
+        RateLimit: !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleRateLimit,
+          ] # allowed requests per second
+        BurstLimit: !FindInMap [
+            EnvironmentConfiguration,
+            !Ref Environment,
+            throttleBurstLimit,
+          ] # requests the API can handle concurrently
   LinkUsagePlanApiKey1:
-    Condition: IsDeployedFromPipeline
+    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
       KeyId: !ImportValue core-infrastructure-ApiKey1
@@ -1297,7 +1345,7 @@ Resources:
       UsagePlanId: !Ref PublicKbvHmrcApiUsagePlan
 
   LinkUsagePlanApiKey2:
-    Condition: IsDeployedFromPipeline
+    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
       KeyId: !ImportValue core-infrastructure-ApiKey2
