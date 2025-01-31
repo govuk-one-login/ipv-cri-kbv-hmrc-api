@@ -21,7 +21,7 @@ const feature = loadFeature(
 defineFeature(feature, (test) => {
   let driver: WebDriver;
 
-  let chromeOptions = new Options();
+  const chromeOptions = new Options();
   if (process.env.CI) {
     chromeOptions.addArguments("--no-sandbox");
     chromeOptions.addArguments("--whitelisted-ips= ");
@@ -59,8 +59,8 @@ defineFeature(feature, (test) => {
       /^I start the journey with the backend stub and nino (.*) for user (.*)$/,
       async (selectedNino, userId) => {
         await generateClaimsUrl(selectedNino, userId);
-        let encodedClaims = await postUpdatedClaimsUrl(false);
-        let contextPage: ContextPage = new ContextPage(driver);
+        const encodedClaims = await postUpdatedClaimsUrl(false);
+        const contextPage: ContextPage = new ContextPage(driver);
         await contextPage.goTo(
           EndPoints.FRONTEND +
             "/oauth2/authorize?request=" +
@@ -74,15 +74,15 @@ defineFeature(feature, (test) => {
     when(
       /^I select continue on the context page triggering fetch questions Request$/,
       async () => {
-        let contextPage: ContextPage = new ContextPage(driver);
+        const contextPage: ContextPage = new ContextPage(driver);
         expect(contextPage).toBeTruthy();
         await contextPage.clickContinue();
       }
     );
 
     then(/^I see a question page$/, async () => {
-      let pageTitle = await driver.getTitle();
-      let isQuestionPage =
+      const pageTitle = await driver.getTitle();
+      const isQuestionPage =
         pageTitle.includes("Enter the") ||
         pageTitle.includes("What type") ||
         pageTitle.includes("Enter a");
@@ -107,15 +107,15 @@ defineFeature(feature, (test) => {
     and(
       /^I should receive a VC with the correct verificationScore (.*) for a user with >=3 questions over 2 questionKey$/,
       async (verificationScore: string) => {
-        let stubPage: StubPage = new StubPage(driver);
+        const stubPage: StubPage = new StubPage(driver);
 
-        let summaryElement = await driver.findElements(
+        const summaryElement = await driver.findElements(
           By.xpath('//*[@id="main-content"]/div/details/summary')
         );
         if (summaryElement.length <= 0) {
-          let currentUrl = await driver.getCurrentUrl();
-          let urlWithoutPrefix = currentUrl.substring("https://".length);
-          let authUrl =
+          const currentUrl = await driver.getCurrentUrl();
+          const urlWithoutPrefix = currentUrl.substring("https://".length);
+          const authUrl =
             "https://" +
             EndPoints.CORE_STUB_USERNAME +
             ":" +
@@ -125,7 +125,7 @@ defineFeature(feature, (test) => {
           driver.get(authUrl);
         }
 
-        let vcText = await stubPage.getVc();
+        const vcText = await stubPage.getVc();
         expect(vcText).toContain(verificationScore);
         console.log("VC Data", vcText);
       }
@@ -142,8 +142,8 @@ defineFeature(feature, (test) => {
       /^I start the journey with the backend stub and nino (.*) for user (.*)$/,
       async (selectedNino, userId) => {
         await generateClaimsUrl(selectedNino, userId);
-        let encodedClaims = await postUpdatedClaimsUrl(false);
-        let contextPage: ContextPage = new ContextPage(driver);
+        const encodedClaims = await postUpdatedClaimsUrl(false);
+        const contextPage: ContextPage = new ContextPage(driver);
         await contextPage.goTo(
           EndPoints.FRONTEND +
             "/oauth2/authorize?request=" +
@@ -157,15 +157,15 @@ defineFeature(feature, (test) => {
     when(
       /^I select continue on the context page triggering fetch questions Request$/,
       async () => {
-        let contextPage: ContextPage = new ContextPage(driver);
+        const contextPage: ContextPage = new ContextPage(driver);
         expect(contextPage).toBeTruthy();
         await contextPage.clickContinue();
       }
     );
 
     then(/^I see a question page$/, async () => {
-      let pageTitle = await driver.getTitle();
-      let isQuestionPage =
+      const pageTitle = await driver.getTitle();
+      const isQuestionPage =
         pageTitle.includes("Enter the") ||
         pageTitle.includes("What type") ||
         pageTitle.includes("Enter a");
@@ -187,15 +187,15 @@ defineFeature(feature, (test) => {
     and(
       /^I should receive a VC with the correct verificationScore (.*) for a user with 2 questions over 2 questionKey$/,
       async (verificationScore: string) => {
-        let stubPage: StubPage = new StubPage(driver);
+        const stubPage: StubPage = new StubPage(driver);
 
-        let summaryElement = await driver.findElements(
+        const summaryElement = await driver.findElements(
           By.xpath('//*[@id="main-content"]/div/details/summary')
         );
         if (summaryElement.length <= 0) {
-          let currentUrl = await driver.getCurrentUrl();
-          let urlWithoutPrefix = currentUrl.substring("https://".length);
-          let authUrl =
+          const currentUrl = await driver.getCurrentUrl();
+          const urlWithoutPrefix = currentUrl.substring("https://".length);
+          const authUrl =
             "https://" +
             EndPoints.CORE_STUB_USERNAME +
             ":" +
@@ -205,7 +205,7 @@ defineFeature(feature, (test) => {
           driver.get(authUrl);
         }
 
-        let vcText = await stubPage.getVc();
+        const vcText = await stubPage.getVc();
         expect(vcText).toContain(verificationScore);
       }
     );
@@ -222,8 +222,8 @@ defineFeature(feature, (test) => {
       async (selectedNino, userId, firstName, familyName) => {
         await generateClaimsUrl(selectedNino, userId);
         await updateClaimsUrl(firstName, familyName);
-        let encodedClaims = await postUpdatedClaimsUrl(true);
-        let contextPage: ContextPage = new ContextPage(driver);
+        const encodedClaims = await postUpdatedClaimsUrl(true);
+        const contextPage: ContextPage = new ContextPage(driver);
         await contextPage.goTo(
           EndPoints.FRONTEND +
             "/oauth2/authorize?request=" +
@@ -237,15 +237,15 @@ defineFeature(feature, (test) => {
     when(
       /^I select continue on the context page calling fetch questions Request$/,
       async () => {
-        let contextPage: ContextPage = new ContextPage(driver);
+        const contextPage: ContextPage = new ContextPage(driver);
         expect(contextPage).toBeTruthy();
         await contextPage.clickContinue();
       }
     );
 
     then(/^I see the first question page$/, async () => {
-      let pageTitle = await driver.getTitle();
-      let isQuestionPage =
+      const pageTitle = await driver.getTitle();
+      const isQuestionPage =
         pageTitle.includes("Enter the") ||
         pageTitle.includes("What type") ||
         pageTitle.includes("Enter a");
@@ -270,15 +270,15 @@ defineFeature(feature, (test) => {
     and(
       /^I should receive a VC with the correct verificationScore (.*) for a HMRC user with >=3 questions over 2 questionKey$/,
       async (verificationScore: string) => {
-        let stubPage: StubPage = new StubPage(driver);
+        const stubPage: StubPage = new StubPage(driver);
 
-        let summaryElement = await driver.findElements(
+        const summaryElement = await driver.findElements(
           By.xpath('//*[@id="main-content"]/div/details/summary')
         );
         if (summaryElement.length <= 0) {
-          let currentUrl = await driver.getCurrentUrl();
-          let urlWithoutPrefix = currentUrl.substring("https://".length);
-          let authUrl =
+          const currentUrl = await driver.getCurrentUrl();
+          const urlWithoutPrefix = currentUrl.substring("https://".length);
+          const authUrl =
             "https://" +
             EndPoints.CORE_STUB_USERNAME +
             ":" +
@@ -288,7 +288,7 @@ defineFeature(feature, (test) => {
           driver.get(authUrl);
         }
 
-        let vcText = await stubPage.getVc();
+        const vcText = await stubPage.getVc();
         expect(vcText).toContain(verificationScore);
         console.log("VC Data Returned: ", vcText);
       }
@@ -296,9 +296,9 @@ defineFeature(feature, (test) => {
   });
 
   async function enterAnswer() {
-    let currentUrl = await driver.getCurrentUrl();
-    let currentPath = currentUrl.substring(currentUrl.lastIndexOf("/") + 1);
-    let questionFromUrl = await findObjectContainingValue(
+    const currentUrl = await driver.getCurrentUrl();
+    const currentPath = currentUrl.substring(currentUrl.lastIndexOf("/") + 1);
+    const questionFromUrl = await findObjectContainingValue(
       urlKeyMap,
       currentPath
     );
@@ -313,11 +313,11 @@ defineFeature(feature, (test) => {
     const objectProprty = Object.keys(postPayload!)[0];
     const postQuestionKey = postPayload![objectProprty];
 
-    let quesionPage: QuestionPage = new QuestionPage(driver);
+    const quesionPage: QuestionPage = new QuestionPage(driver);
 
     if (postQuestionKey.questionKey === "sa-payment-details") {
-      let saPaymentJson = JSON.parse(postQuestionKey.value);
-      let dateArray = saPaymentJson.paymentDate.split("-");
+      const saPaymentJson = JSON.parse(postQuestionKey.value);
+      const dateArray = saPaymentJson.paymentDate.split("-");
       await quesionPage.enterAnswer(
         dateArray[2],
         "selfAssessmentPaymentDate-day"
@@ -368,7 +368,7 @@ defineFeature(feature, (test) => {
   }
 
   async function clickContinue() {
-    let quesionPage: QuestionPage = new QuestionPage(driver);
+    const quesionPage: QuestionPage = new QuestionPage(driver);
     await quesionPage.clickContinue();
   }
 });
