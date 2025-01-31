@@ -48,7 +48,7 @@ Parameters:
   UseApiKey:
     Type: String
     Default: "true"
-    Description: Value used to indicate if the public api should be protected by a api key.
+    Description: Value used to indicate if the public api should be protected by an api key.
   TxmaStackName:
     Description: "The stack containing the TXMA infrastructure"
     Type: String
@@ -65,15 +65,6 @@ Conditions:
     Fn::Equals:
       - !Ref DeploymentType
       - "pipeline"
-  IsHMRCDecommissioned: !Or
-    - !Equals [!Ref Environment, dev]
-    - !Equals [!Ref Environment, build]
-    - !Equals [!Ref Environment, staging]
-    - !Equals [!Ref Environment, integration]
-    - !Equals [!Ref Environment, production]
-  IsHMRCDecommissionedOrIsDeployedFromPipeline: !Or
-    - !Condition IsHMRCDecommissioned
-    - !Condition IsDeployedFromPipeline
   # Don't send logs in dev to avoid overwhelming the destination with debug
   LogSendingEnabled: !And
     - !Not [!Equals [!Ref Environment, "dev"]]
@@ -169,45 +160,55 @@ Mappings:
       VerifiableCredentialJwtTtlUnit: HOURS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
-      throttleQuotaLimit: 0
-      throttleRateLimit: 0
-      throttleBurstLimit: 0
+      apiKeythrottleQuotaLimit: 1
+      apiKeythrottleRateLimit: 1
+      apiKeythrottleBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 1
+      apiGatewayMethodThrottlingBurstLimit: 1
     build:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 2
       VerifiableCredentialJwtTtlUnit: HOURS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
-      throttleQuotaLimit: 0
-      throttleRateLimit: 0
-      throttleBurstLimit: 0
+      apiKeythrottleQuotaLimit: 1
+      apiKeythrottleRateLimit: 1
+      apiKeythrottleBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 1
+      apiGatewayMethodThrottlingBurstLimit: 1
     staging:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: true
       StateMachineLoggingLevel: "ALL"
-      throttleQuotaLimit: 0
-      throttleRateLimit: 0
-      throttleBurstLimit: 0
+      apiKeythrottleQuotaLimit: 1
+      apiKeythrottleRateLimit: 1
+      apiKeythrottleBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 1
+      apiGatewayMethodThrottlingBurstLimit: 1
     integration:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: false # PII in state data
       StateMachineLoggingLevel: "ALL"
-      throttleQuotaLimit: 0
-      throttleRateLimit: 0
-      throttleBurstLimit: 0
+      apiKeythrottleQuotaLimit: 1
+      apiKeythrottleRateLimit: 1
+      apiKeythrottleBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 1
+      apiGatewayMethodThrottlingBurstLimit: 1
     production:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceProductionVariables
       VerifiableCredentialMaxJwtTtl: 6
       VerifiableCredentialJwtTtlUnit: MONTHS
       StateMachineLoggingIncludeExecutionData: false # PII in state data
       StateMachineLoggingLevel: "ALL"
-      throttleQuotaLimit: 0
-      throttleRateLimit: 0
-      throttleBurstLimit: 0
+      apiKeythrottleQuotaLimit: 1
+      apiKeythrottleRateLimit: 1
+      apiKeythrottleBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 1
+      apiGatewayMethodThrottlingBurstLimit: 1
 
 Resources:
   ####################################################################
@@ -231,8 +232,18 @@ Resources:
           # Disable data trace in production to avoid logging customer sensitive information
           DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 50
-          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit:
+            !FindInMap [
+              EnvironmentConfiguration,
+              !Ref Environment,
+              apiGatewayMethodThrottlingRateLimit,
+            ]
+          ThrottlingBurstLimit:
+            !FindInMap [
+              EnvironmentConfiguration,
+              !Ref Environment,
+              apiGatewayMethodThrottlingBurstLimit,
+            ]
       AccessLogSetting:
         DestinationArn: !GetAtt PublicKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -297,8 +308,18 @@ Resources:
           # Disable data trace in production to avoid logging customer sensitive information
           DataTraceEnabled: !If [IsProdEnvironment, false, true]
           MetricsEnabled: true
-          ThrottlingRateLimit: 50
-          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit:
+            !FindInMap [
+              EnvironmentConfiguration,
+              !Ref Environment,
+              apiGatewayMethodThrottlingRateLimit,
+            ]
+          ThrottlingBurstLimit:
+            !FindInMap [
+              EnvironmentConfiguration,
+              !Ref Environment,
+              apiGatewayMethodThrottlingBurstLimit,
+            ]
       AccessLogSetting:
         DestinationArn: !GetAtt PrivateKbvHmrcApiAccessLogGroup.Arn
         Format: >-
@@ -1282,62 +1303,59 @@ Resources:
 
   PublicKbvHmrcApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
-    DependsOn:
-      - PublicKbvHmrcApiStage
+    Condition: IsDeployedFromPipeline
     Properties:
       ApiStages:
         - ApiId: !Ref PublicKbvHmrcApi
-          Stage: !Ref Environment
+          Stage: !Ref PublicKbvHmrcApi.Stage
       Quota:
         Limit:
           !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleQuotaLimit,
+            apiKeythrottleQuotaLimit,
           ]
         Period: DAY
       Throttle:
         RateLimit: !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleRateLimit,
+            apiKeythrottleRateLimit,
           ] # allowed requests per second
         BurstLimit: !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleBurstLimit,
+            apiKeythrottleBurstLimit,
           ] # requests the API can handle concurrently
+
   PrivateKbvHmrcApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
-    DependsOn:
-      - PrivateKbvHmrcApiStage
+    Condition: IsDeployedFromPipeline
     Properties:
       ApiStages:
         - ApiId: !Ref PrivateKbvHmrcApi
-          Stage: !Ref Environment
+          Stage: !Ref PrivateKbvHmrcApi.Stage
       Quota:
         Limit:
           !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleQuotaLimit,
+            apiKeythrottleQuotaLimit,
           ]
         Period: DAY
       Throttle:
         RateLimit: !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleRateLimit,
+            apiKeythrottleRateLimit,
           ] # allowed requests per second
         BurstLimit: !FindInMap [
             EnvironmentConfiguration,
             !Ref Environment,
-            throttleBurstLimit,
+            apiKeythrottleBurstLimit,
           ] # requests the API can handle concurrently
   LinkUsagePlanApiKey1:
-    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
+    Condition: IsDeployedFromPipeline
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
       KeyId: !ImportValue core-infrastructure-ApiKey1
@@ -1345,7 +1363,7 @@ Resources:
       UsagePlanId: !Ref PublicKbvHmrcApiUsagePlan
 
   LinkUsagePlanApiKey2:
-    Condition: IsHMRCDecommissionedOrIsDeployedFromPipeline
+    Condition: IsDeployedFromPipeline
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
       KeyId: !ImportValue core-infrastructure-ApiKey2
