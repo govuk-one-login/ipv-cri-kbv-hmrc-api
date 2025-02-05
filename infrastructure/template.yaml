@@ -163,8 +163,8 @@ Mappings:
       apiKeythrottleQuotaLimit: 1
       apiKeythrottleRateLimit: 1
       apiKeythrottleBurstLimit: 1
-      apiGatewayMethodThrottlingRateLimit: 1
-      apiGatewayMethodThrottlingBurstLimit: 1
+      apiGatewayMethodThrottlingRateLimit: 5
+      apiGatewayMethodThrottlingBurstLimit: 5
     build:
       dynatraceSecretArn: arn:aws:secretsmanager:eu-west-2:216552277552:secret:DynatraceNonProductionVariables
       VerifiableCredentialMaxJwtTtl: 2
