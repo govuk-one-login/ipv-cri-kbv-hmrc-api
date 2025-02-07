@@ -12,6 +12,22 @@ updates:
     ignore:
       - dependency-name: "node"
         versions: ["17.x", "18.x"]
+    groups:
+      awssdk:
+        patterns:
+          - "@aws-sdk/client-dynamodb"
+          - "@aws-sdk/client-client-kms"
+          - "@aws-sdk/client-client-sqs"
+          - "@aws-sdk/client-client-ssm"
+          - "@aws-sdk/credential-providers"
+          - "@aws-sdk/lib-dynamodb"
+      powertools:
+        patterns:
+          - "@aws-lambda-powertools/commons"
+          - "@aws-lambda-powertools/logger"
+          - "@aws-lambda-powertools/metrics"
+          - "@aws-lambda-powertools/parameters"
+          - "@aws-lambda-powertools/tracer"
     commit-message:
       prefix: BAU
   - package-ecosystem: "github-actions"
