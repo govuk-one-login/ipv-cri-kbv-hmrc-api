@@ -23,7 +23,7 @@
     "@aws-lambda-powertools/parameters": "2.13.1",
     "@aws-lambda-powertools/tracer": "2.13.1",
     "@aws-sdk/client-dynamodb": "3.734.0",
-    "@aws-sdk/client-kms": "3.734.0",
+    "@aws-sdk/client-kms": "3.744.0",
     "@aws-sdk/client-sqs": "3.734.0",
     "@aws-sdk/client-ssm": "3.734.0",
     "@aws-sdk/credential-providers": "3.734.0",
