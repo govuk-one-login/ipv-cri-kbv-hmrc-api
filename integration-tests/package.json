@@ -27,7 +27,7 @@
     "@aws-sdk/client-sfn": "3.405.0",
     "@aws-sdk/lib-dynamodb": "3.398.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/uuid": "9.0.8",
+    "@types/uuid": "10.0.0",
     "aws-testing-library": "4.0.6",
     "testcontainers": "10.0.2"
   }
