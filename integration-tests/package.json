@@ -17,7 +17,7 @@
   "author": "alphagov",
   "license": "MIT",
   "dependencies": {
-    "aws-cdk-lib": "^2.155.0",
+    "aws-cdk-lib": "2.155.0",
     "js-yaml": "^4.1.0",
     "yaml-cfn": "^0.3.2"
   },
