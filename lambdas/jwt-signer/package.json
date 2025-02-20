@@ -11,7 +11,7 @@
     "compile": "tsc"
   },
   "dependencies": {
-    "@aws-sdk/credential-providers": "3.726.1",
+    "@aws-sdk/credential-providers": "3.750.0",
     "@aws-sdk/client-kms": "3.451.0",
     "ecdsa-sig-formatter": "1.0.11"
   },
