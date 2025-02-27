@@ -7,6 +7,7 @@ Metadata:
       ignore_checks:
         - W2031
         - W1020
+        - W8003
 
 Parameters:
   VpcStackName:
